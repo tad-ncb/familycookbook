@@ -212,6 +212,113 @@
     .ing-list{columns:1;}
     .facet-name{width:100%; margin-bottom:2px;}
   }
+  /* ---------- Phase 1: tracking + scaling ---------- */
+  .toolbar{
+    max-width:var(--maxw); margin:0 auto; padding:0 32px 18px;
+    display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px;
+  }
+  .toolbar .tb-group{ display:flex; align-items:center; gap:8px; }
+  .toolbar label.tb-name{
+    font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase;
+    letter-spacing:0.09em; color:var(--ink-faint);
+  }
+  select.tb-select{
+    font-family:'Inter',sans-serif; font-size:13px; color:var(--ink);
+    background:var(--card); border:1px solid var(--line); border-radius:3px;
+    padding:5px 8px; cursor:pointer;
+  }
+  .tb-spacer{ flex:1 1 auto; }
+  button.tb-btn{
+    font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase;
+    letter-spacing:0.07em; color:var(--ink-soft); background:var(--card);
+    border:1px solid var(--line); border-radius:3px; padding:6px 10px; cursor:pointer;
+  }
+  button.tb-btn:hover{ color:var(--stamp); border-color:var(--stamp); }
+  button.tb-btn.on{ color:#fff; background:var(--stamp); border-color:var(--stamp); }
+
+  .card-meta{
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    margin-top:10px; font-family:'IBM Plex Mono', monospace; font-size:9.5px;
+    color:var(--ink-faint); letter-spacing:0.04em;
+  }
+  .made-badge{ color:var(--stamp); }
+  .made-badge.never{ color:var(--ink-faint); }
+  .stars{ color:#B8860B; letter-spacing:0.5px; }
+  .ahead-pill{
+    font-family:'IBM Plex Mono', monospace; font-size:9px; text-transform:uppercase;
+    letter-spacing:0.07em; color:var(--alert); background:var(--alert-soft);
+    border:1px solid var(--alert); border-radius:2px; padding:2px 6px; white-space:nowrap;
+  }
+  .card-time .t-total{ color:var(--ink-soft); font-weight:600; }
+
+  /* scaling */
+  .scale-bar{
+    display:flex; align-items:center; flex-wrap:wrap; gap:10px;
+    border:1px solid var(--line); background:var(--paper);
+    border-radius:3px; padding:9px 12px; margin:2px 0 14px;
+  }
+  .scale-bar .sb-label{
+    font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase;
+    letter-spacing:0.08em; color:var(--ink-faint);
+  }
+  .scale-bar.active{ border-color:var(--stamp); background:var(--stamp-soft); }
+  .scale-bar.active .sb-label{ color:var(--stamp); }
+  .step{ display:flex; align-items:center; gap:0; }
+  .step button{
+    width:26px; height:26px; line-height:1; font-size:15px; cursor:pointer;
+    background:var(--card); border:1px solid var(--line); color:var(--ink);
+  }
+  .step button:first-child{ border-radius:3px 0 0 3px; }
+  .step button:last-child{ border-radius:0 3px 3px 0; }
+  .step .step-val{
+    min-width:54px; text-align:center; padding:0 8px; height:26px; line-height:26px;
+    border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+    background:var(--card); font-family:'Inter',sans-serif; font-size:13px; font-weight:600;
+  }
+  .mult-btn{
+    font-family:'IBM Plex Mono', monospace; font-size:10px; cursor:pointer;
+    background:var(--card); border:1px solid var(--line); border-radius:3px;
+    padding:5px 9px; color:var(--ink-soft);
+  }
+  .mult-btn:hover{ color:var(--stamp); border-color:var(--stamp); }
+  .mult-btn.on{ color:#fff; background:var(--stamp); border-color:var(--stamp); }
+  .unscaled-note{ color:var(--ink-faint); font-size:11px; font-style:italic; white-space:nowrap; }
+
+  /* cooked panel */
+  .cook-panel{ border-top:1px solid var(--line); margin-top:26px; padding-top:18px; }
+  .cook-row{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+  .cook-btn{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; text-transform:uppercase;
+    letter-spacing:0.07em; color:#fff; background:var(--stamp); border:1px solid var(--stamp);
+    border-radius:3px; padding:8px 14px; cursor:pointer;
+  }
+  .cook-btn:hover{ opacity:.88; }
+  .cook-form{ display:none; margin-top:12px; gap:10px; flex-wrap:wrap; align-items:center; }
+  .cook-form.open{ display:flex; }
+  .cook-form input[type=date], .cook-form input[type=text]{
+    font-family:'Inter',sans-serif; font-size:13px; padding:6px 8px;
+    border:1px solid var(--line); border-radius:3px; background:var(--card); color:var(--ink);
+  }
+  .cook-form input[type=text]{ flex:1 1 220px; }
+  .rate-pick{ display:flex; gap:2px; cursor:pointer; font-size:17px; color:var(--line); }
+  .rate-pick span:hover, .rate-pick span.lit{ color:#B8860B; }
+  .cook-hist{ margin-top:14px; display:flex; flex-direction:column; gap:7px; }
+  .cook-hist-item{
+    display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
+    font-size:13px; color:var(--ink-soft); padding-bottom:7px; border-bottom:1px dotted var(--line);
+  }
+  .cook-hist-item .ch-date{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink); }
+  .cook-hist-item .ch-note{ font-style:italic; }
+  .ch-del{ margin-left:auto; cursor:pointer; color:var(--ink-faint); font-size:11px; }
+  .ch-del:hover{ color:var(--alert); }
+  .cook-empty{ color:var(--ink-faint); font-style:italic; font-size:13px; margin-top:10px; }
+  .ahead-callout{
+    margin:0 0 14px; padding:9px 12px; border-left:3px solid var(--alert);
+    background:var(--alert-soft); font-size:13px; color:var(--ink);
+  }
+  @media (max-width:640px){
+    .toolbar{ padding:0 14px 14px; }
+  }
 </style>
 </head>
 <body>
@@ -242,6 +349,8 @@
   </div>
 </div>
 
+<div class="toolbar" id="toolbar"></div>
+
 <main class="grid" id="grid"></main>
 
 <footer id="footerCount"></footer>
@@ -257,13 +366,17 @@
       <div class="source-line" id="modalSource"></div>
       <div class="tags" id="modalTags"></div>
 
+      <div id="modalAhead"></div>
+
       <div class="section-title">Ingredients</div>
+      <div id="modalScale"></div>
       <ul class="ing-list" id="modalIngredients"></ul>
 
       <div class="section-title">Method</div>
       <ol class="steps" id="modalSteps"></ol>
 
       <div id="modalNotesWrap"></div>
+      <div id="modalCook"></div>
     </div>
   </div>
 </div>
@@ -672,7 +785,8 @@ const RECIPES = [
     "notes": "We start potatoes in cold water so they cook evenly from the inside out as the water heats up. Depending on how hot your oven runs and how crowded the baking sheet is, roasting times can vary greatly. Don't rush this process - they need that time in the oven to cook off some of their inherent moisture before turning all golden and crisp, and you wouldn't want to prevent that from happening, would you?",
     "needsReview": false,
     "cookTime": "1 hour 5 minutes",
-    "prepTime": "15 minutes"
+    "prepTime": "15 minutes",
+    "shortTitle": "Smooshed Salt & Vinegar Potatoes"
   },
   {
     "id": "banana-bread-cake",
@@ -827,7 +941,8 @@ const RECIPES = [
     ],
     "needsReview": false,
     "cookTime": "55 minutes",
-    "prepTime": "15 minutes"
+    "prepTime": "15 minutes",
+    "shortTitle": "Smashed Garlic Rosemary Potatoes"
   },
   {
     "id": "spaghetti-roasted-cherry-tomato",
@@ -858,7 +973,8 @@ const RECIPES = [
     "notes": "OCR of this recipe page was captured at an angle and partially obscured - recommend spot-checking against the original book for exact ingredient amounts.",
     "needsReview": true,
     "cookTime": "30 minutes",
-    "prepTime": "24 minutes"
+    "prepTime": "24 minutes",
+    "shortTitle": "Spaghetti with Roasted Cherry Tomato Sauce"
   },
   {
     "id": "baked-shrimp-garlic-butter",
@@ -1171,7 +1287,8 @@ const RECIPES = [
     "notes": "Final toss/dressing step reconstructed from context - recommend a quick check against the original book.",
     "needsReview": true,
     "cookTime": "5 minutes",
-    "prepTime": "18 minutes"
+    "prepTime": "18 minutes",
+    "shortTitle": "Kale Salad with Avocado and Pistachios"
   },
   {
     "id": "moms-chicken-wontons",
@@ -1345,7 +1462,8 @@ const RECIPES = [
     "notes": "Chinese celery is much thinner and stronger than typical American celery. If you can't find it, use 1/2 cup chopped leaves from a bunch of standard celery.",
     "needsReview": false,
     "cookTime": "8 hours",
-    "prepTime": "8 hours"
+    "prepTime": "8 hours",
+    "shortTitle": "Kang Jued Woon Sen"
   },
   {
     "id": "nua-pad-look-pak-chee",
@@ -1485,7 +1603,8 @@ const RECIPES = [
       "Heat through and serve."
     ],
     "notes": "A second Zuppa Toscana in the collection - this one from a different source than the Tuscan Recipes version, with a slightly different method.",
-    "needsReview": false
+    "needsReview": false,
+    "shortTitle": "Olive Garden Copycat Zuppa Toscana"
   },
   {
     "id": "pasta-shapes-technique",
@@ -1516,7 +1635,8 @@ const RECIPES = [
     ],
     "needsReview": false,
     "cookTime": "41 minutes",
-    "prepTime": "26 minutes"
+    "prepTime": "26 minutes",
+    "shortTitle": "Pasta Shapes"
   },
   {
     "id": "fresh-pasta-dough",
@@ -1543,7 +1663,8 @@ const RECIPES = [
     "notes": "This dough keeps well for 2 days tightly wrapped in the refrigerator and 2 months in the freezer. Making fresh pasta is a beautiful way to connect with family - a nice one to make with kids, who can help knead the dough.",
     "needsReview": false,
     "cookTime": "35 minutes",
-    "prepTime": "25 minutes"
+    "prepTime": "25 minutes",
+    "shortTitle": "Fresh Pasta (Pasta Fresca)"
   },
   {
     "id": "paccheri-pork-lentil-ragu",
@@ -1799,7 +1920,8 @@ const RECIPES = [
     ],
     "needsReview": false,
     "cookTime": "1 hour 13 minutes",
-    "prepTime": "17 minutes"
+    "prepTime": "17 minutes",
+    "shortTitle": "Braised Cabbage with Onion and Garlic"
   },
   {
     "id": "english-cream-scones",
@@ -2235,7 +2357,8 @@ const RECIPES = [
     "notes": "This dish is so weeknight - it comes together in as little as 5 minutes.",
     "needsReview": true,
     "cookTime": "25 minutes",
-    "prepTime": "15 minutes"
+    "prepTime": "15 minutes",
+    "shortTitle": "Kalum Thod Nam Pla"
   },
   {
     "id": "moms-siam-chicken",
@@ -2941,7 +3064,8 @@ const RECIPES = [
     "notes": "Jaggery is a gorgeous, deeply toffee-flavored, fudge-like sugar made from the unrefined sap of date palms or sugar cane. It lends itself well to a little salt.",
     "needsReview": false,
     "cookTime": "1 minutes",
-    "prepTime": "24 minutes"
+    "prepTime": "24 minutes",
+    "shortTitle": "Salted Jaggery Kulfi with Bananas"
   },
   {
     "id": "cold-crunchy-green-beans-pistachio-vinaigrette",
@@ -2970,7 +3094,8 @@ const RECIPES = [
     "notes": "Blanching the beans then plunging into an ice bath stops the cooking so they end up tender and snappy but retain their bright color.",
     "needsReview": false,
     "cookTime": "12 minutes",
-    "prepTime": "17 minutes"
+    "prepTime": "17 minutes",
+    "shortTitle": "Green Beans, Pistachio Vinaigrette"
   },
   {
     "id": "stewed-eggplant-peppers",
@@ -3041,7 +3166,8 @@ const RECIPES = [
     ],
     "needsReview": false,
     "cookTime": "53 minutes",
-    "prepTime": "30 minutes"
+    "prepTime": "30 minutes",
+    "shortTitle": "Rigatoni with Turkey Meatballs"
   },
   {
     "id": "chicken-cordon-bleu-casserole",
@@ -3161,7 +3287,8 @@ const RECIPES = [
     "notes": "Do Ahead: garlic butter can be made 1 week ahead, wrapped tightly, and stored in the refrigerator. Bring to room temperature before smearing onto the bread.",
     "needsReview": false,
     "cookTime": "33 minutes",
-    "prepTime": "18 minutes"
+    "prepTime": "18 minutes",
+    "shortTitle": "A Better Garlic Bread"
   },
   {
     "id": "brown-butter-skillet-cornbread",
@@ -3250,7 +3377,8 @@ const RECIPES = [
     ],
     "needsReview": false,
     "cookTime": "1 hour 10 minutes",
-    "prepTime": "20 minutes"
+    "prepTime": "20 minutes",
+    "shortTitle": "Farro & Charred Corn Salad"
   },
   {
     "id": "gruyere-omelet",
@@ -3410,7 +3538,8 @@ const RECIPES = [
     ],
     "needsReview": false,
     "cookTime": "20 minutes",
-    "prepTime": "16 minutes"
+    "prepTime": "16 minutes",
+    "shortTitle": "Crispy Baked Zucchini, Carrots, and Cherry Tomatoes"
   },
   {
     "id": "zuppa-toscana-v3",
@@ -3534,7 +3663,8 @@ const RECIPES = [
     ],
     "needsReview": false,
     "cookTime": "28 minutes",
-    "prepTime": "24 minutes"
+    "prepTime": "24 minutes",
+    "shortTitle": "Roasted Spaghetti Squash with Spicy Tomato Sauce"
   },
   {
     "id": "general-ts-chicken",
@@ -4146,7 +4276,8 @@ const RECIPES = [
     ],
     "needsReview": false,
     "cookTime": "25 minutes",
-    "prepTime": "17 minutes"
+    "prepTime": "17 minutes",
+    "shortTitle": "Corn and Greens with Prosciutto Cotto"
   },
   {
     "id": "cilantro-lime-chicken-skewers",
@@ -4499,7 +4630,8 @@ const RECIPES = [
     ],
     "needsReview": false,
     "cookTime": "1 minutes",
-    "prepTime": "21 minutes"
+    "prepTime": "21 minutes",
+    "shortTitle": "Pad Brussels Sprouts Fai Dang"
   },
   {
     "id": "panzerotti",
@@ -4968,7 +5100,8 @@ const RECIPES = [
     ],
     "needsReview": false,
     "cookTime": "8 minutes",
-    "prepTime": "22 minutes"
+    "prepTime": "22 minutes",
+    "shortTitle": "Napa Cabbage & Chicken Salad"
   },
   {
     "id": "moms-curry-noodle-soup",
@@ -5183,7 +5316,8 @@ const RECIPES = [
     "notes": "A gluten-free-friendly gnocchi (using chickpea flour) developed for grandkids. Very rich, so a small portion goes a long way.",
     "needsReview": false,
     "cookTime": "42 minutes",
-    "prepTime": "25 minutes"
+    "prepTime": "25 minutes",
+    "shortTitle": "Sweet Potato Chickpea Gnocchi with Gorgonzola"
   },
   {
     "id": "italian-stuffed-chicken-breasts",
@@ -5754,7 +5888,8 @@ const RECIPES = [
       "**Transfer the sausage to a cutting board and cut it into slices.** Return the sausage to the soup, sprinkle with the remaining one-third of the parsley, and stir until combined. Serve hot."
     ],
     "notes": "Mettwurst might be tough to find, but smoked pork kielbasa substitutes easily. Serve with Maggi liquid seasoning on the side. For a smoother soup, remove the sausage, purée the soup, then return the sausage.",
-    "needsReview": false
+    "needsReview": false,
+    "shortTitle": "Rustic Potato Soup with Smoked Sausage"
   },
   {
     "id": "burmese-pork-belly-curry",
@@ -6484,7 +6619,8 @@ const RECIPES = [
     "notes": "Leftover balsamic reduction keeps at room temperature in a covered container for a week - great for finishing vegetables, fish, pork, or chicken.",
     "needsReview": false,
     "cookTime": "48 minutes",
-    "prepTime": "23 minutes"
+    "prepTime": "23 minutes",
+    "shortTitle": "Butternut Squash and Cannellini Beans"
   },
   {
     "id": "moms-bamboo-chicken",
@@ -6541,7 +6677,8 @@ const RECIPES = [
     ],
     "needsReview": true,
     "cookTime": "5 minutes",
-    "prepTime": "17 minutes"
+    "prepTime": "17 minutes",
+    "shortTitle": "Red Cabbage Salad with Cubed Crispy Ham"
   },
   {
     "id": "simple-jhok",
@@ -6691,7 +6828,8 @@ const RECIPES = [
     ],
     "needsReview": false,
     "cookTime": "40 minutes",
-    "prepTime": "17 minutes"
+    "prepTime": "17 minutes",
+    "shortTitle": "Cheesy Baked Chicken Wings"
   },
   {
     "id": "lamb-sausage-puff-pastry",
@@ -6847,7 +6985,8 @@ const RECIPES = [
     ],
     "needsReview": false,
     "cookTime": "8 minutes",
-    "prepTime": "30 minutes"
+    "prepTime": "30 minutes",
+    "shortTitle": "Herb Crusted Pork Tenderloin"
   },
   {
     "id": "crispy-mccrisperson-chicken-thighs-peas-fennel",
@@ -6880,7 +7019,8 @@ const RECIPES = [
     "notes": "Surface moisture inhibits browning, so pat the chicken very dry before searing. Browning the garlic brings out bitter notes, so it's best avoided.",
     "needsReview": false,
     "cookTime": "33 minutes",
-    "prepTime": "24 minutes"
+    "prepTime": "24 minutes",
+    "shortTitle": "Crispy McCrisperson Chicken Thighs"
   },
   {
     "id": "moms-broccoli-noodle",
@@ -7511,7 +7651,8 @@ const RECIPES = [
     "notes": "The two-part roasting method lets the chicken cook with the beans, greens, and seasoning before the stock is added to finish, so everything cooks fully without drying out the chicken.",
     "needsReview": false,
     "cookTime": "35 minutes",
-    "prepTime": "15 minutes"
+    "prepTime": "15 minutes",
+    "shortTitle": "One-Pan Lemon Pepper Chicken"
   },
   {
     "id": "sweet-and-sour-spiced-cauliflower",
@@ -8301,20 +8442,267 @@ const RECIPES = [
 
 </script>
 <script>
-let state = { query: "", category: null, cuisine: null };
+/* ============================================================
+   COMMITTED BASELINE  —  merged from exports and pushed to git.
+   Live edits accumulate in localStorage and overlay this.
+   ============================================================ */
+const SEED_STATE = {
+  "version": 1,
+  "cookLog": [],
+  "plan": {},
+  "inventory": { "freezer": [], "pantry": [] },
+  "prefs": {}
+};
 
-const COURSE_ORDER = ["Appetizer", "Salad", "Soup", "Bread", "Side", "Main", "Dessert", "Breakfast", "Drink"];
+/* ---------------- state layer ---------------- */
+const LS_KEY = 'cookbook.state.v1';
+function blankState(){ return {version:1, cookLog:[], plan:{}, inventory:{freezer:[],pantry:[]}, prefs:{}}; }
+function mergeStates(base, over){
+  const m = new Map();
+  [...(base.cookLog||[]), ...(over.cookLog||[])].forEach(e=>{ if(e && e.id) m.set(e.id, e); });
+  return {
+    version: 1,
+    cookLog: [...m.values()].sort((a,b)=> (b.date||'').localeCompare(a.date||'')),
+    plan: Object.assign({}, base.plan||{}, over.plan||{}),
+    inventory: {
+      freezer: (over.inventory && over.inventory.freezer) || (base.inventory && base.inventory.freezer) || [],
+      pantry:  (over.inventory && over.inventory.pantry)  || (base.inventory && base.inventory.pantry)  || []
+    },
+    prefs: Object.assign({}, base.prefs||{}, over.prefs||{})
+  };
+}
+function loadLocal(){ try{ const r=localStorage.getItem(LS_KEY); return r?JSON.parse(r):null; }catch(e){ return null; } }
+let DATA = mergeStates(SEED_STATE, loadLocal() || blankState());
+function persist(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(DATA)); }catch(e){} }
+function uid(){ return 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+function cookEvents(id){ return DATA.cookLog.filter(e=>e.recipeId===id).sort((a,b)=>(b.date||'').localeCompare(a.date||'')); }
+function timesMade(id){ return cookEvents(id).length; }
+function lastMade(id){ const e=cookEvents(id); return e.length ? e[0].date : null; }
+function avgRating(id){
+  const rs = cookEvents(id).map(e=>e.rating).filter(n=>typeof n==='number' && n>0);
+  return rs.length ? rs.reduce((a,b)=>a+b,0)/rs.length : null;
+}
+function addCook(recipeId, date, rating, note){
+  DATA.cookLog.unshift({id:uid(), recipeId, date, rating: rating||null, note: note||''});
+  DATA.cookLog.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  persist();
+}
+function removeCook(evId){ DATA.cookLog = DATA.cookLog.filter(e=>e.id!==evId); persist(); }
+
+function todayISO(){ const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
+function daysSince(iso){
+  if(!iso) return null;
+  const a=new Date(iso+'T00:00:00'), b=new Date(todayISO()+'T00:00:00');
+  return Math.round((b-a)/86400000);
+}
+function relTime(iso){
+  const d = daysSince(iso);
+  if(d===null) return '';
+  if(d<=0) return 'today';
+  if(d===1) return 'yesterday';
+  if(d<7) return d+' days ago';
+  if(d<14) return 'last week';
+  if(d<61) return Math.round(d/7)+' weeks ago';
+  if(d<365) return Math.round(d/30)+' months ago';
+  const y=Math.round(d/365); return y===1?'a year ago':y+' years ago';
+}
+
+/* ---------------- formatting helpers ---------------- */
+function escapeHTML(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+/* zero-width space after slashes -> lets long titles/cuisines wrap without a visible gap */
+function zwsp(s){ return String(s).replace(/\/(?!​)/g, '/​'); }
+function renderInline(s){ return zwsp(escapeHTML(s)).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'); }
+function displayTitle(r){ return r.shortTitle || r.title; }
+
+/* ---------------- time parsing ---------------- */
+function roundUp5(n){ return Math.ceil(n/5)*5; }
+function parseTime(str){
+  if(!str) return null;
+  const s = String(str).toLowerCase();
+  let qual = null;
+  if(/\b(under|less than|up to)\b/.test(s)) qual = 'under';
+  else if(/\b(at least|minimum|overnight)\b/.test(s) || /\bplus\b/.test(s)) qual = 'atleast';
+  const rng = s.match(/(\d+(?:\.\d+)?)\s*(?:to|-|–|—)\s*(\d+(?:\.\d+)?)\s*(hours?|hrs?|minutes?|mins?)/);
+  if(rng){
+    const mult = /^h/.test(rng[3]) ? 60 : 1;
+    return {min: parseFloat(rng[1])*mult, max: parseFloat(rng[2])*mult, qual, raw:str};
+  }
+  let total = 0, found = false;
+  const h = s.match(/(\d+(?:\.\d+)?)\s*(hours?|hrs?)\b/);  if(h){ total += parseFloat(h[1])*60; found = true; }
+  const m = s.match(/(\d+(?:\.\d+)?)\s*(minutes?|mins?)\b/); if(m){ total += parseFloat(m[1]);    found = true; }
+  if(!found){ const n = s.match(/(\d+(?:\.\d+)?)/); if(n){ total = parseFloat(n[1]); found = true; } }
+  if(!found) return null;
+  return {min: total, max: total, qual, raw: str};
+}
+function fmtDur(mins){
+  mins = Math.max(0, Math.round(mins));
+  if(mins < 60) return mins + ' min';
+  const h = Math.floor(mins/60), m = mins % 60;
+  return m ? h + ' hr ' + m + ' min' : h + ' hr';
+}
+function fmtTime(t){
+  if(!t) return '';
+  const lo = roundUp5(t.min), hi = roundUp5(t.max);
+  if(t.qual === 'under')   return '≤' + fmtDur(hi);
+  if(t.qual === 'atleast') return fmtDur(lo) + '+';
+  if(lo !== hi) return (hi < 60) ? (lo + '–' + hi + ' min') : (fmtDur(lo) + '–' + fmtDur(hi));
+  return fmtDur(lo);
+}
+function totalTime(r){
+  const p = parseTime(r.prepTime), c = parseTime(r.cookTime);
+  if(!p && !c) return null;
+  const min = (p?p.min:0) + (c?c.min:0);
+  const max = (p?p.max:0) + (c?c.max:0);
+  const qual = ((p&&p.qual==='atleast')||(c&&c.qual==='atleast')) ? 'atleast'
+             : ((p&&p.qual==='under')||(c&&c.qual==='under')) ? 'under' : null;
+  return {min, max, qual};
+}
+function planMinutes(r){ const t = totalTime(r); return t ? roundUp5(t.max) : null; }
+
+/* ---------------- plan-ahead detection ---------------- */
+const AHEAD_RULES = [
+  [/\bovernight\b/i,                                   'Overnight',   12*60],
+  [/\bthaw(ed|ing)?\b/i,                               'Thaw ahead',  12*60],
+  [/\b(the )?(day|night) before\b/i,                   'Day before',  12*60],
+  [/\bnext day\b/i,                                    'Day before',  12*60],
+  [/\b(marinate|marinating)\b/i,                       'Marinate',     4*60],
+  [/\b(refrigerate|chill|rest|rise|soak|brine)[^.]{0,60}?(\d+)\s*(?:to\s*\d+\s*)?hours?/i, 'Plan ahead', 0],
+  [/\bat least (\d+)\s*hours?\b/i,                     'Plan ahead',   0]
+];
+/* Sentences about keeping leftovers mention the same words ("refrigerator for 24 hours")
+   but say nothing about starting early -- exclude them before matching. */
+const STORAGE_RE = /\b(stor(e|ed|es|age)|leftovers?|keeps?|will keep|freezes?|freezer for|for up to|lasts?)\b/i;
+function detectAhead(r){
+  const hay = [r.prepTime, r.cookTime, r.notes||'', ...(r.instructions||[])].join(' \n ');
+  const sentences = hay.split(/(?<=[.!?])\s+|\n/).filter(s=> s && !STORAGE_RE.test(s));
+  for(const [re, label, mins] of AHEAD_RULES){
+    for(const sentence of sentences){
+      const m = sentence.match(re);
+      if(!m) continue;
+      let minutes = mins;
+      if(!minutes){
+        const num = m.slice(1).map(x=>parseFloat(x)).find(x=>!isNaN(x));
+        minutes = (num || 2) * 60;
+      }
+      if(minutes >= 120) return {label, minutes};
+    }
+  }
+  return null;
+}
+
+/* ---------------- servings + scaling ---------------- */
+function parseServings(s){
+  const str = String(s===undefined||s===null ? '' : s).trim();
+  if(!str) return null;
+  const m = str.match(/(\d+)/);
+  if(!m) return null;
+  const servingWord  = /servings?\b/i.test(str);
+  const pureNum      = /^\d+\s*(?:(?:-|–|to)\s*\d+)?$/i.test(str);
+  const servesPrefix = /^serves\b/i.test(str);
+  /* only a real serving count drives the +/- stepper; "Makes 2 cups",
+     "16-18 cookies" and "Two 12-inch pizzas" get multipliers only. */
+  const servingBased = pureNum || servesPrefix || servingWord;
+  let base = parseInt(m[1],10);
+  if(servingWord){ const sm = str.match(/(\d+)\s*servings?/i); if(sm) base = parseInt(sm[1],10); }
+  return { base, servingBased, raw: str };
+}
+function parseQty(tok){
+  tok = tok.trim();
+  let m = tok.match(/^(\d+)\s+(\d+)\/(\d+)$/); if(m) return +m[1] + (+m[2]/+m[3]);
+  m = tok.match(/^(\d+)\/(\d+)$/);             if(m) return +m[1]/+m[2];
+  return parseFloat(tok);
+}
+function fmtNum(n, integerOnly){
+  if(!isFinite(n)) return '';
+  if(integerOnly) return String(n < 1 ? Math.round(n*10)/10 : Math.round(n));
+  if(n >= 10) return String(Math.round(n));
+  if(Math.abs(n - Math.round(n)) < 0.001) return String(Math.round(n));
+  const whole = Math.floor(n), frac = n - whole;
+  const cands = [[1,2],[1,3],[2,3],[1,4],[3,4],[1,8],[3,8],[5,8],[7,8],[1,6],[5,6]];
+  let best=null, bd=1;
+  cands.forEach(([a,b])=>{ const d=Math.abs(frac-a/b); if(d<bd){ bd=d; best=[a,b]; } });
+  if(bd < 0.045) return (whole ? whole+' ' : '') + best[0]+'/'+best[1];
+  return String(Math.round(n*100)/100);
+}
+const NOSCALE_PHRASE = /\b(to taste|for serving|for garnish|for greasing|for frying|for dusting|for sprinkling|for brushing|for the top|for cooking|cooking spray|as needed|serving suggestion)\b/i;
+const SEASONING_HEAD = /^(kosher |sea |flaky |fine |coarse |table |freshly ground |freshly cracked |ground |cracked )*(salt|black pepper|white pepper|pepper)\b/i;
+/* Seasonings don't scale linearly. Test the HEAD NOUN, not the whole line -- otherwise
+   a product name like "Tomato Paste, No Salt Added" gets wrongly frozen. */
+function isNoScale(line){
+  if(NOSCALE_PHRASE.test(line)) return true;
+  const rest = line
+    .replace(/^(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?)\s*[A-Za-z]*\.?\s*/, '')
+    .replace(/\([^)]*\)/g, '')
+    .trim();
+  return SEASONING_HEAD.test(rest);
+}
+const UNIT_RE = /^(lbs?|pounds?|oz|ounces?|g|kg|ml|l|liters?|cups?|tbsp|tsp|tablespoons?|teaspoons?|cloves?|sprigs?|slices?|bunch|bunches|inch|quarts?|pints?|sticks?)\b/i;
+const METRIC_RE = /^\s*(g|kg|ml|l)\b/i;
+/* units that inflect in English; metric abbreviations and Tbsp/tsp never do */
+const PLURALS = [['cups','cup'],['lbs','lb'],['pounds','pound'],['ounces','ounce'],['cloves','clove'],
+                 ['sprigs','sprig'],['slices','slice'],['cans','can'],['sticks','stick'],
+                 ['tablespoons','tablespoon'],['teaspoons','teaspoon'],['quarts','quart'],['pints','pint']];
+function inflect(unit, qty){
+  if(!unit) return unit;
+  const plural = qty > 1;
+  for(const [p,s] of PLURALS){
+    if(unit.toLowerCase()===p) return plural ? unit : matchCase(unit, s);
+    if(unit.toLowerCase()===s) return plural ? matchCase(unit, p) : unit;
+  }
+  return unit;
+}
+function matchCase(src, out){ return /^[A-Z]/.test(src) ? out.charAt(0).toUpperCase()+out.slice(1) : out; }
+function scaleLine(line, f){
+  if(f === 1) return {text: line, unscaled: false};
+  if(isNoScale(line)) return {text: line, unscaled: true};
+  const lead = line.match(/^(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?)(\s*)([A-Za-z]*)/);
+  if(!lead) return {text: line, unscaled: false};
+  const hasUnit = UNIT_RE.test(lead[3]);
+  const qty = parseQty(lead[1]) * f;
+  const metricLead = METRIC_RE.test(lead[3]);
+  let out = fmtNum(qty, metricLead) + lead[2] + inflect(lead[3], qty) + line.slice(lead[0].length);
+  if(hasUnit){
+    /* the first parenthetical is a unit conversion of the leading qty -> scale it too.
+       a bare count like "1 (14 oz/400 g) can" has no unit, so its package size is left alone. */
+    out = out.replace(/\(([^)]*)\)/, (whole, inner)=>{
+      if(!/\d/.test(inner)) return whole;
+      const scaled = inner.replace(/(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?)(\s*[A-Za-z]*)/g, (mm, num, tail)=>{
+        const v = parseQty(num) * f;
+        return fmtNum(v, METRIC_RE.test(tail)) + (tail ? tail.replace(/[A-Za-z]+$/, u=>inflect(u, v)) : '');
+      });
+      return '(' + scaled + ')';
+    });
+  }
+  return {text: out, unscaled: false};
+}
+function servingsLabel(s){
+  const str = String(s);
+  return /^(makes|serves)\b/i.test(str) ? str : 'Serves ' + str;
+}
+
+/* ---------------- derived index ---------------- */
+RECIPES.forEach(r=>{
+  r._ahead    = detectAhead(r);
+  r._servings = parseServings(r.servings);
+  r._total    = totalTime(r);
+  r._plan     = planMinutes(r);
+});
+
+/* ---------------- app state ---------------- */
+let state = { query:"", category:null, cuisine:null, sort:"az", made:"all", aheadOnly:false };
+const COURSE_ORDER = ["Appetizer","Salad","Soup","Bread","Side","Main","Dessert","Breakfast","Drink"];
+const STALE_DAYS = 75;   /* "had it, but not in 2-3 months" */
 
 function uniqueSorted(arr){ return [...new Set(arr)].sort((a,b)=>a.localeCompare(b)); }
 function orderByList(values, order){
   const set = new Set(values);
-  const known = order.filter(v => set.has(v));
-  const unknown = [...set].filter(v => !order.includes(v)).sort((a,b)=>a.localeCompare(b));
+  const known = order.filter(v=>set.has(v));
+  const unknown = [...set].filter(v=>!order.includes(v)).sort((a,b)=>a.localeCompare(b));
   return [...known, ...unknown];
 }
-
 const ALL_CATEGORIES = orderByList(RECIPES.map(r=>r.category), COURSE_ORDER);
-const ALL_CUISINES = uniqueSorted(RECIPES.map(r=>r.cuisine));
+const ALL_CUISINES   = uniqueSorted(RECIPES.map(r=>r.cuisine));
 function countFor(field, value){ return RECIPES.filter(r=>r[field]===value).length; }
 
 function renderChips(){
@@ -8327,161 +8715,325 @@ function renderChips(){
     chip.onclick = ()=>{ state.category = state.category===cat ? null : cat; render(); };
     catWrap.appendChild(chip);
   });
-
   const cuiWrap = document.getElementById('cuisineChips');
   cuiWrap.innerHTML = '';
-  ALL_CUISINES.forEach(cui=>{
+  ALL_CUISINES.forEach(c=>{
     const chip = document.createElement('span');
-    chip.className = 'facet-link' + (state.cuisine===cui ? ' active':'');
-    chip.innerHTML = `${cui} <span class="n">${countFor('cuisine',cui)}</span>`;
-    chip.onclick = ()=>{ state.cuisine = state.cuisine===cui ? null : cui; render(); };
+    chip.className = 'facet-link' + (state.cuisine===c ? ' active':'');
+    chip.innerHTML = `${zwsp(escapeHTML(c))} <span class="n">${countFor('cuisine',c)}</span>`;
+    chip.onclick = ()=>{ state.cuisine = state.cuisine===c ? null : c; render(); };
     cuiWrap.appendChild(chip);
   });
 }
 
 function matchesQuery(recipe, q){
   if(!q) return true;
-  q = q.toLowerCase();
-  const haystack = [
-    recipe.title, recipe.category, recipe.cuisine, recipe.source,
-    (recipe.ingredients||[]).join(' '), (recipe.instructions||[]).join(' '),
-    recipe.notes||'', (recipe.tags||[]).join(' ')
-  ].join(' ').toLowerCase();
-  return q.split(/\s+/).filter(Boolean).every(term => haystack.includes(term));
+  const t = q.toLowerCase();
+  return [recipe.title, recipe.shortTitle, recipe.source, recipe.cuisine, recipe.category, recipe.notes,
+          ...(recipe.tags||[]), ...(recipe.ingredients||[]), ...(recipe.instructions||[])]
+    .filter(Boolean).join(' ').toLowerCase().includes(t);
 }
-
+function passesMade(r){
+  const n = timesMade(r.id), last = lastMade(r.id), d = daysSince(last);
+  switch(state.made){
+    case 'never':  return n === 0;
+    case 'made':   return n > 0;
+    case 'stale':  return n > 0 && d !== null && d >= STALE_DAYS;
+    case 'recent': return n > 0 && d !== null && d < 30;
+    default:       return true;
+  }
+}
 function getFiltered(){
-  const filtered = RECIPES.filter(r=>{
-    if(state.category && r.category!==state.category) return false;
-    if(state.cuisine && r.cuisine!==state.cuisine) return false;
-    if(!matchesQuery(r, state.query)) return false;
-    return true;
+  let list = RECIPES.filter(r=>
+    (!state.category || r.category===state.category) &&
+    (!state.cuisine  || r.cuisine ===state.cuisine)  &&
+    (!state.aheadOnly || r._ahead) &&
+    passesMade(r) && matchesQuery(r, state.query)
+  );
+  const byTitle = (a,b)=>a.title.localeCompare(b.title);
+  const sorters = {
+    az: byTitle,
+    recent: (a,b)=>{ const A=lastMade(a.id), B=lastMade(b.id);
+                     if(!A && !B) return byTitle(a,b); if(!A) return 1; if(!B) return -1;
+                     return B.localeCompare(A) || byTitle(a,b); },
+    stale:  (a,b)=>{ const A=lastMade(a.id), B=lastMade(b.id);
+                     if(!A && !B) return byTitle(a,b); if(!A) return -1; if(!B) return 1;
+                     return A.localeCompare(B) || byTitle(a,b); },
+    most:   (a,b)=> timesMade(b.id)-timesMade(a.id) || byTitle(a,b),
+    rating: (a,b)=>{ const A=avgRating(a.id)||-1, B=avgRating(b.id)||-1; return B-A || byTitle(a,b); },
+    quick:  (a,b)=>{ const A=a._plan===null?1e9:a._plan, B=b._plan===null?1e9:b._plan; return A-B || byTitle(a,b); }
+  };
+  return list.sort(sorters[state.sort] || byTitle);
+}
+
+/* ---------------- toolbar ---------------- */
+function renderToolbar(){
+  const tb = document.getElementById('toolbar');
+  if(tb.dataset.built) { syncToolbar(); return; }
+  tb.dataset.built = '1';
+  tb.innerHTML = `
+    <div class="tb-group">
+      <label class="tb-name" for="sortSelect">Sort</label>
+      <select class="tb-select" id="sortSelect">
+        <option value="az">A – Z</option>
+        <option value="recent">Recently made</option>
+        <option value="stale">Longest since made</option>
+        <option value="most">Most made</option>
+        <option value="rating">Highest rated</option>
+        <option value="quick">Quickest</option>
+      </select>
+    </div>
+    <div class="tb-group">
+      <label class="tb-name">Show</label>
+      <button class="tb-btn" data-made="all">All</button>
+      <button class="tb-btn" data-made="never">Never made</button>
+      <button class="tb-btn" data-made="made">Made</button>
+      <button class="tb-btn" data-made="stale">Due a revisit</button>
+    </div>
+    <div class="tb-group">
+      <button class="tb-btn" id="aheadBtn">Plan ahead</button>
+    </div>
+    <div class="tb-spacer"></div>
+    <div class="tb-group">
+      <button class="tb-btn" id="exportBtn">Export data</button>
+      <button class="tb-btn" id="importBtn">Import</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none">
+    </div>`;
+  tb.querySelector('#sortSelect').onchange = e=>{ state.sort = e.target.value; renderGrid(); };
+  tb.querySelectorAll('[data-made]').forEach(b=>{
+    b.onclick = ()=>{ state.made = b.dataset.made; renderToolbar(); renderGrid(); };
   });
-  // auto-sort alphabetically by cuisine, then by title within each cuisine
-  filtered.sort((a,b)=> a.cuisine.localeCompare(b.cuisine) || a.title.localeCompare(b.title));
-  return filtered;
+  tb.querySelector('#aheadBtn').onclick = ()=>{ state.aheadOnly = !state.aheadOnly; renderToolbar(); renderGrid(); };
+  tb.querySelector('#exportBtn').onclick = exportData;
+  tb.querySelector('#importBtn').onclick = ()=> tb.querySelector('#importFile').click();
+  tb.querySelector('#importFile').onchange = importData;
+  syncToolbar();
+}
+function syncToolbar(){
+  const tb = document.getElementById('toolbar');
+  tb.querySelector('#sortSelect').value = state.sort;
+  tb.querySelectorAll('[data-made]').forEach(b=> b.classList.toggle('on', b.dataset.made===state.made));
+  tb.querySelector('#aheadBtn').classList.toggle('on', state.aheadOnly);
+}
+function exportData(){
+  const payload = JSON.stringify(DATA, null, 2);
+  const blob = new Blob([payload], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'cookbook-state-' + todayISO() + '.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  if(navigator.clipboard) navigator.clipboard.writeText(payload).catch(()=>{});
+}
+function importData(e){
+  const f = e.target.files && e.target.files[0];
+  if(!f) return;
+  const fr = new FileReader();
+  fr.onload = ()=>{
+    try{
+      DATA = mergeStates(DATA, JSON.parse(fr.result));
+      persist(); render();
+      alert('Imported. ' + DATA.cookLog.length + ' cook entries now on file.');
+    }catch(err){ alert('That file could not be read as cookbook data.'); }
+  };
+  fr.readAsText(f);
+  e.target.value = '';
 }
 
-function timeLabel(mins_str){
-  return mins_str || null;
-}
-
-function servingsLabel(s){
-  const str = String(s);
-  return /^(makes|serves)\b/i.test(str) ? str : `Serves ${str}`;
-}
-
+/* ---------------- grid ---------------- */
+function starStr(n){ const k=Math.round(n); return '★★★★★'.slice(0,k) + '☆☆☆☆☆'.slice(0,5-k); }
 function cardTimeHTML(r){
-  const parts = [];
-  if(r.prepTime) parts.push(`Prep ${r.prepTime}`);
-  if(r.cookTime) parts.push(`Cook ${r.cookTime}`);
-  if(!parts.length) return '';
+  const t = r._total; if(!t) return '';
+  const parts = [`<span class="t-total">${fmtTime(t)} total</span>`];
+  const p = parseTime(r.prepTime), c = parseTime(r.cookTime);
+  const sub = [];
+  if(p) sub.push(fmtTime(p) + ' prep');
+  if(c) sub.push(fmtTime(c) + ' cook');
+  if(sub.length) parts.push(sub.join(' · '));
   return parts.join('<br>');
 }
-
+function cardMetaHTML(r){
+  const n = timesMade(r.id), last = lastMade(r.id), avg = avgRating(r.id);
+  const bits = [];
+  bits.push(n===0
+    ? `<span class="made-badge never">Never made</span>`
+    : `<span class="made-badge">Made ${n}×</span><span>${relTime(last)}</span>`);
+  if(avg) bits.push(`<span class="stars">${starStr(avg)}</span>`);
+  if(r._ahead) bits.push(`<span class="ahead-pill">${r._ahead.label}</span>`);
+  return `<div class="card-meta">${bits.join('')}</div>`;
+}
 function renderGrid(){
   const grid = document.getElementById('grid');
   const filtered = getFiltered();
   grid.innerHTML = '';
-
   document.getElementById('resultCount').textContent = `${filtered.length} / ${RECIPES.length}`;
-  document.getElementById('footerCount').textContent = `${RECIPES.length} recipes catalogued, and counting.`;
-
+  const made = DATA.cookLog.length;
+  document.getElementById('footerCount').textContent =
+    `${RECIPES.length} recipes catalogued, and counting.` + (made ? `  ${made} meals logged.` : '');
   if(filtered.length===0){
     grid.innerHTML = `<div class="empty-state">Nothing on file matches that yet &mdash; try another search or clear a filter.</div>`;
     return;
   }
-
-  filtered.forEach((r)=>{
+  filtered.forEach(r=>{
     const card = document.createElement('div');
     card.className = 'card';
     card.innerHTML = `
       <div class="card-top">
         <div class="card-tags">
           <span class="stamp-badge">${escapeHTML(r.category)}</span>
-          <span class="stamp-badge cuisine">${escapeHTML(r.cuisine)}</span>
+          <span class="stamp-badge cuisine">${zwsp(escapeHTML(r.cuisine))}</span>
         </div>
         <span class="card-time">${cardTimeHTML(r)}</span>
       </div>
-      <h3 class="card-title">${escapeHTML(r.title)}</h3>
+      <h3 class="card-title">${zwsp(escapeHTML(displayTitle(r)))}</h3>
+      ${cardMetaHTML(r)}
       <div class="card-bottom">
-        <span class="card-source">${escapeHTML(r.source||'')}</span>
-        <span class="card-servings">${r.servings ? servingsLabel(r.servings) : ''}</span>
-      </div>
-    `;
+        <span class="card-source">${zwsp(escapeHTML(r.source||''))}</span>
+        <span class="card-servings">${r.servings ? zwsp(escapeHTML(servingsLabel(r.servings))) : ''}</span>
+      </div>`;
     card.onclick = ()=> openModal(r);
     grid.appendChild(card);
   });
 }
+function render(){ renderChips(); renderToolbar(); renderGrid(); }
 
-function render(){ renderChips(); renderGrid(); }
+/* ---------------- modal ---------------- */
+let modalRecipe = null, modalFactor = 1;
 
-// minimal **bold** markdown -> <strong> renderer (escapes HTML first to stay safe)
-function escapeHTML(s){
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-function renderInline(s){
-  const escaped = escapeHTML(s);
-  return escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-}
-
-function openModal(r){
-  document.getElementById('modalEyebrow').innerHTML =
-    `<span>${r.category}</span><span>${r.cuisine}</span>${r.prepTime ? `<span>Prep ${r.prepTime}</span>`:''}${r.cookTime ? `<span>Cook ${r.cookTime}</span>`:''}`;
-  document.getElementById('modalTitle').textContent = r.title;
-  document.getElementById('modalSource').textContent = [r.source, r.servings ? servingsLabel(r.servings) : null].filter(Boolean).join(' — ');
-
-  const tagsWrap = document.getElementById('modalTags');
-  tagsWrap.innerHTML = '';
-  (r.tags||[]).forEach(t=>{
-    const p = document.createElement('span');
-    p.className = 'tagpill';
-    p.textContent = t;
-    tagsWrap.appendChild(p);
-  });
-
-  const ingWrap = document.getElementById('modalIngredients');
-  ingWrap.innerHTML = '';
+function renderIngredients(){
+  const r = modalRecipe, f = modalFactor;
+  const wrap = document.getElementById('modalIngredients');
+  wrap.innerHTML = '';
   (r.ingredients||[]).forEach(item=>{
     const li = document.createElement('li');
     const isHeading = item.endsWith(':') && item.split(' ').length < 6;
-    if(isHeading){ li.className = 'heading'; }
-    li.innerHTML = renderInline(item);
-    ingWrap.appendChild(li);
+    if(isHeading){ li.className = 'heading'; li.innerHTML = renderInline(item); wrap.appendChild(li); return; }
+    const res = scaleLine(item, f);
+    li.innerHTML = renderInline(res.text) + (res.unscaled && f!==1 ? ' <span class="unscaled-note">· unscaled</span>' : '');
+    wrap.appendChild(li);
   });
+}
+function renderScaleBar(){
+  const r = modalRecipe, sv = r._servings, host = document.getElementById('modalScale');
+  const f = modalFactor;
+  const active = f !== 1;
+  let target = '';
+  if(sv && sv.servingBased) target = ' — serves ' + fmtNum(sv.base * f);
+  const stepper = (sv && sv.servingBased) ? `
+      <div class="step">
+        <button type="button" id="svDown">−</button>
+        <div class="step-val">${fmtNum(sv.base*f)}</div>
+        <button type="button" id="svUp">+</button>
+      </div>` : '';
+  host.innerHTML = `
+    <div class="scale-bar ${active?'active':''}">
+      <span class="sb-label">${active ? 'Scaled '+fmtNum(f)+'×'+target : 'Servings'}</span>
+      ${stepper}
+      <button type="button" class="mult-btn ${f===0.5?'on':''}" data-mult="0.5">½×</button>
+      <button type="button" class="mult-btn ${f===1?'on':''}"   data-mult="1">1×</button>
+      <button type="button" class="mult-btn ${f===2?'on':''}"   data-mult="2">2×</button>
+      <button type="button" class="mult-btn ${f===3?'on':''}"   data-mult="3">3×</button>
+      ${active ? '<button type="button" class="mult-btn" id="svReset">reset</button>' : ''}
+    </div>`;
+  host.querySelectorAll('[data-mult]').forEach(b=>{
+    b.onclick = ()=>{ modalFactor = parseFloat(b.dataset.mult); renderScaleBar(); renderIngredients(); };
+  });
+  const reset = host.querySelector('#svReset');
+  if(reset) reset.onclick = ()=>{ modalFactor = 1; renderScaleBar(); renderIngredients(); };
+  const up = host.querySelector('#svUp'), down = host.querySelector('#svDown');
+  if(up)   up.onclick   = ()=>{ modalFactor = Math.round(((sv.base*modalFactor)+1)/sv.base*1000)/1000; renderScaleBar(); renderIngredients(); };
+  if(down) down.onclick = ()=>{ const next = (sv.base*modalFactor)-1; if(next < 1) return;
+                                modalFactor = Math.round(next/sv.base*1000)/1000; renderScaleBar(); renderIngredients(); };
+}
+function renderCookPanel(){
+  const r = modalRecipe, host = document.getElementById('modalCook');
+  const evs = cookEvents(r.id), n = evs.length, avg = avgRating(r.id);
+  const summary = n===0 ? 'Not yet cooked.'
+    : `Cooked ${n}×${avg?` · ${starStr(avg)}`:''} · last ${relTime(lastMade(r.id))}`;
+  host.innerHTML = `
+    <div class="cook-panel">
+      <div class="cook-row">
+        <button class="cook-btn" id="markCooked">Mark as cooked</button>
+        <span style="color:var(--ink-soft); font-size:13px;">${summary}</span>
+      </div>
+      <div class="cook-form" id="cookForm">
+        <input type="date" id="cookDate" value="${todayISO()}">
+        <div class="rate-pick" id="ratePick">${[1,2,3,4,5].map(i=>`<span data-v="${i}">★</span>`).join('')}</div>
+        <input type="text" id="cookNote" placeholder="Note for next time (optional)">
+        <button class="cook-btn" id="cookSave">Save</button>
+      </div>
+      ${n ? `<div class="cook-hist">${evs.map(e=>`
+        <div class="cook-hist-item">
+          <span class="ch-date">${e.date}</span>
+          ${e.rating?`<span class="stars">${starStr(e.rating)}</span>`:''}
+          ${e.note?`<span class="ch-note">${escapeHTML(e.note)}</span>`:''}
+          <span class="ch-del" data-ev="${e.id}">remove</span>
+        </div>`).join('')}</div>` : `<div class="cook-empty">Log it once and this recipe joins the rotation history.</div>`}
+    </div>`;
+  let rating = 0;
+  const pick = host.querySelector('#ratePick');
+  pick.querySelectorAll('span').forEach(sp=>{
+    sp.onclick = ()=>{ rating = +sp.dataset.v;
+      pick.querySelectorAll('span').forEach(x=> x.classList.toggle('lit', +x.dataset.v <= rating)); };
+  });
+  host.querySelector('#markCooked').onclick = ()=> host.querySelector('#cookForm').classList.toggle('open');
+  host.querySelector('#cookSave').onclick = ()=>{
+    addCook(r.id, host.querySelector('#cookDate').value || todayISO(), rating, host.querySelector('#cookNote').value.trim());
+    renderCookPanel(); renderGrid();
+  };
+  host.querySelectorAll('.ch-del').forEach(d=>{
+    d.onclick = ()=>{ removeCook(d.dataset.ev); renderCookPanel(); renderGrid(); };
+  });
+}
+function openModal(r){
+  modalRecipe = r; modalFactor = 1;
+  const p = parseTime(r.prepTime), c = parseTime(r.cookTime), t = r._total;
+  document.getElementById('modalEyebrow').innerHTML =
+    `<span>${escapeHTML(r.category)}</span><span>${zwsp(escapeHTML(r.cuisine))}</span>` +
+    (p?`<span>Prep ${fmtTime(p)}</span>`:'') + (c?`<span>Cook ${fmtTime(c)}</span>`:'') +
+    (t?`<span>Total ${fmtTime(t)}</span>`:'');
+  document.getElementById('modalTitle').innerHTML = zwsp(escapeHTML(r.title));
+  document.getElementById('modalSource').innerHTML =
+    zwsp(escapeHTML([r.source, r.servings ? servingsLabel(r.servings) : null].filter(Boolean).join(' — ')));
+
+  const tagsWrap = document.getElementById('modalTags');
+  tagsWrap.innerHTML = '';
+  (r.tags||[]).forEach(t2=>{ const s=document.createElement('span'); s.className='tagpill'; s.textContent=t2; tagsWrap.appendChild(s); });
+  if(r._ahead){ const s=document.createElement('span'); s.className='tagpill'; s.textContent=r._ahead.label; tagsWrap.appendChild(s); }
+
+  document.getElementById('modalAhead').innerHTML = r._ahead
+    ? `<div class="ahead-callout"><strong>${r._ahead.label}.</strong> This one needs starting ahead — allow about ${fmtDur(r._ahead.minutes)} before you plan to eat.</div>` : '';
+
+  renderScaleBar();
+  renderIngredients();
 
   const stepsWrap = document.getElementById('modalSteps');
   stepsWrap.innerHTML = '';
-  (r.instructions||[]).forEach(step=>{
-    const li = document.createElement('li');
-    li.innerHTML = renderInline(step);
-    stepsWrap.appendChild(li);
-  });
+  (r.instructions||[]).forEach(step=>{ const li=document.createElement('li'); li.innerHTML=renderInline(step); stepsWrap.appendChild(li); });
 
-  const notesWrap = document.getElementById('modalNotesWrap');
-  notesWrap.innerHTML = r.notes ? `<div class="notes-box"><span class="notes-label">Notes &amp; Variations</span>${renderInline(r.notes)}</div>` : '';
+  document.getElementById('modalNotesWrap').innerHTML = r.notes
+    ? `<div class="notes-box"><span class="notes-label">Notes &amp; Variations</span>${renderInline(r.notes)}</div>` : '';
 
+  renderCookPanel();
   document.getElementById('modalOverlay').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
-
 function closeModal(){
   document.getElementById('modalOverlay').classList.remove('open');
   document.body.style.overflow = '';
+  modalRecipe = null;
 }
 document.getElementById('modalClose').onclick = closeModal;
-document.getElementById('modalOverlay').onclick = (e)=>{ if(e.target.id==='modalOverlay') closeModal(); };
-document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeModal(); });
+document.getElementById('modalOverlay').onclick = e=>{ if(e.target.id==='modalOverlay') closeModal(); };
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
 
 let searchTimer;
-document.getElementById('searchInput').addEventListener('input', (e)=>{
+document.getElementById('searchInput').addEventListener('input', e=>{
   clearTimeout(searchTimer);
   const val = e.target.value;
   searchTimer = setTimeout(()=>{ state.query = val; renderGrid(); }, 80);
 });
-
 document.getElementById('clearFilters').onclick = ()=>{
-  state = {query:"", category:null, cuisine:null};
+  state = {query:"", category:null, cuisine:null, sort:"az", made:"all", aheadOnly:false};
   document.getElementById('searchInput').value = '';
   render();
 };
