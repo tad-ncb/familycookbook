@@ -12536,8 +12536,8 @@ setTimeout(openFromHash, 0);
 /* Fill these in from Supabase -> Settings -> API. The anon key is
    meant to be public; real access control is the RLS policy on
    each table (see supabase_setup.sql), not secrecy of this key. */
-const SUPABASE_URL = 'REPLACE_WITH_PROJECT_URL';
-const SUPABASE_ANON_KEY = 'REPLACE_WITH_ANON_KEY';
+const SUPABASE_URL = 'https://kubvqmptumftqtfqrifs.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt1YnZxbXB0dW1mdHF0ZnFyaWZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1MDc0NzcsImV4cCI6MjEwMzA4MzQ3N30.uWvku48avh5aUIp6V7lwGoNz-nk6RT1SiHaKODyWI2Q';
 
 const sb = (SUPABASE_URL.startsWith('http'))
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
