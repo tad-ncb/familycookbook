@@ -7,19 +7,47 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+  /* Dark is the default. [data-theme="light"] restores the original paper palette. */
   :root{
+    --paper: #131210;
+    --card: #1B1917;
+    --card-hover: #221F1C;
+    --ink: #F2EEE6;
+    --ink-soft: #A29B8D;
+    --ink-faint: #6E685D;
+    --line: #302C27;
+    --hair: #262320;
+    --stamp: #9CBBD8;
+    --stamp-soft: #1F2C38;
+    --alert: #E29383;
+    --alert-soft: #362320;
+    --gold: #D6A94B;
+    --today: #1E1C17;
+    --past: #171512;
+    --scrim: rgba(0,0,0,0.62);
+    --shadow: 0 1px 3px rgba(0,0,0,0.4);
+    --maxw: 1440px;
+    --recipe-font: 13.5px;
+    --step-font: 14px;
+  }
+  :root[data-theme="light"]{
     --paper: #FAF9F5;
     --card: #FFFFFF;
+    --card-hover: #FDFCFA;
     --ink: #16130F;
     --ink-soft: #726C60;
     --ink-faint: #A39C8C;
     --line: #E7E2D5;
+    --hair: #F1EDE2;
     --stamp: #2C4159;
     --stamp-soft: #E4E9EE;
     --alert: #8B3A2F;
     --alert-soft: #F3E4E0;
+    --gold: #B8860B;
+    --today: #FFFDF6;
+    --past: #FBFAF7;
+    --scrim: rgba(22,19,15,0.45);
     --shadow: 0 1px 3px rgba(22,19,15,0.06);
-    --maxw: 1440px;
   }
 
   *{box-sizing:border-box;}
@@ -34,14 +62,14 @@
   ::selection{background:var(--stamp); color:#fff;}
 
   .masthead{ border-bottom:1px solid var(--line); }
-  .masthead-inner{ max-width:var(--maxw); margin:0 auto; padding:36px 32px; text-align:center; }
+  .masthead-inner{ max-width:var(--maxw); margin:0 auto; padding:clamp(18px,3vw,36px) clamp(12px,2.6vw,32px); text-align:center; }
   h1.title{
     font-family:'Inter',sans-serif; font-weight:700;
     font-size:clamp(28px, 3.6vw, 42px); line-height:1.1;
     letter-spacing:-0.01em; margin:0; color:var(--ink);
   }
 
-  .controls{ max-width:var(--maxw); margin:0 auto; padding:22px 32px 20px; }
+  .controls{ max-width:var(--maxw); margin:0 auto; padding:clamp(14px,2.2vw,22px) clamp(12px,2.6vw,32px) clamp(12px,2vw,20px); }
   .search-row{
     display:flex; align-items:center; gap:16px;
     border-bottom:1.5px solid var(--ink); padding-bottom:12px;
@@ -50,7 +78,7 @@
   .search-row input{
     border:none; outline:none; background:transparent;
     font-family:'Inter',sans-serif; font-weight:500;
-    font-size:19px; color:var(--ink); width:100%;
+    font-size:clamp(16px, 2.2vw, 19px); color:var(--ink); width:100%; min-width:0;
   }
   .search-row input::placeholder{color:var(--ink-faint); font-weight:400;}
   .result-count{
@@ -66,7 +94,7 @@
     width:80px; flex:0 0 auto;
   }
   .facet-link{
-    font-family:'Inter',sans-serif; font-size:13.5px; color:var(--ink-soft);
+    font-family:'Inter',sans-serif; font-size:clamp(12.5px, 1.6vw, 13.5px); color:var(--ink-soft);
     padding:4px 10px; cursor:pointer; border-bottom:1px solid transparent;
     white-space:nowrap; transition:color .12s ease, border-color .12s ease;
   }
@@ -84,7 +112,7 @@
 
   .grid{
     max-width:var(--maxw); margin:0 auto; padding:8px 24px 100px;
-    display:grid; grid-template-columns:repeat(auto-fill, minmax(265px, 1fr));
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 265px), 1fr));
     gap:1px; background:var(--line); border:1px solid var(--line);
   }
   .empty-state{
@@ -97,7 +125,7 @@
     display:flex; flex-direction:column; min-height:196px; position:relative;
     transition:background .12s ease;
   }
-  .card:hover{background:#FDFCFA;}
+  .card:hover{background:var(--card-hover);}
   .card:hover .card-title{color:var(--stamp);}
   .card-top{ display:flex; flex-wrap:wrap; align-items:flex-start; margin-bottom:10px; gap:6px; }
   .card-tags{ display:flex; flex-wrap:wrap; gap:5px; min-width:0; }
@@ -137,8 +165,9 @@
   }
 
   .modal-overlay{
-    position:fixed; inset:0; background:rgba(22,19,15,0.45); display:none;
-    align-items:flex-start; justify-content:center; z-index:100; padding:40px 16px; overflow-y:auto;
+    position:fixed; inset:0; background:var(--scrim); display:none;
+    align-items:flex-start; justify-content:center; z-index:100;
+    padding:clamp(0px, 3vw, 40px) clamp(0px, 2vw, 16px); overflow-y:auto;
   }
   .modal-overlay.open{display:flex;}
   .modal{
@@ -147,7 +176,7 @@
     animation:modalIn .2s cubic-bezier(.2,.8,.3,1); margin-bottom:40px; border-top:3px solid var(--stamp);
   }
   @keyframes modalIn{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
-  .modal-inner{padding:32px 40px 40px;}
+  .modal-inner{padding:clamp(20px, 3.5vw, 32px) clamp(16px, 4vw, 40px) 40px;}
   .modal-close{
     position:absolute; top:18px; right:18px; width:30px; height:30px;
     display:flex; align-items:center; justify-content:center; cursor:pointer;
@@ -160,7 +189,7 @@
     letter-spacing:0.09em; color:var(--ink-soft); display:flex; gap:14px; flex-wrap:wrap;
   }
   .modal h2{
-    font-family:'Inter',sans-serif; font-weight:700; font-size:28px;
+    font-family:'Inter',sans-serif; font-weight:700; font-size:clamp(21px, 5vw, 28px);
     line-height:1.14; margin:0 0 6px; padding-right:20px;
   }
   .modal .source-line{
@@ -178,8 +207,8 @@
   }
   .ing-list{list-style:none; margin:0; padding:0; columns:2; column-gap:32px;}
   .ing-list li{
-    padding:5px 0 5px 20px; position:relative; font-size:13.5px;
-    line-height:1.35; border-bottom:1px solid #F1EDE2; break-inside:avoid;
+    padding:5px 0 5px 20px; position:relative; font-size:var(--recipe-font);
+    line-height:1.35; border-bottom:1px solid var(--hair); break-inside:avoid;
   }
   .ing-list li.heading{
     font-weight:700; font-family:'IBM Plex Mono', monospace; font-size:10px;
@@ -192,7 +221,7 @@
     background:var(--stamp); border-radius:50%; opacity:0.55;
   }
   .steps{list-style:none; counter-reset:step; margin:0; padding:0;}
-  .steps li{ counter-increment:step; padding:0 0 13px 34px; position:relative; font-size:14px; line-height:1.42; }
+  .steps li{ counter-increment:step; padding:0 0 13px 34px; position:relative; font-size:var(--step-font); line-height:1.45; }
   .steps li::before{
     content:counter(step); position:absolute; left:0; top:0;
     font-family:'Inter',sans-serif; font-weight:700; font-size:14px; color:var(--stamp);
@@ -215,16 +244,16 @@
   @media (max-width:640px){
     .masthead-inner{padding:24px 20px;}
     .controls{padding:18px 20px 20px;}
-    .grid{padding:8px 14px 90px; grid-template-columns:1fr;}
-    .card{min-height:auto; padding:16px 16px 14px;}
-    .modal-inner{padding:24px 20px 28px;}
-    .modal h2{font-size:23px;}
+    .grid{padding:8px 10px 90px; grid-template-columns:1fr; gap:1px;}
+    .card{min-height:auto; padding:15px 15px 13px;}
     .ing-list{columns:1;}
     .facet-name{width:100%; margin-bottom:2px;}
+    .modal{border-top-width:2px;}
+    .modal-close{top:10px; right:10px; width:36px; height:36px; font-size:22px;}
   }
   /* ---------- Phase 1: tracking + scaling ---------- */
   .toolbar{
-    max-width:var(--maxw); margin:0 auto; padding:0 32px 18px;
+    max-width:var(--maxw); margin:0 auto; padding:0 clamp(12px,2.6vw,32px) 18px;
     display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px;
   }
   .toolbar .tb-group{ display:flex; align-items:center; gap:8px; }
@@ -253,7 +282,7 @@
   }
   .made-badge{ color:var(--stamp); }
   .made-badge.never{ color:var(--ink-faint); }
-  .stars{ color:#B8860B; letter-spacing:0.5px; }
+  .stars{ color:var(--gold); letter-spacing:0.5px; }
   .ahead-pill{
     font-family:'IBM Plex Mono', monospace; font-size:9px; text-transform:uppercase;
     letter-spacing:0.07em; color:var(--alert); background:var(--alert-soft);
@@ -310,7 +339,7 @@
   }
   .cook-form input[type=text]{ flex:1 1 220px; }
   .rate-pick{ display:flex; gap:2px; cursor:pointer; font-size:17px; color:var(--line); }
-  .rate-pick span:hover, .rate-pick span.lit{ color:#B8860B; }
+  .rate-pick span:hover, .rate-pick span.lit{ color:var(--gold); }
   .cook-hist{ margin-top:14px; display:flex; flex-direction:column; gap:7px; }
   .cook-hist-item{
     display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
@@ -338,7 +367,7 @@
   .viewtabs .vt:hover{ color:var(--stamp); border-color:var(--stamp); }
   .viewtabs .vt.on{ color:#fff; background:var(--ink); border-color:var(--ink); }
 
-  .planwrap{ max-width:var(--maxw); margin:0 auto; padding:22px 32px 100px; }
+  .planwrap{ max-width:var(--maxw); margin:0 auto; padding:22px clamp(12px,2.6vw,32px) 100px; }
   .plan-head{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:16px; }
   .plan-nav{ display:flex; align-items:center; gap:6px; }
   .plan-range{
@@ -350,8 +379,8 @@
     gap:1px; background:var(--line); border:1px solid var(--line);
   }
   .day{ background:var(--card); min-height:210px; display:flex; flex-direction:column; padding:10px 11px 12px; }
-  .day.today{ background:#FFFDF6; box-shadow:inset 0 3px 0 var(--stamp); }
-  .day.past{ background:#FBFAF7; }
+  .day.today{ background:var(--today); box-shadow:inset 0 3px 0 var(--stamp); }
+  .day.past{ background:var(--past); }
   .day-head{
     display:flex; justify-content:space-between; align-items:baseline;
     font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase;
@@ -440,7 +469,7 @@
   .mcell .mnum{ font-family:'IBM Plex Mono', monospace; font-size:10px; color:var(--ink-faint); }
   .mcell .mitem{ font-size:11.5px; line-height:1.3; margin-top:4px; color:var(--ink); cursor:pointer; }
   .mcell .mitem:hover{ color:var(--stamp); }
-  .mcell .mstars{ color:#B8860B; font-size:9px; }
+  .mcell .mstars{ color:var(--gold); font-size:9px; }
   .hist-stats{ display:flex; flex-wrap:wrap; gap:26px; margin-bottom:16px; }
   .hstat{ font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--ink-faint); letter-spacing:0.05em; }
   .hstat b{ display:block; font-family:'Inter',sans-serif; font-size:23px; color:var(--ink); letter-spacing:-0.01em; }
@@ -505,6 +534,120 @@
   }
   .house-row{ display:flex; align-items:center; gap:10px; margin-top:16px; padding-top:14px; border-top:1px solid var(--line); }
   .house-row .rday{ font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; }
+  /* ---------- Phase 3: theme, making mode, mobile chrome ---------- */
+  .util-row{
+    max-width:var(--maxw); margin:0 auto;
+    padding:0 clamp(12px,2.6vw,32px) 26px;
+    display:flex; align-items:center; gap:10px; justify-content:center;
+  }
+  .icon-btn{
+    background:transparent; border:1px solid var(--line); border-radius:3px;
+    color:var(--ink-faint); cursor:pointer; padding:5px 9px; line-height:1;
+    font-family:'IBM Plex Mono', monospace; font-size:11px;
+  }
+  .icon-btn:hover{ color:var(--stamp); border-color:var(--stamp); }
+  .icon-btn.on{ color:#fff; background:var(--stamp); border-color:var(--stamp); }
+
+  /* the workbench: computer-only data plumbing, hidden until asked for */
+  .bench{
+    max-width:var(--maxw); margin:0 auto 26px;
+    padding:16px clamp(12px,2.6vw,32px);
+  }
+  .bench-inner{
+    border:1px dashed var(--line); background:var(--card); padding:16px 18px;
+  }
+  .bench h3{
+    font-family:'IBM Plex Mono', monospace; font-size:10.5px; text-transform:uppercase;
+    letter-spacing:0.1em; color:var(--ink-soft); margin:0 0 6px; font-weight:500;
+  }
+  .bench p{ font-size:13px; color:var(--ink-soft); margin:0 0 12px; line-height:1.5; }
+  .bench-btns{ display:flex; flex-wrap:wrap; gap:8px; }
+
+  /* --- scale bar: fixed columns so nothing shifts when values change --- */
+  .scale-bar{
+    display:flex; align-items:center; flex-wrap:wrap; gap:10px 16px;
+    border:1px solid var(--line); background:var(--paper);
+    border-radius:3px; padding:10px 13px; margin:2px 0 14px;
+  }
+  .sb-block{ display:flex; align-items:center; gap:8px; }
+  .sb-key{
+    font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase;
+    letter-spacing:0.08em; color:var(--ink-faint); flex:0 0 auto;
+  }
+  .sb-mults{ display:flex; gap:4px; }
+  .sb-yield{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft);
+    white-space:nowrap;
+  }
+  .sb-flag{
+    font-family:'IBM Plex Mono', monospace; font-size:9px; text-transform:uppercase;
+    letter-spacing:0.07em; color:var(--stamp); border:1px solid var(--stamp);
+    background:var(--stamp-soft); border-radius:2px; padding:2px 6px; white-space:nowrap;
+  }
+  .step .step-val{
+    min-width:46px; text-align:center; padding:0 6px; height:26px; line-height:26px;
+    border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+    background:var(--card); font-family:'IBM Plex Mono', monospace;
+    font-size:13px; font-weight:600; font-variant-numeric:tabular-nums; color:var(--ink);
+  }
+
+  /* --- making mode --- */
+  .make-bar{
+    display:flex; align-items:center; flex-wrap:wrap; gap:8px 14px;
+    margin:18px 0 4px; padding:10px 13px;
+    border:1px solid var(--line); border-radius:3px; background:var(--paper);
+  }
+  .make-bar.on{ border-color:var(--stamp); background:var(--stamp-soft); }
+  .make-prog{
+    font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--ink-soft);
+    font-variant-numeric:tabular-nums;
+  }
+  .fontsize{ display:flex; gap:3px; align-items:center; }
+  .fontsize button{
+    background:var(--card); border:1px solid var(--line); border-radius:3px;
+    color:var(--ink-soft); cursor:pointer; padding:3px 8px; line-height:1.2;
+    font-family:'Inter',sans-serif;
+  }
+  .fontsize button:hover{ color:var(--stamp); border-color:var(--stamp); }
+  .fontsize .fs-a{ font-size:11px; } .fontsize .fs-b{ font-size:14px; } .fontsize .fs-c{ font-size:17px; }
+
+  /* checkable ingredients + steps while cooking */
+  .making .ing-list li:not(.heading), .making .steps li{ cursor:pointer; }
+  .making .ing-list li:not(.heading){ padding-left:28px; }
+  .making .ing-list li:not(.heading)::before{
+    content:""; left:2px; top:calc(0.5em + 3px); width:13px; height:13px; border-radius:3px;
+    background:transparent; border:1.5px solid var(--ink-faint); opacity:1;
+  }
+  .making .ing-list li.tick{ color:var(--ink-faint); text-decoration:line-through; }
+  .making .ing-list li.tick::before{
+    background:var(--stamp); border-color:var(--stamp);
+  }
+  .making .steps li.tick{ color:var(--ink-faint); }
+  .making .steps li.tick::before{ color:var(--ink-faint); text-decoration:line-through; }
+  .making .steps li::after{
+    content:""; position:absolute; left:0; top:2px; width:22px; height:22px;
+    border-radius:3px; pointer-events:none;
+  }
+  .making .steps li.tick::after{ background:var(--stamp); opacity:0.1; }
+
+  .modal-actions{
+    display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+    margin:16px 0 0; padding-top:14px; border-top:1px solid var(--line);
+  }
+
+  @media (max-width:760px){
+    .grid{ grid-template-columns:1fr; }
+    .viewtabs{ flex-wrap:wrap; }
+    .viewtabs .vt{ flex:1 1 auto; min-width:88px; }
+    .facet-row{ gap:2px; }
+    .facet-link{ padding:5px 8px; }
+    .toolbar{ gap:8px 12px; }
+    .toolbar .tb-group{ flex-wrap:wrap; }
+    .scale-bar{ gap:8px 12px; }
+    .sb-block{ flex:0 0 auto; }
+    .ing-list{ columns:1; }
+    .make-bar{ gap:8px 10px; }
+  }
 </style>
 </head>
 <body>
@@ -519,6 +662,12 @@
     </div>
   </div>
 </div>
+
+<div class="util-row">
+  <button class="icon-btn" id="themeBtn" title="Switch theme">◐ Light</button>
+  <button class="icon-btn" id="benchBtn" title="Data tools (desktop)">⌥</button>
+</div>
+<div id="benchPanel"></div>
 
 <div id="cookbookView">
 <div class="controls">
@@ -615,6 +764,7 @@
       <div class="tags" id="modalTags"></div>
 
       <div id="modalAhead"></div>
+      <div id="modalMake"></div>
 
       <div class="section-title">Ingredients</div>
       <div id="modalScale"></div>
@@ -624,6 +774,7 @@
       <ol class="steps" id="modalSteps"></ol>
 
       <div id="modalNotesWrap"></div>
+      <div id="modalActions"></div>
       <div id="modalCook"></div>
     </div>
   </div>
@@ -9041,20 +9192,12 @@ function renderToolbar(){
     <div class="tb-group">
       <button class="tb-btn" id="aheadBtn">Plan ahead</button>
     </div>
-    <div class="tb-spacer"></div>
-    <div class="tb-group">
-      <button class="tb-btn" id="exportBtn">Export data</button>
-      <button class="tb-btn" id="importBtn">Import</button>
-      <input type="file" id="importFile" accept="application/json" style="display:none">
-    </div>`;
+    <div class="tb-spacer"></div>`;
   tb.querySelector('#sortSelect').onchange = e=>{ state.sort = e.target.value; renderGrid(); };
   tb.querySelectorAll('[data-made]').forEach(b=>{
     b.onclick = ()=>{ state.made = b.dataset.made; renderToolbar(); renderGrid(); };
   });
   tb.querySelector('#aheadBtn').onclick = ()=>{ state.aheadOnly = !state.aheadOnly; renderToolbar(); renderGrid(); };
-  tb.querySelector('#exportBtn').onclick = exportData;
-  tb.querySelector('#importBtn').onclick = ()=> tb.querySelector('#importFile').click();
-  tb.querySelector('#importFile').onchange = importData;
   syncToolbar();
 }
 function syncToolbar(){
@@ -9159,36 +9302,42 @@ function renderIngredients(){
   });
 }
 function renderScaleBar(){
-  const r = modalRecipe, sv = r._servings, host = document.getElementById('modalScale');
-  const f = modalFactor;
+  const r = modalRecipe, sv = r._servings, f = modalFactor;
+  const host = document.getElementById('modalScale');
   const active = f !== 1;
-  let target = '';
-  if(sv && sv.servingBased) target = ' — serves ' + fmtNum(sv.base * f);
-  const stepper = (sv && sv.servingBased) ? `
-      <div class="step">
-        <button type="button" id="svDown">−</button>
-        <div class="step-val">${fmtNum(sv.base*f)}</div>
-        <button type="button" id="svUp">+</button>
-      </div>` : '';
+  const mult = v => `<button type="button" class="mult-btn ${f===v?'on':''}" data-mult="${v}">${v===0.5?'½':v}×</button>`;
+  /* the yield block keeps its own column so the row never shifts as numbers change */
+  const yieldBlock = (sv && sv.servingBased)
+    ? `<div class="step">
+         <button type="button" id="svDown">−</button>
+         <div class="step-val">${fmtNum(sv.base*f)}</div>
+         <button type="button" id="svUp">+</button>
+       </div>`
+    : `<span class="sb-yield">${sv ? zwsp(escapeHTML(String(r.servings))) : '—'}</span>`;
   host.innerHTML = `
     <div class="scale-bar ${active?'active':''}">
-      <span class="sb-label">${active ? 'Scaled '+fmtNum(f)+'×'+target : 'Servings'}</span>
-      ${stepper}
-      <button type="button" class="mult-btn ${f===0.5?'on':''}" data-mult="0.5">½×</button>
-      <button type="button" class="mult-btn ${f===1?'on':''}"   data-mult="1">1×</button>
-      <button type="button" class="mult-btn ${f===2?'on':''}"   data-mult="2">2×</button>
-      <button type="button" class="mult-btn ${f===3?'on':''}"   data-mult="3">3×</button>
-      ${active ? '<button type="button" class="mult-btn" id="svReset">reset</button>' : ''}
+      <div class="sb-block">
+        <span class="sb-key">Scale</span>
+        <span class="sb-mults">${mult(0.5)}${mult(1)}${mult(2)}${mult(3)}</span>
+      </div>
+      <div class="sb-block">
+        <span class="sb-key">Servings</span>
+        ${yieldBlock}
+      </div>
+      ${active ? `<div class="sb-block">
+          <span class="sb-flag">scaled ${fmtNum(f)}×</span>
+          <button type="button" class="mult-btn" id="svReset">reset</button>
+        </div>` : ''}
     </div>`;
-  host.querySelectorAll('[data-mult]').forEach(b=>{
-    b.onclick = ()=>{ modalFactor = parseFloat(b.dataset.mult); renderScaleBar(); renderIngredients(); };
+  host.querySelectorAll('[data-mult]').forEach(b2=>{
+    b2.onclick = ()=>{ modalFactor = parseFloat(b2.dataset.mult); renderScaleBar(); renderIngredients(); };
   });
   const reset = host.querySelector('#svReset');
   if(reset) reset.onclick = ()=>{ modalFactor = 1; renderScaleBar(); renderIngredients(); };
   const up = host.querySelector('#svUp'), down = host.querySelector('#svDown');
-  if(up)   up.onclick   = ()=>{ modalFactor = Math.round(((sv.base*modalFactor)+1)/sv.base*1000)/1000; renderScaleBar(); renderIngredients(); };
-  if(down) down.onclick = ()=>{ const next = (sv.base*modalFactor)-1; if(next < 1) return;
-                                modalFactor = Math.round(next/sv.base*1000)/1000; renderScaleBar(); renderIngredients(); };
+  if(up)   up.onclick   = ()=>{ modalFactor = ((sv.base*modalFactor)+1)/sv.base; renderScaleBar(); renderIngredients(); };
+  if(down) down.onclick = ()=>{ const n=(sv.base*modalFactor)-1; if(n<1) return;
+                                modalFactor = n/sv.base; renderScaleBar(); renderIngredients(); };
 }
 function renderCookPanel(){
   const r = modalRecipe, host = document.getElementById('modalCook');
@@ -9224,6 +9373,7 @@ function renderCookPanel(){
   host.querySelector('#markCooked').onclick = ()=> host.querySelector('#cookForm').classList.toggle('open');
   host.querySelector('#cookSave').onclick = ()=>{
     addCook(r.id, host.querySelector('#cookDate').value || todayISO(), rating, host.querySelector('#cookNote').value.trim());
+    ticks = {ing:[], step:[]}; clearTicks(r.id); setMaking(false);
     renderCookPanel(); renderGrid();
   };
   host.querySelectorAll('.ch-del').forEach(d=>{
@@ -9251,6 +9401,10 @@ function openModal(r){
 
   renderScaleBar();
   renderIngredients();
+  ticks = loadTicks(r.id);
+  making = (ticks.ing.length + ticks.step.length) > 0;
+  document.getElementById('modalCard').classList.toggle('making', making);
+  renderMakeBar();
 
   const stepsWrap = document.getElementById('modalSteps');
   stepsWrap.innerHTML = '';
@@ -9259,14 +9413,29 @@ function openModal(r){
   document.getElementById('modalNotesWrap').innerHTML = r.notes
     ? `<div class="notes-box"><span class="notes-label">Notes &amp; Variations</span>${renderInline(r.notes)}</div>` : '';
 
+  renderModalActions();
   renderCookPanel();
+  wireTicks();
+  paintTicks();
+  if(making) requestWake();
+  suppressHash = true;
+  if(location.hash !== hashFor(r.id)) location.hash = hashFor(r.id);
+  setTimeout(()=>{ suppressHash = false; }, 0);
   document.getElementById('modalOverlay').classList.add('open');
   document.body.style.overflow = 'hidden';
+  document.getElementById('modalCard').scrollTop = 0;
+  document.getElementById('modalOverlay').scrollTop = 0;
 }
 function closeModal(){
   document.getElementById('modalOverlay').classList.remove('open');
   document.body.style.overflow = '';
   modalRecipe = null;
+  releaseWake();
+  if(/^#r\//.test(location.hash||'')){
+    suppressHash = true;
+    history.replaceState(null, '', location.pathname + location.search);
+    setTimeout(()=>{ suppressHash = false; }, 0);
+  }
 }
 document.getElementById('modalClose').onclick = closeModal;
 document.getElementById('modalOverlay').onclick = e=>{ if(e.target.id==='modalOverlay') closeModal(); };
@@ -9372,11 +9541,23 @@ function keyIngredients(r){
 }
 const KEY_CACHE = new Map();
 function keyIng(r){ if(!KEY_CACHE.has(r.id)) KEY_CACHE.set(r.id, keyIngredients(r)); return KEY_CACHE.get(r.id); }
-function overlapCount(a, b){
-  let n = 0;
-  keyIng(a).forEach(x=>{ if(keyIng(b).has(x)) n++; });
-  return n;
+const PERISHABLE_SECTIONS = ['Produce','Dairy & Eggs','Meat & Seafood'];
+const HERB_RE = /\b(basil|cilantro|parsley|dill|mint|thyme|rosemary|sage|tarragon|chive|oregano|scallion|herb)\b/i;
+/* Overlap is scored by what would otherwise go to waste: a half-bunch of dill or
+   a tub of ricotta is worth far more than a shared pantry staple. */
+function overlapWeight(a, b){
+  let w = 0, shared = [];
+  keyIng(a).forEach(x=>{
+    if(!keyIng(b).has(x)) return;
+    shared.push(x);
+    if(HERB_RE.test(x)) w += 3.0;
+    else if(/\b(can|canned|jarred|jar|dried|frozen|paste|powder)\b/i.test(x)) w += 0.5;
+    else if(PERISHABLE_SECTIONS.indexOf(sectionFor(x)) !== -1) w += 2.0;
+    else w += 0.5;
+  });
+  return {weight: w, shared};
 }
+function overlapCount(a, b){ return overlapWeight(a, b).shared.length; }
 
 /* ---------------- suggestion engine ---------------- */
 function hashJitter(str){ let h=0; for(let i=0;i<str.length;i++) h=(h*31+str.charCodeAt(i))|0; return Math.abs(h)%7; }
@@ -9409,9 +9590,20 @@ function scoreFor(r, iso, ctx){
   const catHits = ctx.slotted.filter(o=> o.category === r.category).length;
   if(catHits >= 4) s -= 12 * (catHits - 3);
 
-  let ov = 0;
-  ctx.slotted.forEach(other=>{ ov = Math.max(ov, overlapCount(r, other)); });
-  if(ov >= 2){ s += Math.min(ov,4) * 11; why.push('uses what you already need'); }
+  let ov = 0, shared = [];
+  ctx.slotted.forEach(other=>{
+    const o = overlapWeight(r, other);
+    if(o.weight > ov){ ov = o.weight; shared = o.shared; }
+  });
+  if(ov >= 2){
+    s += Math.min(ov, 9) * 7;
+    const herb = shared.find(x=> HERB_RE.test(x));
+    why.push(herb ? ('shares the '+herb) : 'uses what you already need');
+  }
+
+  /* a dish big enough to feed the household twice is a mild plus, not a driver */
+  const sv = r._servings;
+  if(sv && sv.servingBased && sv.base >= prefs().household * 2) s += 5;
 
   s += hashJitter(r.id + iso);
   return {score: s, why: why.slice(0,2).join(' · ')};
@@ -9820,6 +10012,189 @@ document.getElementById('monToday').onclick = ()=>{ monthCursor = todayISO().sli
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closePicker(); });
 prefs();
 setView('cookbook');
+
+/* ============================================================
+   PHASE 3 — theme, deep links, making mode, screen wake, mobile
+   ============================================================ */
+
+/* ---------------- theme (dark by default) ---------------- */
+const THEME_KEY = 'cookbook.theme';
+function currentTheme(){ try{ return localStorage.getItem(THEME_KEY) || 'dark'; }catch(e){ return 'dark'; } }
+function applyTheme(mode){
+  document.documentElement.setAttribute('data-theme', mode);
+  try{ localStorage.setItem(THEME_KEY, mode); }catch(e){}
+  const b = document.getElementById('themeBtn');
+  if(b) b.textContent = mode==='dark' ? '◐ Light' : '◑ Dark';
+}
+applyTheme(currentTheme());
+document.getElementById('themeBtn').onclick = ()=> applyTheme(currentTheme()==='dark' ? 'light' : 'dark');
+
+/* ---------------- reading size ---------------- */
+const FONT_KEY = 'cookbook.fontsize';
+const FONT_STEPS = [[13.5,14],[15.5,16],[18,18.5]];
+function fontIdx(){ const n = parseInt(localStorage.getItem(FONT_KEY)||'0',10); return isNaN(n)?0:Math.max(0,Math.min(2,n)); }
+function applyFont(i){
+  const [ing, step] = FONT_STEPS[i];
+  document.documentElement.style.setProperty('--recipe-font', ing+'px');
+  document.documentElement.style.setProperty('--step-font', step+'px');
+  try{ localStorage.setItem(FONT_KEY, String(i)); }catch(e){}
+  document.querySelectorAll('.fontsize button').forEach((b,k)=> b.classList.toggle('on', k===i));
+}
+
+/* ---------------- making mode (transient, device-local) ---------------- */
+let making = false;
+function makeKey(id){ return 'cookbook.making.'+id; }
+function loadTicks(id){
+  try{ return JSON.parse(localStorage.getItem(makeKey(id))) || {ing:[], step:[]}; }
+  catch(e){ return {ing:[], step:[]}; }
+}
+function saveTicks(id, t){ try{ localStorage.setItem(makeKey(id), JSON.stringify(t)); }catch(e){} }
+function clearTicks(id){ try{ localStorage.removeItem(makeKey(id)); }catch(e){} }
+let ticks = {ing:[], step:[]};
+
+function paintTicks(){
+  const ing = document.getElementById('modalIngredients');
+  const steps = document.getElementById('modalSteps');
+  [...ing.querySelectorAll('li')].forEach((li,i)=>{
+    if(li.classList.contains('heading')) return;
+    li.classList.toggle('tick', ticks.ing.indexOf(i) !== -1);
+  });
+  [...steps.querySelectorAll('li')].forEach((li,i)=> li.classList.toggle('tick', ticks.step.indexOf(i) !== -1));
+  const done = ticks.ing.length + ticks.step.length;
+  const total = [...ing.querySelectorAll('li:not(.heading)')].length + steps.querySelectorAll('li').length;
+  const prog = document.getElementById('makeProg');
+  if(prog) prog.textContent = making ? `${done} of ${total} done` : '';
+}
+function toggleTick(kind, i){
+  const arr = ticks[kind], at = arr.indexOf(i);
+  if(at === -1) arr.push(i); else arr.splice(at,1);
+  saveTicks(modalRecipe.id, ticks);
+  paintTicks();
+}
+function wireTicks(){
+  const ing = document.getElementById('modalIngredients');
+  const steps = document.getElementById('modalSteps');
+  [...ing.querySelectorAll('li')].forEach((li,i)=>{
+    if(li.classList.contains('heading')) return;
+    li.onclick = ()=>{ if(making) toggleTick('ing', i); };
+  });
+  [...steps.querySelectorAll('li')].forEach((li,i)=> li.onclick = ()=>{ if(making) toggleTick('step', i); });
+}
+function setMaking(on){
+  making = on;
+  document.getElementById('modalCard').classList.toggle('making', on);
+  renderMakeBar();
+  paintTicks();
+  if(on) requestWake(); else releaseWake();
+}
+function renderMakeBar(){
+  const host = document.getElementById('modalMake');
+  const i = fontIdx();
+  host.innerHTML = `<div class="make-bar ${making?'on':''}">
+      <button class="icon-btn ${making?'on':''}" id="makeToggle">${making?'✓ Making mode on':'Start making mode'}</button>
+      <span class="make-prog" id="makeProg"></span>
+      ${making?`<button class="icon-btn" id="makeReset">reset ticks</button>`:''}
+      <span style="flex:1"></span>
+      <span class="sb-key">Text</span>
+      <span class="fontsize">
+        <button class="fs-a ${i===0?'on':''}" data-fs="0">A</button>
+        <button class="fs-b ${i===1?'on':''}" data-fs="1">A</button>
+        <button class="fs-c ${i===2?'on':''}" data-fs="2">A</button>
+      </span>
+      ${wakeSupported()?`<button class="icon-btn ${wakeOn?'on':''}" id="wakeBtn" title="Stop the screen dimming">${wakeOn?'☀ screen on':'☀ keep screen on'}</button>`:''}
+    </div>`;
+  host.querySelector('#makeToggle').onclick = ()=> setMaking(!making);
+  const rst = host.querySelector('#makeReset');
+  if(rst) rst.onclick = ()=>{ ticks={ing:[],step:[]}; clearTicks(modalRecipe.id); paintTicks(); };
+  host.querySelectorAll('[data-fs]').forEach(b=> b.onclick = ()=>{ applyFont(+b.dataset.fs); renderMakeBar(); paintTicks(); });
+  const wb = host.querySelector('#wakeBtn');
+  if(wb) wb.onclick = ()=> wakeOn ? releaseWake(true) : requestWake(true);
+}
+
+/* ---------------- screen wake lock ---------------- */
+let wakeLock = null, wakeOn = false;
+function wakeSupported(){ return 'wakeLock' in navigator; }
+async function requestWake(explicit){
+  if(!wakeSupported()) return;
+  try{
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeOn = true;
+    wakeLock.addEventListener('release', ()=>{ wakeOn = false; });
+    if(explicit) renderMakeBar();
+  }catch(e){ wakeOn = false; }
+}
+function releaseWake(explicit){
+  try{ if(wakeLock) wakeLock.release(); }catch(e){}
+  wakeLock = null; wakeOn = false;
+  if(explicit) renderMakeBar();
+}
+/* browsers drop the lock when the tab is backgrounded -- take it again on return */
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible' && making && !wakeOn) requestWake();
+});
+
+/* ---------------- deep links (#r/<id>) ---------------- */
+let suppressHash = false;
+function hashFor(id){ return '#r/' + id; }
+function openFromHash(){
+  const m = (location.hash||'').match(/^#r\/(.+)$/);
+  if(!m){ if(modalRecipe) closeModal(); return; }
+  const r = recipeById(decodeURIComponent(m[1]));
+  if(r && (!modalRecipe || modalRecipe.id !== r.id)) openModal(r);
+}
+window.addEventListener('hashchange', ()=>{ if(!suppressHash) openFromHash(); });
+
+/* ---------------- modal action row ---------------- */
+function renderModalActions(){
+  const host = document.getElementById('modalActions');
+  host.innerHTML = `<div class="modal-actions">
+      <button class="icon-btn" id="copyLink">Copy link to this recipe</button>
+      <span class="make-prog" id="copyMsg"></span>
+    </div>`;
+  host.querySelector('#copyLink').onclick = ()=>{
+    const url = location.origin + location.pathname + hashFor(modalRecipe.id);
+    const msg = host.querySelector('#copyMsg');
+    const done = ()=>{ msg.textContent = 'copied'; setTimeout(()=> msg.textContent='', 1800); };
+    if(navigator.clipboard) navigator.clipboard.writeText(url).then(done, ()=>{ msg.textContent = url; });
+    else msg.textContent = url;
+  };
+}
+
+/* ---------------- workbench (desktop data tools) ---------------- */
+function renderBench(){
+  const host = document.getElementById('benchPanel');
+  if(!host.dataset.open){ host.innerHTML=''; return; }
+  host.innerHTML = `<div class="bench"><div class="bench-inner">
+    <h3>Workbench</h3>
+    <p>Export writes a JSON file of everything logged on <em>this</em> device — cook history, plans,
+       inventory. Hand that file to Claude and it gets merged into the committed copy and pushed,
+       which is how a second device ever sees it. Import merges a file back in.
+       Phones can export to Files, but the merge-and-push step happens on a computer.</p>
+    <div class="bench-btns">
+      <button class="tb-btn" id="exportBtn2">Export data</button>
+      <button class="tb-btn" id="importBtn2">Import</button>
+      <input type="file" id="importFile2" accept="application/json" style="display:none">
+      <button class="tb-btn" id="wipeBtn">Reset this device</button>
+    </div>
+  </div></div>`;
+  host.querySelector('#exportBtn2').onclick = exportData;
+  host.querySelector('#importBtn2').onclick = ()=> host.querySelector('#importFile2').click();
+  host.querySelector('#importFile2').onchange = importData;
+  host.querySelector('#wipeBtn').onclick = ()=>{
+    if(!confirm('Erase all cook history, plans and inventory stored on this device?')) return;
+    DATA = mergeStates(SEED_STATE, blankState()); persist(); render();
+  };
+}
+document.getElementById('benchBtn').onclick = ()=>{
+  const h = document.getElementById('benchPanel');
+  h.dataset.open = h.dataset.open ? '' : '1';
+  document.getElementById('benchBtn').classList.toggle('on', !!h.dataset.open);
+  renderBench();
+};
+
+applyFont(fontIdx());
+setTimeout(openFromHash, 0);
+
 
 </script>
 </body>
