@@ -84,7 +84,7 @@
 
   .grid{
     max-width:var(--maxw); margin:0 auto; padding:8px 24px 100px;
-    display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(265px, 1fr));
     gap:1px; background:var(--line); border:1px solid var(--line);
   }
   .empty-state{
@@ -99,8 +99,8 @@
   }
   .card:hover{background:#FDFCFA;}
   .card:hover .card-title{color:var(--stamp);}
-  .card-top{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; gap:8px; }
-  .card-tags{ display:flex; flex-wrap:wrap; gap:5px; }
+  .card-top{ display:flex; flex-wrap:wrap; align-items:flex-start; margin-bottom:10px; gap:6px; }
+  .card-tags{ display:flex; flex-wrap:wrap; gap:5px; min-width:0; }
   .stamp-badge{
     font-family:'IBM Plex Mono', monospace; font-size:9px; text-transform:uppercase;
     letter-spacing:0.07em; color:var(--stamp); border:1px solid var(--stamp);
@@ -109,23 +109,32 @@
   .stamp-badge.cuisine{
     color:var(--ink-soft); border-color:var(--line); background:var(--stamp-soft);
   }
+  /* time sits on its own row and wraps -- it used to be nowrap beside the
+     badges, which overflowed once the total + split were both shown */
   .card-time{
     font-family:'IBM Plex Mono', monospace; font-size:9.5px;
-    color:var(--ink-faint); white-space:nowrap; text-align:right; line-height:1.4; flex:0 0 auto;
+    color:var(--ink-faint); line-height:1.5; letter-spacing:0.03em;
+    display:flex; flex-wrap:wrap; gap:2px 8px; margin-bottom:7px;
   }
+  .card-time .t-total{ color:var(--ink-soft); font-weight:600; }
   .card-title{
-    font-family:'Inter',sans-serif; font-weight:600; font-size:18px;
-    line-height:1.22; margin:0 0 auto; flex:1; transition:color .12s ease;
+    font-family:'Inter',sans-serif; font-weight:600; font-size:17.5px;
+    line-height:1.22; margin:0 0 8px; transition:color .12s ease;
+    overflow-wrap:anywhere;
   }
   .card-bottom{
-    margin-top:14px; padding-top:12px; border-top:1px solid var(--line);
-    display:flex; justify-content:space-between; align-items:baseline; gap:10px;
+    margin-top:auto; padding-top:12px; border-top:1px solid var(--line);
+    display:flex; flex-wrap:wrap; justify-content:space-between; align-items:baseline; gap:3px 10px;
   }
   .card-source{
     font-family:'Inter',sans-serif; font-style:italic; font-size:12px; color:var(--ink-soft);
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    flex:1 1 auto; min-width:0;
   }
-  .card-servings{ font-family:'IBM Plex Mono', monospace; font-size:10px; color:var(--ink-faint); white-space:nowrap; }
+  .card-servings{
+    font-family:'IBM Plex Mono', monospace; font-size:10px; color:var(--ink-faint);
+    white-space:nowrap; flex:0 0 auto;
+  }
 
   .modal-overlay{
     position:fixed; inset:0; background:rgba(22,19,15,0.45); display:none;
@@ -206,7 +215,8 @@
   @media (max-width:640px){
     .masthead-inner{padding:24px 20px;}
     .controls{padding:18px 20px 20px;}
-    .grid{padding:8px 14px 90px; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr));}
+    .grid{padding:8px 14px 90px; grid-template-columns:1fr;}
+    .card{min-height:auto; padding:16px 16px 14px;}
     .modal-inner{padding:24px 20px 28px;}
     .modal h2{font-size:23px;}
     .ing-list{columns:1;}
@@ -237,9 +247,9 @@
   button.tb-btn.on{ color:#fff; background:var(--stamp); border-color:var(--stamp); }
 
   .card-meta{
-    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
-    margin-top:10px; font-family:'IBM Plex Mono', monospace; font-size:9.5px;
-    color:var(--ink-faint); letter-spacing:0.04em;
+    display:flex; align-items:center; gap:5px 8px; flex-wrap:wrap;
+    margin:0 0 10px; font-family:'IBM Plex Mono', monospace; font-size:9.5px;
+    color:var(--ink-faint); letter-spacing:0.04em; line-height:1.5;
   }
   .made-badge{ color:var(--stamp); }
   .made-badge.never{ color:var(--ink-faint); }
@@ -249,7 +259,6 @@
     letter-spacing:0.07em; color:var(--alert); background:var(--alert-soft);
     border:1px solid var(--alert); border-radius:2px; padding:2px 6px; white-space:nowrap;
   }
-  .card-time .t-total{ color:var(--ink-soft); font-weight:600; }
 
   /* scaling */
   .scale-bar{
@@ -472,6 +481,30 @@
     .shop-cols{ columns:1; }
     .mcell{ min-height:64px; }
   }
+  .settings{
+    border:1px solid var(--line); background:var(--card);
+    padding:18px 20px; margin-bottom:16px;
+  }
+  .settings h3{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; text-transform:uppercase;
+    letter-spacing:0.1em; color:var(--ink-soft); margin:0 0 4px; font-weight:500;
+  }
+  .settings p.hint{ font-size:13px; color:var(--ink-soft); margin:0 0 14px; font-style:italic; }
+  .ritual-row{
+    display:flex; align-items:center; gap:10px; padding:6px 0;
+    border-bottom:1px dotted var(--line);
+  }
+  .ritual-row .rday{
+    font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase;
+    letter-spacing:0.08em; color:var(--ink); width:42px; flex:0 0 auto;
+  }
+  .ritual-row select{
+    flex:1 1 auto; min-width:0; font-family:'Inter',sans-serif; font-size:13px;
+    padding:5px 7px; border:1px solid var(--line); border-radius:3px;
+    background:var(--card); color:var(--ink);
+  }
+  .house-row{ display:flex; align-items:center; gap:10px; margin-top:16px; padding-top:14px; border-top:1px solid var(--line); }
+  .house-row .rday{ font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; }
 </style>
 </head>
 <body>
@@ -529,8 +562,10 @@
         <button class="tb-btn on" id="suggestWeek">Suggest the week</button>
         <button class="tb-btn" id="clearWeek">Clear</button>
         <button class="tb-btn" id="shopBtn">Shopping &amp; prep</button>
+        <button class="tb-btn" id="setBtn">Rituals</button>
       </div>
     </div>
+    <div id="settingsPanel"></div>
     <div id="prepStrip"></div>
     <div class="week" id="weekGrid"></div>
     <div id="weekSummary"></div>
@@ -9056,13 +9091,11 @@ function importData(e){
 function starStr(n){ const k=Math.round(n); return '★★★★★'.slice(0,k) + '☆☆☆☆☆'.slice(0,5-k); }
 function cardTimeHTML(r){
   const t = r._total; if(!t) return '';
-  const parts = [`<span class="t-total">${fmtTime(t)} total</span>`];
+  const out = [`<span class="t-total">${fmtTime(t)} total</span>`];
   const p = parseTime(r.prepTime), c = parseTime(r.cookTime);
-  const sub = [];
-  if(p) sub.push(fmtTime(p) + ' prep');
-  if(c) sub.push(fmtTime(c) + ' cook');
-  if(sub.length) parts.push(sub.join(' · '));
-  return parts.join('<br>');
+  if(p) out.push(`<span>${fmtTime(p)} prep</span>`);
+  if(c) out.push(`<span>${fmtTime(c)} cook</span>`);
+  return out.join('');
 }
 function cardMetaHTML(r){
   const n = timesMade(r.id), last = lastMade(r.id), avg = avgRating(r.id);
@@ -9095,9 +9128,9 @@ function renderGrid(){
           <span class="stamp-badge">${escapeHTML(r.category)}</span>
           <span class="stamp-badge cuisine">${zwsp(escapeHTML(r.cuisine))}</span>
         </div>
-        <span class="card-time">${cardTimeHTML(r)}</span>
       </div>
       <h3 class="card-title">${zwsp(escapeHTML(displayTitle(r)))}</h3>
+      <div class="card-time">${cardTimeHTML(r)}</div>
       ${cardMetaHTML(r)}
       <div class="card-bottom">
         <span class="card-source">${zwsp(escapeHTML(r.source||''))}</span>
@@ -9529,6 +9562,7 @@ function renderWeek(){
         if(serv) meta.push(`<span>serves ${serv}</span>`);
         meta.push(`<span>${zwsp(escapeHTML(r.cuisine))}</span>`);
         if(e.ritual) meta.push(`<span class="lo-pill">ritual</span>`);
+        if(serv && serv >= prefs().household * 2) meta.push(`<span class="lo-pill">makes leftovers</span>`);
         if(r._ahead) meta.push(`<span class="ahead-pill">${r._ahead.label}</span>`);
         if(cooked) meta.push(`<span class="cooked-flag">✓ cooked</span>`);
         inner += `<div class="slot">
@@ -9631,6 +9665,49 @@ document.getElementById('shopBtn').onclick = ()=>{
   const p = document.getElementById('shopPanel');
   if(p.dataset.open){ p.dataset.open=''; p.innerHTML=''; }
   else { p.dataset.open='1'; renderShop(); }
+};
+
+/* ---------------- rituals + household ---------------- */
+function renderSettings(){
+  const host = document.getElementById('settingsPanel');
+  if(!host.dataset.open){ host.innerHTML=''; return; }
+  const p = prefs();
+  const pool = RECIPES.filter(isDinnerish).sort((a,b)=> displayTitle(a).localeCompare(displayTitle(b)));
+  const opts = id => `<option value="">— none —</option>` + pool.map(r=>
+      `<option value="${r.id}" ${r.id===id?'selected':''}>${escapeHTML(displayTitle(r))}</option>`).join('');
+  host.innerHTML = `<div class="settings">
+    <h3>Weekly rituals</h3>
+    <p class="hint">Pin a dish to a weekday — pizza Friday, say — and "Suggest the week" will slot it there first.</p>
+    ${DAY_NAMES.map((d,i)=>{
+      const rit = p.rituals.find(x=>x.day===i);
+      return `<div class="ritual-row"><span class="rday">${d}</span>
+        <select data-ritual="${i}">${opts(rit?rit.recipeId:'')}</select></div>`;
+    }).join('')}
+    <div class="house-row">
+      <span class="rday">Household</span>
+      <div class="step">
+        <button type="button" id="hhDown">−</button>
+        <div class="step-val">${p.household}</div>
+        <button type="button" id="hhUp">+</button>
+      </div>
+      <span class="hint" style="margin:0; font-size:12.5px;">used to spot meals big enough to leave leftovers</span>
+    </div>
+  </div>`;
+  host.querySelectorAll('[data-ritual]').forEach(sel=> sel.onchange = ()=>{
+    const day = +sel.dataset.ritual;
+    p.rituals = p.rituals.filter(x=> x.day !== day);
+    if(sel.value) p.rituals.push({day, recipeId: sel.value});
+    persist();
+  });
+  const setHH = n =>{ p.household = Math.max(1, Math.min(20, n)); persist(); renderSettings(); renderWeek(); };
+  host.querySelector('#hhUp').onclick   = ()=> setHH(p.household+1);
+  host.querySelector('#hhDown').onclick = ()=> setHH(p.household-1);
+}
+document.getElementById('setBtn').onclick = ()=>{
+  const h = document.getElementById('settingsPanel');
+  h.dataset.open = h.dataset.open ? '' : '1';
+  document.getElementById('setBtn').classList.toggle('on', !!h.dataset.open);
+  renderSettings();
 };
 
 /* ---------------- picker ---------------- */
