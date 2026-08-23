@@ -648,6 +648,11 @@
     .ing-list{ columns:1; }
     .make-bar{ gap:8px 10px; }
   }
+  .sync-dot{ font-size:10.5px; letter-spacing:0.04em; }
+  .sync-dot.s-ok, .sync-dot.s-idle{ color:#5FA36B; border-color:#5FA36B33; }
+  .sync-dot.s-syncing{ color:var(--stamp); border-color:var(--stamp); }
+  .sync-dot.s-error{ color:var(--alert); border-color:var(--alert); }
+  .bench code{ font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--stamp); }
 </style>
 </head>
 <body>
@@ -665,7 +670,8 @@
 
 <div class="util-row">
   <button class="icon-btn" id="themeBtn" title="Switch theme">◐ Light</button>
-  <button class="icon-btn" id="benchBtn" title="Data tools (desktop)">⌥</button>
+  <button class="icon-btn" id="benchBtn" title="Data tools">⌥</button>
+  <span class="icon-btn sync-dot" id="syncDot" style="cursor:default">○ local only</span>
 </div>
 <div id="benchPanel"></div>
 
@@ -8856,26 +8862,45 @@ const SEED_STATE = {
 /* ---------------- state layer ---------------- */
 const LS_KEY = 'cookbook.state.v1';
 function blankState(){ return {version:1, cookLog:[], plan:{}, inventory:{freezer:[],pantry:[]}, prefs:{}}; }
+/* Deletes are tombstones (_d) rather than removals, and every mutable record carries
+   a _t stamp -- without both, a delete on one device is silently undone by the other. */
+function newer(x, y){ return ((y && y._t)||0) >= ((x && x._t)||0) ? y : x; }
 function mergeStates(base, over){
   const m = new Map();
-  [...(base.cookLog||[]), ...(over.cookLog||[])].forEach(e=>{ if(e && e.id) m.set(e.id, e); });
+  [...(base.cookLog||[]), ...(over.cookLog||[])].forEach(e=>{
+    if(!e || !e.id) return;
+    const prev = m.get(e.id);
+    m.set(e.id, prev ? newer(prev, e) : e);
+  });
+  const plan = {};
+  const keys = new Set([...Object.keys(base.plan||{}), ...Object.keys(over.plan||{})]);
+  keys.forEach(k=>{
+    const x = (base.plan||{})[k], y = (over.plan||{})[k];
+    const win = (!x) ? y : (!y) ? x : newer(x, y);
+    /* let old tombstones fall away so the file doesn't grow forever */
+    if(win && win._d && (Date.now() - (win._t||0)) > 60*864e5) return;
+    plan[k] = win;
+  });
+  const bi = base.inventory || {}, oi = over.inventory || {};
+  const inv = ((oi._t||0) >= (bi._t||0)) ? oi : bi;
+  const bp = base.prefs || {}, op = over.prefs || {};
   return {
     version: 1,
     cookLog: [...m.values()].sort((a,b)=> (b.date||'').localeCompare(a.date||'')),
-    plan: Object.assign({}, base.plan||{}, over.plan||{}),
-    inventory: {
-      freezer: (over.inventory && over.inventory.freezer) || (base.inventory && base.inventory.freezer) || [],
-      pantry:  (over.inventory && over.inventory.pantry)  || (base.inventory && base.inventory.pantry)  || []
-    },
-    prefs: Object.assign({}, base.prefs||{}, over.prefs||{})
+    plan,
+    inventory: {freezer: inv.freezer||[], pantry: inv.pantry||[], _t: inv._t||0},
+    prefs: ((op._t||0) >= (bp._t||0)) ? Object.assign({}, bp, op) : Object.assign({}, op, bp)
   };
 }
 function loadLocal(){ try{ const r=localStorage.getItem(LS_KEY); return r?JSON.parse(r):null; }catch(e){ return null; } }
 let DATA = mergeStates(SEED_STATE, loadLocal() || blankState());
-function persist(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(DATA)); }catch(e){} }
+function persist(fromSync){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(DATA)); }catch(e){}
+  if(!fromSync && typeof scheduleSync === 'function') scheduleSync();
+}
 function uid(){ return 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 
-function cookEvents(id){ return DATA.cookLog.filter(e=>e.recipeId===id).sort((a,b)=>(b.date||'').localeCompare(a.date||'')); }
+function cookEvents(id){ return DATA.cookLog.filter(e=>e.recipeId===id && !e._d).sort((a,b)=>(b.date||'').localeCompare(a.date||'')); }
 function timesMade(id){ return cookEvents(id).length; }
 function lastMade(id){ const e=cookEvents(id); return e.length ? e[0].date : null; }
 function avgRating(id){
@@ -8883,11 +8908,15 @@ function avgRating(id){
   return rs.length ? rs.reduce((a,b)=>a+b,0)/rs.length : null;
 }
 function addCook(recipeId, date, rating, note){
-  DATA.cookLog.unshift({id:uid(), recipeId, date, rating: rating||null, note: note||''});
+  DATA.cookLog.unshift({id:uid(), recipeId, date, rating: rating||null, note: note||'', _t: Date.now()});
   DATA.cookLog.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   persist();
 }
-function removeCook(evId){ DATA.cookLog = DATA.cookLog.filter(e=>e.id!==evId); persist(); }
+function removeCook(evId){
+  const e = DATA.cookLog.find(x=>x.id===evId);
+  if(e){ e._d = true; e._t = Date.now(); }
+  persist();
+}
 
 function todayISO(){ const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
 function daysSince(iso){
@@ -9223,7 +9252,7 @@ function importData(e){
     try{
       DATA = mergeStates(DATA, JSON.parse(fr.result));
       persist(); render();
-      alert('Imported. ' + DATA.cookLog.length + ' cook entries now on file.');
+      alert('Imported. ' + DATA.cookLog.filter(e=>!e._d).length + ' cook entries now on file.');
     }catch(err){ alert('That file could not be read as cookbook data.'); }
   };
   fr.readAsText(f);
@@ -9255,7 +9284,7 @@ function renderGrid(){
   const filtered = getFiltered();
   grid.innerHTML = '';
   document.getElementById('resultCount').textContent = `${filtered.length} / ${RECIPES.length}`;
-  const made = DATA.cookLog.length;
+  const made = DATA.cookLog.filter(e=>!e._d).length;
   document.getElementById('footerCount').textContent =
     `${RECIPES.length} recipes catalogued, and counting.` + (made ? `  ${made} meals logged.` : '');
   if(filtered.length===0){
@@ -9485,9 +9514,10 @@ const DINNER_CATEGORIES = ['Main','Soup'];
 function isDinnerish(r){ return DINNER_CATEGORIES.indexOf(r.category) !== -1; }
 
 /* ---------------- plan accessors ---------------- */
-function planAt(iso){ return DATA.plan[iso] || null; }
+function planAt(iso){ const e = DATA.plan[iso]; return (e && !e._d) ? e : null; }
 function setPlan(iso, entry){
-  if(entry) DATA.plan[iso] = entry; else delete DATA.plan[iso];
+  DATA.plan[iso] = entry ? Object.assign({}, entry, {_t: Date.now()})
+                         : {_d: true, _t: Date.now()};
   persist();
 }
 function recipeById(id){ return RECIPES.find(r=>r.id===id) || null; }
@@ -9889,9 +9919,9 @@ function renderSettings(){
     const day = +sel.dataset.ritual;
     p.rituals = p.rituals.filter(x=> x.day !== day);
     if(sel.value) p.rituals.push({day, recipeId: sel.value});
-    persist();
+    p._t = Date.now(); persist();
   });
-  const setHH = n =>{ p.household = Math.max(1, Math.min(20, n)); persist(); renderSettings(); renderWeek(); };
+  const setHH = n =>{ p.household = Math.max(1, Math.min(20, n)); p._t = Date.now(); persist(); renderSettings(); renderWeek(); };
   host.querySelector('#hhUp').onclick   = ()=> setHH(p.household+1);
   host.querySelector('#hhDown').onclick = ()=> setHH(p.household-1);
 }
@@ -9973,7 +10003,7 @@ function renderMonth(){
     const div = document.createElement('div');
     if(!iso){ div.className='mcell out'; grid.appendChild(div); return; }
     div.className = 'mcell' + (iso===today?' today':'');
-    const evs = DATA.cookLog.filter(e=> e.date === iso);
+    const evs = DATA.cookLog.filter(e=> e.date === iso && !e._d);
     const planned = planAt(iso);
     let html = `<div class="mnum">${dateOf(iso).getDate()}</div>`;
     evs.forEach(e=>{
@@ -9989,13 +10019,13 @@ function renderMonth(){
   });
   grid.querySelectorAll('[data-open]').forEach(el=> el.onclick = ()=>{ const r=recipeById(el.dataset.open); if(r) openModal(r); });
 
-  const inMonth = DATA.cookLog.filter(e=> e.date && e.date.slice(0,7) === monthCursor);
+  const inMonth = DATA.cookLog.filter(e=> !e._d && e.date && e.date.slice(0,7) === monthCursor);
   const cuis = new Set(inMonth.map(e=>{ const r=recipeById(e.recipeId); return r?r.cuisine:null; }).filter(Boolean));
   const never = RECIPES.filter(r=> timesMade(r.id)===0).length;
   document.getElementById('histStats').innerHTML = `<div class="hist-stats">
     <div class="hstat"><b>${inMonth.length}</b>meals this month</div>
     <div class="hstat"><b>${cuis.size}</b>cuisines</div>
-    <div class="hstat"><b>${DATA.cookLog.length}</b>logged all time</div>
+    <div class="hstat"><b>${DATA.cookLog.filter(e=>!e._d).length}</b>logged all time</div>
     <div class="hstat"><b>${never}</b>never made yet</div>
   </div>`;
 }
@@ -10176,14 +10206,16 @@ function renderBench(){
       <input type="file" id="importFile2" accept="application/json" style="display:none">
       <button class="tb-btn" id="wipeBtn">Reset this device</button>
     </div>
+    <div id="tokenBox"></div>
   </div></div>`;
   host.querySelector('#exportBtn2').onclick = exportData;
   host.querySelector('#importBtn2').onclick = ()=> host.querySelector('#importFile2').click();
   host.querySelector('#importFile2').onchange = importData;
   host.querySelector('#wipeBtn').onclick = ()=>{
     if(!confirm('Erase all cook history, plans and inventory stored on this device?')) return;
-    DATA = mergeStates(SEED_STATE, blankState()); persist(); render();
+    DATA = mergeStates(SEED_STATE, blankState()); persist(true); render();
   };
+  renderTokenBox();
 }
 document.getElementById('benchBtn').onclick = ()=>{
   const h = document.getElementById('benchPanel');
@@ -10194,6 +10226,150 @@ document.getElementById('benchBtn').onclick = ()=>{
 
 applyFont(fontIdx());
 setTimeout(openFromHash, 0);
+
+/* ============================================================
+   PHASE 4 — two-way sync with the repo via the GitHub API
+   The page is static; a per-device token is what lets it write.
+   ============================================================ */
+const GH = { owner:'tad-ncb', repo:'familycookbook', path:'state.json', branch:'main' };
+const TOKEN_KEY = 'cookbook.gh.token';
+function ghToken(){ try{ return localStorage.getItem(TOKEN_KEY) || ''; }catch(e){ return ''; } }
+function setGhToken(v){ try{ v ? localStorage.setItem(TOKEN_KEY, v) : localStorage.removeItem(TOKEN_KEY); }catch(e){} }
+function ghHeaders(tok){
+  return { 'Authorization':'Bearer '+tok, 'Accept':'application/vnd.github+json',
+           'X-GitHub-Api-Version':'2022-11-28', 'Content-Type':'application/json' };
+}
+/* btoa alone mangles anything non-ASCII (é, ½, ★) -- go through UTF-8 bytes */
+function encodeB64(str){
+  const bytes = new TextEncoder().encode(str);
+  let bin=''; bytes.forEach(b=> bin += String.fromCharCode(b));
+  return btoa(bin);
+}
+function decodeB64(b64){
+  const bin = atob(String(b64).replace(/\s/g,''));
+  const bytes = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+let syncState = 'off', syncMsg = '', syncTimer = null, syncing = false;
+function setSync(s, msg){ syncState = s; syncMsg = msg||''; paintSync(); }
+function paintSync(){
+  const el = document.getElementById('syncDot');
+  if(!el) return;
+  const label = {
+    off:     '○ local only',
+    idle:    '● synced',
+    syncing: '◍ syncing…',
+    ok:      '● synced',
+    error:   '▲ sync failed',
+    offline: '○ offline'
+  }[syncState] || '';
+  el.textContent = label;
+  el.title = syncMsg || (syncState==='off' ? 'Add a token in the workbench to sync across devices' : '');
+  el.className = 'icon-btn sync-dot s-'+syncState;
+}
+
+/* read the committed copy -- public, so no token needed */
+async function pullRemote(){
+  try{
+    const res = await fetch(GH.path + '?t=' + Date.now(), {cache:'no-store'});
+    if(!res.ok) return null;
+    return await res.json();
+  }catch(e){ return null; }
+}
+
+async function pushRemote(reason){
+  const tok = ghToken();
+  if(!tok){ setSync('off'); return {ok:false, why:'no token'}; }
+  if(syncing) return {ok:false, why:'busy'};
+  syncing = true; setSync('syncing');
+  const api = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${GH.path}`;
+  try{
+    /* always re-read immediately before writing: the other device may have moved */
+    let sha = null, remote = null;
+    const g = await fetch(api + '?ref=' + GH.branch, {headers: ghHeaders(tok), cache:'no-store'});
+    if(g.status === 200){
+      const j = await g.json();
+      sha = j.sha;
+      try{ remote = JSON.parse(decodeB64(j.content)); }catch(e){ remote = null; }
+    } else if(g.status === 401 || g.status === 403){
+      throw new Error('token rejected (' + g.status + ')');
+    } else if(g.status !== 404){
+      throw new Error('read failed (' + g.status + ')');
+    }
+    if(remote) DATA = mergeStates(remote, DATA);
+    persist(true);
+
+    const body = {
+      message: 'cookbook: ' + (reason || 'sync'),
+      content: encodeB64(JSON.stringify(DATA, null, 2)),
+      branch: GH.branch
+    };
+    if(sha) body.sha = sha;
+    const put = await fetch(api, {method:'PUT', headers: ghHeaders(tok), body: JSON.stringify(body)});
+    if(put.status === 409){ syncing = false; return pushRemote(reason); }  /* someone beat us; redo the merge */
+    if(!put.ok) throw new Error('write failed (' + put.status + ')');
+    syncing = false; setSync('ok', 'last synced ' + new Date().toLocaleTimeString());
+    render(); if(view==='plan') renderWeek(); if(view==='history') renderMonth();
+    return {ok:true};
+  }catch(e){
+    syncing = false;
+    setSync('error', String(e.message || e));
+    return {ok:false, why:String(e.message || e)};
+  }
+}
+function scheduleSync(reason){
+  if(!ghToken()) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(()=> pushRemote(reason || 'update'), 4000);
+}
+
+async function syncBoot(){
+  const remote = await pullRemote();
+  if(remote){
+    DATA = mergeStates(remote, DATA);
+    persist(true);
+    render();
+    if(view==='plan') renderWeek();
+    if(view==='history') renderMonth();
+  }
+  setSync(ghToken() ? 'idle' : 'off');
+}
+
+/* token setup lives in the workbench */
+function renderTokenBox(){
+  const host = document.getElementById('tokenBox');
+  if(!host) return;
+  const has = !!ghToken();
+  host.innerHTML = `
+    <h3 style="margin-top:16px">Device sync</h3>
+    <p>${has
+      ? 'This device is signed in and writes straight to <code>state.json</code> in the repo. Other devices pick it up on their next load.'
+      : 'Paste a GitHub fine-grained token with <b>Contents: read &amp; write</b> on <code>' + GH.owner + '/' + GH.repo + '</code>. It is stored only in this browser and never leaves the device except to talk to GitHub.'}</p>
+    <div class="bench-btns">
+      ${has ? '' : '<input type="password" id="tokTxt" placeholder="github_pat_…" style="flex:1 1 260px; min-width:0; font-family:monospace; font-size:12px; padding:7px 9px; border:1px solid var(--line); border-radius:3px; background:var(--card); color:var(--ink);">'}
+      ${has ? '<button class="tb-btn" id="tokSync">Sync now</button><button class="tb-btn" id="tokClear">Sign this device out</button>'
+            : '<button class="tb-btn" id="tokSave">Save token</button>'}
+      ${has ? '' : '<a class="tb-btn" style="text-decoration:none" target="_blank" rel="noopener" href="https://github.com/settings/personal-access-tokens/new">Create one</a>'}
+    </div>`;
+  const save = host.querySelector('#tokSave');
+  if(save) save.onclick = async ()=>{
+    const v = host.querySelector('#tokTxt').value.trim();
+    if(!v) return;
+    setGhToken(v);
+    const r = await pushRemote('sign in');
+    if(!r.ok){ alert('Could not sync with that token: ' + r.why); setGhToken(''); }
+    renderTokenBox(); paintSync();
+  };
+  const now = host.querySelector('#tokSync');
+  if(now) now.onclick = async ()=>{ const r = await pushRemote('manual sync'); if(!r.ok) alert('Sync failed: ' + r.why); };
+  const clr = host.querySelector('#tokClear');
+  if(clr) clr.onclick = ()=>{ setGhToken(''); setSync('off'); renderTokenBox(); };
+}
+
+syncBoot();
+
 
 
 </script>
