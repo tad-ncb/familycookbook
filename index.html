@@ -11340,7 +11340,7 @@ setView('cookbook');
 
 /* ---------------- theme (dark by default) ---------------- */
 const THEME_KEY = 'cookbook.theme';
-function currentTheme(){ try{ return localStorage.getItem(THEME_KEY) || 'dark'; }catch(e){ return 'dark'; } }
+function currentTheme(){ try{ return localStorage.getItem(THEME_KEY) || 'light'; }catch(e){ return 'light'; } }
 function applyTheme(mode){
   document.documentElement.setAttribute('data-theme', mode);
   try{ localStorage.setItem(THEME_KEY, mode); }catch(e){}
