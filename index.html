@@ -662,18 +662,17 @@
     <h1 class="title">The Deemer-Berdux Family Cookbook</h1>
     <div class="viewtabs" id="viewTabs">
       <button class="vt" data-view="cookbook">Cookbook</button>
-      <button class="vt" data-view="plan">Plan the week</button>
-      <button class="vt" data-view="history">History</button>
+      <button class="vt" data-view="plan" style="display:none">Plan the week</button>
+      <button class="vt" data-view="history" style="display:none">History</button>
     </div>
   </div>
 </div>
 
 <div class="util-row">
   <button class="icon-btn" id="themeBtn" title="Switch theme">◐ Light</button>
-  <button class="icon-btn" id="benchBtn" title="Data tools">⌥</button>
-  <span class="icon-btn sync-dot" id="syncDot" style="cursor:default">○ local only</span>
+  <span id="authArea"></span>
 </div>
-<div id="benchPanel"></div>
+<div id="authPanel"></div>
 
 <div id="cookbookView">
 <div class="controls">
@@ -786,6 +785,7 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 const RECIPES = [
   {
@@ -10951,6 +10951,221 @@ const RECIPES = [
     "needsReview": false,
     "cookTime": "50 minutes",
     "prepTime": "10 hours"
+  },
+  {
+    "id": "seeded-sandwich-bread",
+    "title": "Seeded Sandwich Bread",
+    "category": "Bread",
+    "cuisine": "American",
+    "source": "Cookbook photo",
+    "servings": "Makes 2 loaves",
+    "ingredients": [
+      "For the dough: 3 1/4 cups (400 g) bread flour, plus extra to dust",
+      "For the dough: 2 3/4 cups (350 g) stoneground whole wheat flour",
+      "For the dough: 1/3 cup plus 1 Tbsp (50 g) rye flour",
+      "For the dough: 1 3/4 tsp (14 g) fine salt",
+      "For the dough: 1 (7 g) envelope instant dried yeast",
+      "For the dough: 1 Tbsp plus 1 tsp (20 g) honey",
+      "For the dough: 1 Tbsp plus 1 tsp (20 g) olive oil, plus extra for oiling",
+      "For the dough: about 3 cups (700 g) cool water",
+      "For the seed mix: 1/2 cup (80 g) poppy seeds",
+      "For the seed mix: 1/2 cup (80 g) pumpkin seeds",
+      "For the seed mix: 1/2 cup (80 g) sunflower seeds",
+      "For the seed mix: 2 Tbsp (20 g) caraway seeds",
+      "For the topping: 2/3 cup (100 g) white sesame seeds"
+    ],
+    "instructions": [
+      "Combine all the dough ingredients in a large bowl and stir together for about a minute to form a dough. Tip onto a lightly oiled surface and knead well for 10-15 minutes, until soft and elastic. Alternatively, use a stand mixer fitted with the dough hook for 3-4 minutes on slow and 10 minutes on medium speed.",
+      "Return the dough to the bowl, cover with plastic wrap, and leave to rise for 1 hour.",
+      "Tip the dough out onto a lightly floured surface and fold it inwards repeatedly until all the air is knocked out. Flatten slightly, scatter the poppy, pumpkin, sunflower, and caraway seeds on top, and knead to distribute them evenly through the dough. Return to the bowl, re-cover, and leave to rise for a further 1 1/2 hours.",
+      "Lightly oil two 1-pound loaf pans. Tip the dough out onto a lightly floured surface, knock back to exclude the air, and divide in half. Flatten each piece into a rectangle and fold the sides into the middle, then starting at the top, flatten slightly and roll up, keeping the seam underneath and the sides tucked in neatly.",
+      "Brush the top of each loaf with water, then roll in the sesame seeds. Place in the prepared loaf pans and put each inside a roomy freezer bag. Leave to proof at room temperature for 2 hours, until at least doubled in size.",
+      "Heat the oven to 415°F. Bake the loaves for 35 minutes, or until cooked — tip a loaf out of the pan and tap the base; it should sound hollow. Cool out of the pan on a wire rack.",
+      "Once cooled, the extra loaf can be frozen in a freezer bag; it will take 1-2 hours to thaw at room temperature."
+    ],
+    "tags": [
+      "Vegan-friendly",
+      "Vegetarian"
+    ],
+    "needsReview": false,
+    "cookTime": "35 minutes",
+    "prepTime": "4 hours 30 minutes"
+  },
+  {
+    "id": "cheesy-bread",
+    "title": "Cheesy Bread",
+    "category": "Bread",
+    "cuisine": "American",
+    "source": "Cookbook photo",
+    "servings": "Makes 1 large loaf",
+    "ingredients": [
+      "For the dough: 6 1/3 cups (800 g) bread flour",
+      "For the dough: 1 3/4 tsp (14 g) fine salt",
+      "For the dough: 3/4 tsp (2 g) instant dried yeast",
+      "For the dough: about 2 1/2 cups (600 g) cool water",
+      "For the dough: a little oil, for oiling",
+      "For the filling: 2 cups (200 g) grated sharp Cheddar",
+      "For the filling: 7 oz (200 g) Brie or Camembert, in small pieces",
+      "For the filling: 1 cup (100 g) freshly grated Parmesan"
+    ],
+    "instructions": [
+      "In a large bowl, combine the dough ingredients and mix, using one hand or a wooden spoon, for 1 minute to form a dough. Tip onto a lightly oiled surface and knead well for about 10 minutes, until soft and elastic. Alternatively, use a stand mixer fitted with the dough hook for 3-4 minutes on slow and 10 minutes on medium speed.",
+      "Cover the bowl with a large freezer bag and leave to rise at room temperature for 6 hours.",
+      "Oil an 8-inch springform pan well. Tip the dough out onto a lightly oiled surface and fold it inwards repeatedly until all the air is knocked out. Flatten the dough slightly and scatter over the grated Cheddar and Brie or Camembert, along with half the Parmesan. Knead until the filling is well distributed.",
+      "Gently tuck the dough underneath and rotate to create tension on top. Turn the dough 90 degrees and repeat, continuing until you have a smooth round.",
+      "Put the dough in the prepared springform pan, place inside a roomy freezer bag, and leave to proof at room temperature for 6 hours, until well risen.",
+      "Heat the oven to 400°F. Spray the dough with water and sprinkle with the remaining Parmesan. Cut a cross in the top with a sharp knife. Bake for 1 hour, until golden brown. Remove the loaf from the pan and cool on a wire rack."
+    ],
+    "tags": [
+      "Vegetarian"
+    ],
+    "needsReview": false,
+    "cookTime": "1 hour",
+    "prepTime": "6 hours 15 minutes"
+  },
+  {
+    "id": "cheese-and-onion-soda-bread",
+    "title": "Cheese and Onion Soda Bread",
+    "category": "Bread",
+    "cuisine": "British",
+    "source": "Cookbook photo",
+    "servings": "Makes 2 loaves",
+    "ingredients": [
+      "3/4 cup (100 g) whole wheat flour",
+      "3 1/4 cups (400 g) all-purpose flour, plus extra to dust",
+      "1 tsp fine salt",
+      "1 tsp baking soda",
+      "1 2/3 cups (400 g) buttermilk",
+      "1 1/2 cups (150 g) grated Cheddar",
+      "1/2 onion, diced and sauteed in a little oil to soften",
+      "A little milk, to brush",
+      "1 cup (100 g) freshly grated Parmesan"
+    ],
+    "instructions": [
+      "Heat the oven to 400°F and have ready two baking sheets.",
+      "Combine the flours, salt, and baking soda in a large bowl. Add the buttermilk and mix together, using one hand, to form a sticky dough. Gently fold the dough to bring it together for a couple of minutes; it should feel soft.",
+      "Add the grated cheese and sauteed onion to the dough and fold to incorporate evenly. Tip the dough out onto a lightly floured surface and fold again for a minute, then divide in half.",
+      "Shape each portion into a ball using the heel of your hand and place on a baking sheet. Cut a deep cross in each loaf with a sharp knife. Brush the top of each loaf with a little milk and sprinkle with the Parmesan.",
+      "Bake for 30 minutes, or until the loaves are golden brown and sound hollow when tapped on the base. Transfer to a wire rack to cool.",
+      "Soda bread is best eaten the day it's made, but keeps in the bread box for a day or two, and freezes well — thaw at room temperature, then refresh in a 400°F oven for 4-5 minutes."
+    ],
+    "tags": [
+      "Vegetarian"
+    ],
+    "needsReview": false,
+    "cookTime": "30 minutes",
+    "prepTime": "20 minutes"
+  },
+  {
+    "id": "sourdough",
+    "title": "Sourdough",
+    "category": "Bread",
+    "cuisine": "American",
+    "source": "Cookbook photo",
+    "servings": "Makes 1 loaf",
+    "ingredients": [
+      "For the starter: 3/4 cup (100 g) bread flour",
+      "For the starter: 7 Tbsp (100 ml) tepid water",
+      "To feed the starter, each time: 1/2 cup (60 g) bread flour",
+      "To feed the starter, each time: 1/4 cup (60 g) tepid water",
+      "For the dough: 3 2/3 cups (450 g) bread flour, plus extra to dust",
+      "For the dough: 1 1/4 tsp (10 g) fine sea salt",
+      "For the dough: 1 1/3 cups (320 g) tepid water",
+      "For the dough: 2/3 cup (150 g) sourdough starter",
+      "For the dough: a little oil, for oiling"
+    ],
+    "instructions": [
+      "To prepare the starter — Day 1: mix the flour and water together with a fork to form a smooth paste. Transfer to a large jar, seal, and leave at warm room temperature (68-75°F) to ferment for 2 days, until it starts to froth.",
+      "Day 3: open the jar — there should be a light, vinegary smell. Discard half the mixture, then stir in 1/2 cup flour and 1/4 cup tepid water until no flour can be seen. Reseal and leave to ferment for another 24 hours.",
+      "Day 4: the starter should be risen and bubbling. Discard half again and feed with another 1/2 cup flour and 1/4 cup water. Stir together, reseal, and leave to rise overnight.",
+      "Day 5: the starter should be active, with bubbles throughout, and ready to use. If it looks flat or has few bubbles, feed it again as on Day 4 and wait another day.",
+      "To keep the starter going, feed it (as above) after each use. Keep at room temperature if you bake often, or in the fridge if you bake less frequently — discard any brown liquid that forms on top before feeding.",
+      "To prepare the dough: put the flour, salt, and tepid water in a stand mixer fitted with the dough hook and mix on slow for 4-5 minutes, then medium for 10 minutes. Add the starter and mix on slow for 1 minute, then medium for 15 minutes, until the dough is soft and elastic and holds together when stretched.",
+      "Put the dough in an oiled bowl about 9 inches across, cover, and leave to rise until at least doubled — about 8 hours in summer, 9-10 hours in a cooler kitchen.",
+      "Tip the dough onto a floured surface and stretch the outside edge into the middle without pressing too hard, to keep the air in. Rotate 90 degrees and repeat several times, then turn the dough over, push a bench scraper underneath, rotate, and repeat to tighten and smooth the top.",
+      "Put the dough in a floured banneton, or on a large sheet of parchment paper, and leave to rest for 1-2 hours.",
+      "Heat the oven to 450°F and put a heavy, ovenproof saucepan with a domed lid inside to heat for 10 minutes.",
+      "If using a banneton, cover the top with parchment paper and carefully invert the dough onto it. Using oven mitts, bring the hot pan to the dough and lift it in using the parchment, tucking the paper down around the sides and trimming off the excess.",
+      "Score a deep cross or hashtag in the top of the dough with a very sharp blade. Cover with the lid and bake for 25 minutes, then remove the lid and bake for a further 30 minutes, until well browned.",
+      "Lift the loaf out of the pan and cool on a wire rack for 2 hours before slicing."
+    ],
+    "tags": [
+      "Vegan-friendly",
+      "Vegetarian"
+    ],
+    "needsReview": false,
+    "cookTime": "55 minutes",
+    "prepTime": "5 days"
+  },
+  {
+    "id": "english-muffins",
+    "title": "English Muffins",
+    "category": "Breakfast",
+    "cuisine": "British",
+    "source": "Cookbook photo",
+    "servings": "Makes 4",
+    "ingredients": [
+      "2 1/3 cups plus 1 Tbsp (300 g) bread flour, plus extra to dust",
+      "1 tsp (3 g) instant dried yeast",
+      "1 tsp (8 g) fine salt",
+      "1 Tbsp (15 g) superfine sugar",
+      "1 Tbsp plus 1 tsp (20 g) unsalted butter, diced and softened",
+      "1 large egg",
+      "Up to scant 1 cup (170-200 g) milk",
+      "A little oil, for oiling",
+      "Semolina, to sprinkle"
+    ],
+    "instructions": [
+      "In a large bowl, combine the flour, yeast, salt, and sugar. Add the butter, egg, and 2/3 cup (150 g) of the milk and mix together with your fingers. Continue adding the remaining milk until all the flour is incorporated and you have a smooth dough — you may not need all of it.",
+      "Tip the dough out onto a lightly floured surface and knead for 8-10 minutes. Alternatively, use a stand mixer fitted with the dough hook for 3-4 minutes on slow and 4-5 minutes on medium speed.",
+      "Put the dough in a lightly oiled bowl, cover with plastic wrap, and leave to rise for an hour, or until doubled in size.",
+      "Line a large baking sheet with parchment paper. Tip the dough out onto a lightly floured surface and roll out to a 3/4-inch thickness. Using a 3 1/2-inch biscuit cutter, stamp out 4 rounds.",
+      "Place the rounds on the prepared baking sheet and sprinkle the tops evenly with semolina. Put the baking sheet in a roomy freezer bag and leave to proof for about an hour, until slightly risen.",
+      "Heat a heavy-based frying pan, skillet, or griddle over low heat and wipe the surface with an oiled paper towel. Cook the muffins in batches, 5-6 minutes on each side. Transfer to a wire rack to cool completely.",
+      "To serve, slice the muffins in half and toast, then spread with butter."
+    ],
+    "tags": [
+      "Vegetarian"
+    ],
+    "needsReview": false,
+    "cookTime": "15 minutes",
+    "prepTime": "2 hours 15 minutes"
+  },
+  {
+    "id": "the-ultimate-focaccia",
+    "title": "The Ultimate Focaccia",
+    "shortTitle": "Ultimate Focaccia",
+    "category": "Bread",
+    "cuisine": "Italian",
+    "source": "Cookbook photo",
+    "servings": "Makes 1 large focaccia",
+    "ingredients": [
+      "For the dough: 4 cups (500 g) bread flour",
+      "For the dough: 1 tsp (8 g) fine salt",
+      "For the dough: 3 3/4 tsp (10 g) instant dried yeast",
+      "For the dough: 2 Tbsp (30 g) olive oil, plus extra for oiling",
+      "For the dough: 1 1/2 cups (370 g) water",
+      "For the topping: 1/2 cup (75 g) pitted Kalamata black olives",
+      "For the topping: 1 small red onion",
+      "For the topping: 10 cherry or grape tomatoes",
+      "For the topping: 1 Tbsp dried oregano",
+      "For the topping: about 2/3 cup (135 g) olive oil, to drizzle",
+      "For the topping: flaky sea salt"
+    ],
+    "instructions": [
+      "Put all the dough ingredients into a large bowl and stir together to combine and form a dough. Fold a corner of the dough into the middle and push firmly, then rotate the bowl 90 degrees and repeat. Continue folding and turning for 2 minutes, then tip out onto a lightly oiled surface and knead for 10 minutes, until soft and elastic. Alternatively, use a stand mixer fitted with the dough hook for 2 minutes on slow and 7 minutes on medium speed.",
+      "Return the dough to the bowl, cover with a large freezer bag, and leave to rise at room temperature for 2 hours, until at least doubled in size.",
+      "Liberally oil the base of a large, shallow baking pan, about 9x13 inches. Tip the dough out onto a lightly oiled surface and stretch it to fit the pan. Drizzle with plenty of olive oil and make firm indentations all over the surface with your fingers. Put the pan into a roomy freezer bag and leave to proof for 1 1/2 hours.",
+      "Remove the pan from the bag. Press the olives evenly into the dough. Cut the onion into slim wedges and press these in too. Halve the cherry tomatoes and press them evenly into the dough. Drizzle with more olive oil and sprinkle with the dried oregano and a generous amount of flaky sea salt.",
+      "Heat the oven to 450°F. Bake the focaccia for 20 minutes, or until golden brown. As you take it from the oven, drizzle with more olive oil. Transfer to a wire rack to cool."
+    ],
+    "tags": [
+      "Vegan-friendly",
+      "Vegetarian"
+    ],
+    "needsReview": false,
+    "cookTime": "20 minutes",
+    "prepTime": "4 hours"
   }
 ];
 
@@ -11017,14 +11232,17 @@ function avgRating(id){
   return rs.length ? rs.reduce((a,b)=>a+b,0)/rs.length : null;
 }
 function addCook(recipeId, date, rating, note){
-  DATA.cookLog.unshift({id:uid(), recipeId, date, rating: rating||null, note: note||'', _t: Date.now()});
+  const row = {id:uid(), recipeId, date, rating: rating||null, note: note||'', _t: Date.now()};
+  DATA.cookLog.unshift(row);
   DATA.cookLog.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   persist();
+  if(typeof pushWrite === 'function') pushWrite({table:'cook_log', row});
 }
 function removeCook(evId){
   const e = DATA.cookLog.find(x=>x.id===evId);
   if(e){ e._d = true; e._t = Date.now(); }
   persist();
+  if(e && typeof pushWrite === 'function') pushWrite({table:'cook_log', row:e});
 }
 
 function todayISO(){ const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
@@ -11628,6 +11846,7 @@ function setPlan(iso, entry){
   DATA.plan[iso] = entry ? Object.assign({}, entry, {_t: Date.now()})
                          : {_d: true, _t: Date.now()};
   persist();
+  if(typeof pushWrite === 'function') pushWrite({table:'plan_days', iso, row: DATA.plan[iso]});
 }
 function recipeById(id){ return RECIPES.find(r=>r.id===id) || null; }
 function slotServings(entry, r){
@@ -12029,8 +12248,12 @@ function renderSettings(){
     p.rituals = p.rituals.filter(x=> x.day !== day);
     if(sel.value) p.rituals.push({day, recipeId: sel.value});
     p._t = Date.now(); persist();
+    if(typeof pushWrite === 'function') pushWrite({table:'prefs', row:p});
   });
-  const setHH = n =>{ p.household = Math.max(1, Math.min(20, n)); p._t = Date.now(); persist(); renderSettings(); renderWeek(); };
+  const setHH = n =>{
+    p.household = Math.max(1, Math.min(20, n)); p._t = Date.now(); persist(); renderSettings(); renderWeek();
+    if(typeof pushWrite === 'function') pushWrite({table:'prefs', row:p});
+  };
   host.querySelector('#hhUp').onclick   = ()=> setHH(p.household+1);
   host.querySelector('#hhDown').onclick = ()=> setHH(p.household-1);
 }
@@ -12299,187 +12522,228 @@ function renderModalActions(){
   };
 }
 
-/* ---------------- workbench (desktop data tools) ---------------- */
-function renderBench(){
-  const host = document.getElementById('benchPanel');
-  if(!host.dataset.open){ host.innerHTML=''; return; }
-  host.innerHTML = `<div class="bench"><div class="bench-inner">
-    <h3>Workbench</h3>
-    <p>Export writes a JSON file of everything logged on <em>this</em> device — cook history, plans,
-       inventory. Hand that file to Claude and it gets merged into the committed copy and pushed,
-       which is how a second device ever sees it. Import merges a file back in.
-       Phones can export to Files, but the merge-and-push step happens on a computer.</p>
-    <div class="bench-btns">
-      <button class="tb-btn" id="exportBtn2">Export data</button>
-      <button class="tb-btn" id="importBtn2">Import</button>
-      <input type="file" id="importFile2" accept="application/json" style="display:none">
-      <button class="tb-btn" id="wipeBtn">Reset this device</button>
-    </div>
-    <div id="tokenBox"></div>
-  </div></div>`;
-  host.querySelector('#exportBtn2').onclick = exportData;
-  host.querySelector('#importBtn2').onclick = ()=> host.querySelector('#importFile2').click();
-  host.querySelector('#importFile2').onchange = importData;
-  host.querySelector('#wipeBtn').onclick = ()=>{
-    if(!confirm('Erase all cook history, plans and inventory stored on this device?')) return;
-    DATA = mergeStates(SEED_STATE, blankState()); persist(true); render();
-  };
-  renderTokenBox();
-}
-document.getElementById('benchBtn').onclick = ()=>{
-  const h = document.getElementById('benchPanel');
-  h.dataset.open = h.dataset.open ? '' : '1';
-  document.getElementById('benchBtn').classList.toggle('on', !!h.dataset.open);
-  renderBench();
-};
-
 applyFont(fontIdx());
 setTimeout(openFromHash, 0);
 
 /* ============================================================
-   PHASE 4 — two-way sync with the repo via the GitHub API
-   The page is static; a per-device token is what lets it write.
+   PHASE 4 — Supabase backend: auth-gated planner, live sync,
+   offline queue. Recipes stay public and static; everything a
+   household member writes (cook log, plan, inventory, prefs)
+   lives in Postgres behind row-level security keyed to three
+   allow-listed emails.
    ============================================================ */
-const GH = { owner:'tad-ncb', repo:'familycookbook', path:'state.json', branch:'main' };
-const TOKEN_KEY = 'cookbook.gh.token';
-function ghToken(){ try{ return localStorage.getItem(TOKEN_KEY) || ''; }catch(e){ return ''; } }
-function setGhToken(v){ try{ v ? localStorage.setItem(TOKEN_KEY, v) : localStorage.removeItem(TOKEN_KEY); }catch(e){} }
-function ghHeaders(tok){
-  return { 'Authorization':'Bearer '+tok, 'Accept':'application/vnd.github+json',
-           'X-GitHub-Api-Version':'2022-11-28', 'Content-Type':'application/json' };
-}
-/* btoa alone mangles anything non-ASCII (é, ½, ★) -- go through UTF-8 bytes */
-function encodeB64(str){
-  const bytes = new TextEncoder().encode(str);
-  let bin=''; bytes.forEach(b=> bin += String.fromCharCode(b));
-  return btoa(bin);
-}
-function decodeB64(b64){
-  const bin = atob(String(b64).replace(/\s/g,''));
-  const bytes = new Uint8Array(bin.length);
-  for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
-  return new TextDecoder().decode(bytes);
+
+/* Fill these in from Supabase -> Settings -> API. The anon key is
+   meant to be public; real access control is the RLS policy on
+   each table (see supabase_setup.sql), not secrecy of this key. */
+const SUPABASE_URL = 'REPLACE_WITH_PROJECT_URL';
+const SUPABASE_ANON_KEY = 'REPLACE_WITH_ANON_KEY';
+
+const sb = (SUPABASE_URL.startsWith('http'))
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
+
+let session = null;
+let realtimeChannel = null;
+
+function isEditor(){ return !!session; }
+
+/* ---------------- row <-> local shape mapping ---------------- */
+function rowToCook(r){ return {id:r.id, recipeId:r.recipe_id, date:r.date, rating:r.rating, note:r.note||'', _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
+function rowToPlan(r){ return {recipeId:r.recipe_id||undefined, leftoverOf:r.leftover_of||undefined, ritual:!!r.ritual, servings:r.servings||undefined, _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
+function rowToInv(r){ return {id:r.id, name:r.name, qty:r.qty, unit:r.unit, _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
+
+async function remoteFetchAll(){
+  if(!sb || !session) return null;
+  const [cl, pd, iv, pf] = await Promise.all([
+    sb.from('cook_log').select('*'),
+    sb.from('plan_days').select('*'),
+    sb.from('inventory_items').select('*'),
+    sb.from('prefs').select('*').eq('id', 1).single()
+  ]);
+  if(cl.error || pd.error || iv.error || pf.error){
+    console.error('Supabase fetch error', cl.error||pd.error||iv.error||pf.error);
+    return null;
+  }
+  const plan = {};
+  pd.data.forEach(r=> plan[r.iso_date] = rowToPlan(r));
+  const freezer = [], pantry = [];
+  iv.data.forEach(r=> (r.kind==='freezer'?freezer:pantry).push(rowToInv(r)));
+  return {
+    version: 1,
+    cookLog: cl.data.map(rowToCook),
+    plan,
+    inventory: {freezer, pantry, _t: Date.parse(pf.data.updated_at)},
+    prefs: Object.assign({household: pf.data.household, rituals: pf.data.rituals||[]}, {_t: Date.parse(pf.data.updated_at)})
+  };
 }
 
-let syncState = 'off', syncMsg = '', syncTimer = null, syncing = false;
-function setSync(s, msg){ syncState = s; syncMsg = msg||''; paintSync(); }
-function paintSync(){
-  const el = document.getElementById('syncDot');
-  if(!el) return;
-  const label = {
-    off:     '○ local only',
-    idle:    '● synced',
-    syncing: '◍ syncing…',
-    ok:      '● synced',
-    error:   '▲ sync failed',
-    offline: '○ offline'
-  }[syncState] || '';
-  el.textContent = label;
-  el.title = syncMsg || (syncState==='off' ? 'Add a token in the workbench to sync across devices' : '');
-  el.className = 'icon-btn sync-dot s-'+syncState;
-}
+/* ---------------- offline write queue ---------------- */
+const QUEUE_KEY = 'cookbook.pendingWrites';
+function loadQueue(){ try{ return JSON.parse(localStorage.getItem(QUEUE_KEY)) || []; }catch(e){ return []; } }
+function saveQueue(q){ try{ localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); }catch(e){} }
+function enqueue(op){ const q = loadQueue(); q.push(op); saveQueue(q); }
 
-/* read the committed copy -- public, so no token needed */
-async function pullRemote(){
-  try{
-    const res = await fetch(GH.path + '?t=' + Date.now(), {cache:'no-store'});
-    if(!res.ok) return null;
-    return await res.json();
-  }catch(e){ return null; }
-}
-
-async function pushRemote(reason){
-  const tok = ghToken();
-  if(!tok){ setSync('off'); return {ok:false, why:'no token'}; }
-  if(syncing) return {ok:false, why:'busy'};
-  syncing = true; setSync('syncing');
-  const api = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${GH.path}`;
-  try{
-    /* always re-read immediately before writing: the other device may have moved */
-    let sha = null, remote = null;
-    const g = await fetch(api + '?ref=' + GH.branch, {headers: ghHeaders(tok), cache:'no-store'});
-    if(g.status === 200){
-      const j = await g.json();
-      sha = j.sha;
-      try{ remote = JSON.parse(decodeB64(j.content)); }catch(e){ remote = null; }
-    } else if(g.status === 401 || g.status === 403){
-      throw new Error('token rejected (' + g.status + ')');
-    } else if(g.status !== 404){
-      throw new Error('read failed (' + g.status + ')');
-    }
-    if(remote) DATA = mergeStates(remote, DATA);
-    persist(true);
-
-    const body = {
-      message: 'cookbook: ' + (reason || 'sync'),
-      content: encodeB64(JSON.stringify(DATA, null, 2)),
-      branch: GH.branch
-    };
-    if(sha) body.sha = sha;
-    const put = await fetch(api, {method:'PUT', headers: ghHeaders(tok), body: JSON.stringify(body)});
-    if(put.status === 409){ syncing = false; return pushRemote(reason); }  /* someone beat us; redo the merge */
-    if(!put.ok) throw new Error('write failed (' + put.status + ')');
-    syncing = false; setSync('ok', 'last synced ' + new Date().toLocaleTimeString());
-    render(); if(view==='plan') renderWeek(); if(view==='history') renderMonth();
-    return {ok:true};
-  }catch(e){
-    syncing = false;
-    setSync('error', String(e.message || e));
-    return {ok:false, why:String(e.message || e)};
+async function runOp(op){
+  if(op.table === 'cook_log'){
+    return sb.from('cook_log').upsert({
+      id: op.row.id, recipe_id: op.row.recipeId, date: op.row.date,
+      rating: op.row.rating, note: op.row.note, deleted: !!op.row._d,
+      updated_at: new Date(op.row._t).toISOString()
+    });
+  }
+  if(op.table === 'plan_days'){
+    return sb.from('plan_days').upsert({
+      iso_date: op.iso, recipe_id: op.row.recipeId||null, leftover_of: op.row.leftoverOf||null,
+      ritual: !!op.row.ritual, servings: op.row.servings||null, deleted: !!op.row._d,
+      updated_at: new Date(op.row._t).toISOString()
+    });
+  }
+  if(op.table === 'inventory_items'){
+    return sb.from('inventory_items').upsert({
+      id: op.row.id, kind: op.kind, name: op.row.name, qty: op.row.qty, unit: op.row.unit,
+      deleted: !!op.row._d, updated_at: new Date(op.row._t).toISOString()
+    });
+  }
+  if(op.table === 'prefs'){
+    return sb.from('prefs').update({
+      household: op.row.household, rituals: op.row.rituals, updated_at: new Date(op.row._t).toISOString()
+    }).eq('id', 1);
   }
 }
-function scheduleSync(reason){
-  if(!ghToken()) return;
-  clearTimeout(syncTimer);
-  syncTimer = setTimeout(()=> pushRemote(reason || 'update'), 4000);
+
+let flushing = false;
+async function flushQueue(){
+  if(!sb || !session || flushing) return;
+  flushing = true;
+  let q = loadQueue();
+  while(q.length){
+    const op = q[0];
+    try{
+      const {error} = await runOp(op);
+      if(error) throw error;
+      q.shift(); saveQueue(q);
+    }catch(e){ break; }  /* still offline or a real error -- stop and retry later */
+  }
+  flushing = false;
+  setSyncState(q.length ? 'error' : 'ok');
+}
+window.addEventListener('online', flushQueue);
+
+/* every local mutation goes through here instead of writing straight
+   to Supabase, so the UI never blocks on network and offline edits
+   are never lost -- they just wait in the queue. */
+function pushWrite(op){
+  enqueue(op);
+  flushQueue();
 }
 
-async function syncBoot(){
-  const remote = await pullRemote();
-  if(remote){
+/* ---------------- realtime ---------------- */
+function subscribeRealtime(){
+  if(!sb || !session || realtimeChannel) return;
+  realtimeChannel = sb.channel('household-sync')
+    .on('postgres_changes', {event:'*', schema:'public', table:'cook_log'}, onRemoteChange)
+    .on('postgres_changes', {event:'*', schema:'public', table:'plan_days'}, onRemoteChange)
+    .on('postgres_changes', {event:'*', schema:'public', table:'inventory_items'}, onRemoteChange)
+    .on('postgres_changes', {event:'*', schema:'public', table:'prefs'}, onRemoteChange)
+    .subscribe();
+}
+function unsubscribeRealtime(){
+  if(realtimeChannel){ sb.removeChannel(realtimeChannel); realtimeChannel = null; }
+}
+let remoteDebounce = null;
+function onRemoteChange(){
+  /* a full refetch-and-merge is simpler and plenty fast at family-cookbook scale
+     compared to patching in one changed row at a time */
+  clearTimeout(remoteDebounce);
+  remoteDebounce = setTimeout(async ()=>{
+    const remote = await remoteFetchAll();
+    if(!remote) return;
     DATA = mergeStates(remote, DATA);
     persist(true);
     render();
     if(view==='plan') renderWeek();
     if(view==='history') renderMonth();
+  }, 400);
+}
+
+/* ---------------- sync status pill ---------------- */
+let syncState = 'off';
+function setSyncState(s){ syncState = s; paintAuth(); }
+function syncLabel(){
+  return {off:'', ok:'● synced', error:'▲ retrying…', syncing:'◍ syncing…'}[syncState] || '';
+}
+
+/* ---------------- auth UI ---------------- */
+function paintAuth(){
+  const host = document.getElementById('authArea');
+  if(!sb){ host.innerHTML = `<span class="icon-btn" style="cursor:default">Supabase not configured</span>`; return; }
+  if(session){
+    host.innerHTML = `<span class="icon-btn sync-dot s-${syncState==='error'?'error':'ok'}" style="cursor:default">${syncLabel()}</span>
+      <button class="icon-btn" id="signOutBtn">Sign out (${escapeHTML(session.user.email)})</button>`;
+    document.getElementById('signOutBtn').onclick = async ()=>{ await sb.auth.signOut(); };
+  } else {
+    host.innerHTML = `<button class="icon-btn" id="signInBtn">Sign in to plan &amp; track</button>`;
+    document.getElementById('signInBtn').onclick = openAuthPanel;
   }
-  setSync(ghToken() ? 'idle' : 'off');
 }
-
-/* token setup lives in the workbench */
-function renderTokenBox(){
-  const host = document.getElementById('tokenBox');
-  if(!host) return;
-  const has = !!ghToken();
-  host.innerHTML = `
-    <h3 style="margin-top:16px">Device sync</h3>
-    <p>${has
-      ? 'This device is signed in and writes straight to <code>state.json</code> in the repo. Other devices pick it up on their next load.'
-      : 'Paste a GitHub fine-grained token with <b>Contents: read &amp; write</b> on <code>' + GH.owner + '/' + GH.repo + '</code>. It is stored only in this browser and never leaves the device except to talk to GitHub.'}</p>
-    <div class="bench-btns">
-      ${has ? '' : '<input type="password" id="tokTxt" placeholder="github_pat_…" style="flex:1 1 180px; min-width:0; font-family:monospace; font-size:12px; padding:7px 9px; border:1px solid var(--line); border-radius:3px; background:var(--card); color:var(--ink);">'}
-      ${has ? '<button class="tb-btn" id="tokSync">Sync now</button><button class="tb-btn" id="tokClear">Sign this device out</button>'
-            : '<button class="tb-btn" id="tokSave">Save token</button>'}
-      ${has ? '' : '<a class="tb-btn" style="text-decoration:none" target="_blank" rel="noopener" href="https://github.com/settings/personal-access-tokens/new">Create one</a>'}
-    </div>`;
-  const save = host.querySelector('#tokSave');
-  if(save) save.onclick = async ()=>{
-    const v = host.querySelector('#tokTxt').value.trim();
-    if(!v) return;
-    setGhToken(v);
-    const r = await pushRemote('sign in');
-    if(!r.ok){ alert('Could not sync with that token: ' + r.why); setGhToken(''); }
-    renderTokenBox(); paintSync();
+function openAuthPanel(){
+  const host = document.getElementById('authPanel');
+  if(host.dataset.open){ host.dataset.open=''; host.innerHTML=''; return; }
+  host.dataset.open = '1';
+  host.innerHTML = `<div class="bench"><div class="bench-inner">
+      <h3>Sign in</h3>
+      <p>Enter your email and we'll send a sign-in link. Only household emails can access the planner.</p>
+      <div class="bench-btns">
+        <input type="email" id="authEmail" placeholder="you@example.com" style="flex:1 1 220px; min-width:0; font-family:'Inter',sans-serif; font-size:14px; padding:7px 9px; border:1px solid var(--line); border-radius:3px; background:var(--card); color:var(--ink);">
+        <button class="tb-btn" id="authSend">Send link</button>
+      </div>
+      <p id="authMsg" style="margin-top:10px;"></p>
+    </div></div>`;
+  document.getElementById('authSend').onclick = async ()=>{
+    const email = document.getElementById('authEmail').value.trim();
+    const msg = document.getElementById('authMsg');
+    if(!email){ msg.textContent = 'Enter an email first.'; return; }
+    msg.textContent = 'Sending…';
+    const {error} = await sb.auth.signInWithOtp({email, options:{emailRedirectTo: location.origin + location.pathname}});
+    msg.textContent = error ? ('Could not send link: ' + error.message) : 'Check your email for the sign-in link.';
   };
-  const now = host.querySelector('#tokSync');
-  if(now) now.onclick = async ()=>{ const r = await pushRemote('manual sync'); if(!r.ok) alert('Sync failed: ' + r.why); };
-  const clr = host.querySelector('#tokClear');
-  if(clr) clr.onclick = ()=>{ setGhToken(''); setSync('off'); renderTokenBox(); };
 }
 
-syncBoot();
-
-
+/* ---------------- boot ---------------- */
+function applyAuthGate(){
+  const signedIn = isEditor();
+  document.querySelectorAll('#viewTabs .vt[data-view="plan"], #viewTabs .vt[data-view="history"]')
+    .forEach(b=> b.style.display = signedIn ? '' : 'none');
+  if(!signedIn && (view==='plan' || view==='history')) setView('cookbook');
+}
+async function authBoot(){
+  if(!sb){ paintAuth(); applyAuthGate(); return; }
+  const {data} = await sb.auth.getSession();
+  session = data.session;
+  paintAuth(); applyAuthGate();
+  if(session){
+    const remote = await remoteFetchAll();
+    if(remote){ DATA = mergeStates(remote, DATA); persist(true); render(); }
+    subscribeRealtime();
+    flushQueue();
+  }
+  sb.auth.onAuthStateChange(async (event, newSession)=>{
+    session = newSession;
+    paintAuth(); applyAuthGate();
+    if(session){
+      const authPanel = document.getElementById('authPanel');
+      authPanel.dataset.open=''; authPanel.innerHTML='';
+      const remote = await remoteFetchAll();
+      if(remote){ DATA = mergeStates(remote, DATA); persist(true); render(); if(view==='plan') renderWeek(); }
+      subscribeRealtime();
+      flushQueue();
+    } else {
+      unsubscribeRealtime();
+    }
+  });
+}
+authBoot();
 
 </script>
 </body>
