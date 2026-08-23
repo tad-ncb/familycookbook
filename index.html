@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>The Deemer-Berdux Family Cookbook</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -51,7 +51,7 @@
   }
 
   *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
+  html,body{margin:0;padding:0; overflow-x:hidden; width:100%;}
   body{
     background:var(--paper);
     color:var(--ink);
@@ -123,7 +123,7 @@
   .card{
     background:var(--card); padding:18px 18px 16px; cursor:pointer;
     display:flex; flex-direction:column; min-height:196px; position:relative;
-    transition:background .12s ease;
+    transition:background .12s ease; min-width:0; overflow-x:hidden;
   }
   .card:hover{background:var(--card-hover);}
   .card:hover .card-title{color:var(--stamp);}
@@ -171,8 +171,8 @@
   }
   .modal-overlay.open{display:flex;}
   .modal{
-    background:var(--card); max-width:880px; width:100%;
-    box-shadow:0 40px 80px rgba(0,0,0,0.25); position:relative;
+    background:var(--card); max-width:880px; width:100%; box-sizing:border-box;
+    box-shadow:0 40px 80px rgba(0,0,0,0.25); position:relative; overflow-x:hidden;
     animation:modalIn .2s cubic-bezier(.2,.8,.3,1); margin-bottom:40px; border-top:3px solid var(--stamp);
   }
   @keyframes modalIn{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
@@ -190,7 +190,7 @@
   }
   .modal h2{
     font-family:'Inter',sans-serif; font-weight:700; font-size:clamp(21px, 5vw, 28px);
-    line-height:1.14; margin:0 0 6px; padding-right:20px;
+    line-height:1.14; margin:0 0 6px; padding-right:20px; overflow-wrap:anywhere;
   }
   .modal .source-line{
     font-family:'Inter',sans-serif; font-style:italic; color:var(--ink-soft); font-size:13.5px;
@@ -208,7 +208,7 @@
   .ing-list{list-style:none; margin:0; padding:0; columns:2; column-gap:32px;}
   .ing-list li{
     padding:5px 0 5px 20px; position:relative; font-size:var(--recipe-font);
-    line-height:1.35; border-bottom:1px solid var(--hair); break-inside:avoid;
+    line-height:1.35; border-bottom:1px solid var(--hair); break-inside:avoid; overflow-wrap:anywhere;
   }
   .ing-list li.heading{
     font-weight:700; font-family:'IBM Plex Mono', monospace; font-size:10px;
@@ -221,7 +221,7 @@
     background:var(--stamp); border-radius:50%; opacity:0.55;
   }
   .steps{list-style:none; counter-reset:step; margin:0; padding:0;}
-  .steps li{ counter-increment:step; padding:0 0 13px 34px; position:relative; font-size:var(--step-font); line-height:1.45; }
+  .steps li{ counter-increment:step; padding:0 0 13px 34px; position:relative; font-size:var(--step-font); line-height:1.45; overflow-wrap:anywhere; }
   .steps li::before{
     content:counter(step); position:absolute; left:0; top:0;
     font-family:'Inter',sans-serif; font-weight:700; font-size:14px; color:var(--stamp);
@@ -477,7 +477,7 @@
   /* picker */
   .picker-search{ display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin:6px 0 14px; }
   .picker-search input[type=text]{
-    flex:1 1 240px; font-family:'Inter',sans-serif; font-size:15px; padding:8px 10px;
+    flex:1 1 180px; min-width:0; font-family:'Inter',sans-serif; font-size:15px; padding:8px 10px;
     border:1px solid var(--line); border-radius:3px; background:var(--card); color:var(--ink);
   }
   .picker-search label{ display:flex; align-items:center; gap:5px; cursor:pointer; }
@@ -12197,7 +12197,7 @@ function renderTokenBox(){
       ? 'This device is signed in and writes straight to <code>state.json</code> in the repo. Other devices pick it up on their next load.'
       : 'Paste a GitHub fine-grained token with <b>Contents: read &amp; write</b> on <code>' + GH.owner + '/' + GH.repo + '</code>. It is stored only in this browser and never leaves the device except to talk to GitHub.'}</p>
     <div class="bench-btns">
-      ${has ? '' : '<input type="password" id="tokTxt" placeholder="github_pat_…" style="flex:1 1 260px; min-width:0; font-family:monospace; font-size:12px; padding:7px 9px; border:1px solid var(--line); border-radius:3px; background:var(--card); color:var(--ink);">'}
+      ${has ? '' : '<input type="password" id="tokTxt" placeholder="github_pat_…" style="flex:1 1 180px; min-width:0; font-family:monospace; font-size:12px; padding:7px 9px; border:1px solid var(--line); border-radius:3px; background:var(--card); color:var(--ink);">'}
       ${has ? '<button class="tb-btn" id="tokSync">Sync now</button><button class="tb-btn" id="tokClear">Sign this device out</button>'
             : '<button class="tb-btn" id="tokSave">Save token</button>'}
       ${has ? '' : '<a class="tb-btn" style="text-decoration:none" target="_blank" rel="noopener" href="https://github.com/settings/personal-access-tokens/new">Create one</a>'}
