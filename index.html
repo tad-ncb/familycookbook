@@ -12470,6 +12470,33 @@ function blankState(){ return {version:1, cookLog:[], plan:[], inventory:{items:
 /* Deletes are tombstones (_d) rather than removals, and every mutable record carries
    a _t stamp -- without both, a delete on one device is silently undone by the other. */
 function newer(x, y){ return ((y && y._t)||0) >= ((x && x._t)||0) ? y : x; }
+/* Browsers with localStorage saved before the multi-slot rewrite (2026-08-24)
+   have DATA.plan as a dict keyed by iso-date instead of an array of slots --
+   spreading a plain object throws (it's not iterable), which would otherwise
+   crash the whole script before anything renders. Migrate it into the new
+   shape instead of trusting the shape blindly. */
+function normalizePlanArray(p){
+  if(Array.isArray(p)) return p;
+  if(p && typeof p === 'object'){
+    return Object.keys(p).map(iso=>{
+      const e = p[iso];
+      if(!e) return null;
+      return Object.assign({id:'legacy-'+iso, iso, mealType:'dinner'}, e);
+    }).filter(Boolean);
+  }
+  return [];
+}
+/* same defensive migration for inventory: old shape was {freezer:[],pantry:[]}
+   instead of a flat {items:[]}. */
+function normalizeInventoryItems(inv){
+  if(!inv || typeof inv !== 'object') return [];
+  if(Array.isArray(inv.items)) return inv.items;
+  const out = [];
+  ['freezer','pantry'].forEach(kind=>{
+    (Array.isArray(inv[kind]) ? inv[kind] : []).forEach(it=> out.push(Object.assign({kind}, it)));
+  });
+  return out;
+}
 function mergeStates(base, over){
   const m = new Map();
   [...(base.cookLog||[]), ...(over.cookLog||[])].forEach(e=>{
@@ -12481,14 +12508,14 @@ function mergeStates(base, over){
      across lunch/dinner), each with its own id -- merged the same way as
      cookLog/inventory rather than as one blob per day. */
   const pm = new Map();
-  [...(base.plan||[]), ...(over.plan||[])].forEach(e=>{
+  [...normalizePlanArray(base.plan), ...normalizePlanArray(over.plan)].forEach(e=>{
     if(!e || !e.id) return;
     const prev = pm.get(e.id);
     pm.set(e.id, prev ? newer(prev, e) : e);
   });
   const plan = [...pm.values()].filter(e=> !(e._d && (Date.now() - (e._t||0)) > 60*864e5));
   const im = new Map();
-  [...((base.inventory||{}).items||[]), ...((over.inventory||{}).items||[])].forEach(e=>{
+  [...normalizeInventoryItems(base.inventory), ...normalizeInventoryItems(over.inventory)].forEach(e=>{
     if(!e || !e.id) return;
     const prev = im.get(e.id);
     im.set(e.id, prev ? newer(prev, e) : e);
