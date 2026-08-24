@@ -347,6 +347,7 @@
   }
   .cook-hist-item .ch-date{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink); }
   .cook-hist-item .ch-note{ font-style:italic; }
+  .ch-hh{ font-size:10px; text-transform:uppercase; letter-spacing:0.4px; color:var(--ink-faint); border:1px solid var(--line); border-radius:3px; padding:1px 4px; }
   .ch-del{ margin-left:auto; cursor:pointer; color:var(--ink-faint); font-size:11px; }
   .ch-del:hover{ color:var(--alert); }
   .cook-empty{ color:var(--ink-faint); font-style:italic; font-size:13px; margin-top:10px; }
@@ -534,6 +535,18 @@
   }
   .house-row{ display:flex; align-items:center; gap:10px; margin-top:16px; padding-top:14px; border-top:1px solid var(--line); }
   .house-row .rday{ font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; }
+  /* ---------- Phase 5: household storage ---------- */
+  .inv-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:18px; margin-top:10px; }
+  .inv-sec h4{ margin:0 0 8px; font-family:'IBM Plex Mono', monospace; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-soft); }
+  .inv-list{ list-style:none; margin:0 0 10px; padding:0; display:flex; flex-direction:column; gap:6px; }
+  .inv-row{ display:flex; align-items:center; gap:8px; font-size:13.5px; }
+  .inv-name{ flex:1 1 auto; min-width:0; overflow-wrap:anywhere; }
+  .inv-name.inv-out{ color:var(--ink-faint); text-decoration:line-through; }
+  .inv-qty{ color:var(--ink-soft); font-size:12px; white-space:nowrap; }
+  .inv-empty{ color:var(--ink-faint); font-style:italic; font-size:13px; }
+  .inv-add{ display:flex; gap:6px; flex-wrap:wrap; }
+  .inv-add input{ flex:1 1 70px; min-width:0; padding:5px 7px; border:1px solid var(--line); border-radius:3px; font-size:13px; background:var(--paper); color:var(--ink); }
+  .inv-add input#invName-pantry, .inv-add input#invName-fridge, .inv-add input#invName-freezer, .inv-add input#invName-shopping{ flex:2 1 100px; }
   /* ---------- Phase 3: theme, making mode, mobile chrome ---------- */
   .util-row{
     max-width:var(--maxw); margin:0 auto;
@@ -664,6 +677,7 @@
       <button class="vt" data-view="cookbook">Cookbook</button>
       <button class="vt" data-view="plan" style="display:none">Plan the week</button>
       <button class="vt" data-view="history" style="display:none">History</button>
+      <button class="vt" data-view="storage" style="display:none">Storage</button>
     </div>
   </div>
 </div>
@@ -739,6 +753,12 @@
     </div>
     <div id="histStats"></div>
     <div class="month" id="monthGrid"></div>
+  </div>
+</div>
+
+<div id="storageView" style="display:none">
+  <div class="planwrap">
+    <div id="storagePanel"></div>
   </div>
 </div>
 
@@ -12412,15 +12432,21 @@ const RECIPES = [
    ============================================================ */
 const SEED_STATE = {
   "version": 1,
-  "cookLog": [],
+  "cookLog": [
+    { "id": "seed-ctm-1", "recipeId": "chicken-tikka-masala", "date": "2026-08-23", "rating": 3, "note": "", "leftover": "", "household": "deemer-berdux", "_t": 1787443200000 }
+  ],
   "plan": {},
-  "inventory": { "freezer": [], "pantry": [] },
+  "inventory": { "items": [] },
   "prefs": {}
 };
 
 /* ---------------- state layer ---------------- */
 const LS_KEY = 'cookbook.state.v1';
-function blankState(){ return {version:1, cookLog:[], plan:{}, inventory:{freezer:[],pantry:[]}, prefs:{}}; }
+/* 'shopping' isn't a physical storage location -- it's reused as a kind so
+   standalone/auto-added shopping-list entries ride the same synced table
+   and CRUD helpers as the three real storage tiers. */
+const INVENTORY_KINDS = ['pantry','fridge','freezer'];
+function blankState(){ return {version:1, cookLog:[], plan:{}, inventory:{items:[]}, prefs:{}}; }
 /* Deletes are tombstones (_d) rather than removals, and every mutable record carries
    a _t stamp -- without both, a delete on one device is silently undone by the other. */
 function newer(x, y){ return ((y && y._t)||0) >= ((x && x._t)||0) ? y : x; }
@@ -12440,14 +12466,18 @@ function mergeStates(base, over){
     if(win && win._d && (Date.now() - (win._t||0)) > 60*864e5) return;
     plan[k] = win;
   });
-  const bi = base.inventory || {}, oi = over.inventory || {};
-  const inv = ((oi._t||0) >= (bi._t||0)) ? oi : bi;
+  const im = new Map();
+  [...((base.inventory||{}).items||[]), ...((over.inventory||{}).items||[])].forEach(e=>{
+    if(!e || !e.id) return;
+    const prev = im.get(e.id);
+    im.set(e.id, prev ? newer(prev, e) : e);
+  });
   const bp = base.prefs || {}, op = over.prefs || {};
   return {
     version: 1,
     cookLog: [...m.values()].sort((a,b)=> (b.date||'').localeCompare(a.date||'')),
     plan,
-    inventory: {freezer: inv.freezer||[], pantry: inv.pantry||[], _t: inv._t||0},
+    inventory: {items: [...im.values()]},
     prefs: ((op._t||0) >= (bp._t||0)) ? Object.assign({}, bp, op) : Object.assign({}, op, bp)
   };
 }
@@ -12459,15 +12489,46 @@ function persist(fromSync){
 }
 function uid(){ return 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 
+/* ---------------- households ---------------- */
+/* Two households share the cookbook but keep separate pantry/plan/history.
+   Membership mirrors the household_members allowlist in Supabase -- update
+   both places together when adding someone. */
+const HOUSEHOLD_MAP = {
+  'tad5127@gmail.com': 'deemer-berdux',
+  'ncberdux@gmail.com': 'deemer-berdux',
+  'tyler.deemer@capitalone.com': 'deemer-berdux',
+  'berdux@hotmail.com': 'berdux',
+  'jcberdux@gmail.com': 'berdux'
+};
+const HOUSEHOLD_LABEL = { 'deemer-berdux': 'Deemer-Berdux', 'berdux': "Nick's parents" };
+/* declared here (not down by the rest of the auth code) so it's already
+   initialized the first time render() runs and calls currentHousehold() --
+   a `let` still in its temporal dead zone throws even under `typeof`. */
+let session = null;
+function currentHousehold(){
+  const email = (session && session.user) ? session.user.email : null;
+  return (email && HOUSEHOLD_MAP[email]) || 'deemer-berdux';
+}
+/* cook_log rows written before household scoping existed have no tag --
+   they all belong to the original (only) household. */
+function householdOf(e){ return e.household || 'deemer-berdux'; }
+
 function cookEvents(id){ return DATA.cookLog.filter(e=>e.recipeId===id && !e._d).sort((a,b)=>(b.date||'').localeCompare(a.date||'')); }
+function cookEventsFor(id, household){ return cookEvents(id).filter(e=>householdOf(e)===household); }
 function timesMade(id){ return cookEvents(id).length; }
+function timesMadeByHousehold(id){
+  const out = {};
+  cookEvents(id).forEach(e=>{ const h = householdOf(e); out[h] = (out[h]||0)+1; });
+  return out;
+}
 function lastMade(id){ const e=cookEvents(id); return e.length ? e[0].date : null; }
-function avgRating(id){
-  const rs = cookEvents(id).map(e=>e.rating).filter(n=>typeof n==='number' && n>0);
+function avgRating(id, household){
+  const h = household || currentHousehold();
+  const rs = cookEventsFor(id, h).map(e=>e.rating).filter(n=>typeof n==='number' && n>0);
   return rs.length ? rs.reduce((a,b)=>a+b,0)/rs.length : null;
 }
-function addCook(recipeId, date, rating, note){
-  const row = {id:uid(), recipeId, date, rating: rating||null, note: note||'', _t: Date.now()};
+function addCook(recipeId, date, rating, note, leftover){
+  const row = {id:uid(), recipeId, date, rating: rating||null, note: note||'', leftover: leftover||'', household: currentHousehold(), _t: Date.now()};
   DATA.cookLog.unshift(row);
   DATA.cookLog.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   persist();
@@ -12751,7 +12812,8 @@ function getFiltered(){
                      return A.localeCompare(B) || byTitle(a,b); },
     most:   (a,b)=> timesMade(b.id)-timesMade(a.id) || byTitle(a,b),
     rating: (a,b)=>{ const A=avgRating(a.id)||-1, B=avgRating(b.id)||-1; return B-A || byTitle(a,b); },
-    quick:  (a,b)=>{ const A=a._plan===null?1e9:a._plan, B=b._plan===null?1e9:b._plan; return A-B || byTitle(a,b); }
+    quick:  (a,b)=>{ const A=a._plan===null?1e9:a._plan, B=b._plan===null?1e9:b._plan; return A-B || byTitle(a,b); },
+    newest: (a,b)=> addedDateOf(b).localeCompare(addedDateOf(a)) || byTitle(a,b)
   };
   return list.sort(sorters[state.sort] || byTitle);
 }
@@ -12771,6 +12833,7 @@ function renderToolbar(){
         <option value="most">Most made</option>
         <option value="rating">Highest rated</option>
         <option value="quick">Quickest</option>
+        <option value="newest">Newest added</option>
       </select>
     </div>
     <div class="tb-group">
@@ -12822,7 +12885,7 @@ function importData(e){
 }
 
 /* ---------------- grid ---------------- */
-function starStr(n){ const k=Math.round(n); return '★★★★★'.slice(0,k) + '☆☆☆☆☆'.slice(0,5-k); }
+function starStr(n){ const k=Math.max(0,Math.min(3,Math.round(n))); return '★★★'.slice(0,k) + '☆☆☆'.slice(0,3-k); }
 function cardTimeHTML(r){
   const t = r._total; if(!t) return '';
   const out = [`<span class="t-total">${fmtTime(t)} total</span>`];
@@ -12933,8 +12996,12 @@ function renderScaleBar(){
 function renderCookPanel(){
   const r = modalRecipe, host = document.getElementById('modalCook');
   const evs = cookEvents(r.id), n = evs.length, avg = avgRating(r.id);
+  const me = currentHousehold();
+  const byHh = timesMadeByHousehold(r.id);
+  const otherHh = Object.keys(byHh).find(h=>h!==me);
+  const otherBit = otherHh ? ` (${byHh[me]||0}× us · ${byHh[otherHh]}× ${HOUSEHOLD_LABEL[otherHh]||otherHh})` : '';
   const summary = n===0 ? 'Not yet cooked.'
-    : `Cooked ${n}×${avg?` · ${starStr(avg)}`:''} · last ${relTime(lastMade(r.id))}`;
+    : `Cooked ${n}×${otherBit}${avg?` · ${starStr(avg)}`:''} · last ${relTime(lastMade(r.id))}`;
   host.innerHTML = `
     <div class="cook-panel">
       <div class="cook-row">
@@ -12943,15 +13010,18 @@ function renderCookPanel(){
       </div>
       <div class="cook-form" id="cookForm">
         <input type="date" id="cookDate" value="${todayISO()}">
-        <div class="rate-pick" id="ratePick">${[1,2,3,4,5].map(i=>`<span data-v="${i}">★</span>`).join('')}</div>
+        <div class="rate-pick" id="ratePick">${[1,2,3].map(i=>`<span data-v="${i}">★</span>`).join('')}</div>
         <input type="text" id="cookNote" placeholder="Note for next time (optional)">
+        <input type="text" id="cookLeftover" placeholder="Leftovers? (e.g. half, 2 servings)">
         <button class="cook-btn" id="cookSave">Save</button>
       </div>
       ${n ? `<div class="cook-hist">${evs.map(e=>`
         <div class="cook-hist-item">
           <span class="ch-date">${e.date}</span>
+          ${householdOf(e)!==me?`<span class="ch-hh">${HOUSEHOLD_LABEL[householdOf(e)]||householdOf(e)}</span>`:''}
           ${e.rating?`<span class="stars">${starStr(e.rating)}</span>`:''}
           ${e.note?`<span class="ch-note">${escapeHTML(e.note)}</span>`:''}
+          ${e.leftover?`<span class="ch-note">Leftovers: ${escapeHTML(e.leftover)}</span>`:''}
           <span class="ch-del" data-ev="${e.id}">remove</span>
         </div>`).join('')}</div>` : `<div class="cook-empty">Log it once and this recipe joins the rotation history.</div>`}
     </div>`;
@@ -12963,7 +13033,8 @@ function renderCookPanel(){
   });
   host.querySelector('#markCooked').onclick = ()=> host.querySelector('#cookForm').classList.toggle('open');
   host.querySelector('#cookSave').onclick = ()=>{
-    addCook(r.id, host.querySelector('#cookDate').value || todayISO(), rating, host.querySelector('#cookNote').value.trim());
+    addCook(r.id, host.querySelector('#cookDate').value || todayISO(), rating,
+      host.querySelector('#cookNote').value.trim(), host.querySelector('#cookLeftover').value.trim());
     ticks = {ing:[], step:[]}; clearTicks(r.id); setMaking(false);
     renderCookPanel(); renderGrid();
   };
@@ -13084,6 +13155,9 @@ function setPlan(iso, entry){
   if(typeof pushWrite === 'function') pushWrite({table:'plan_days', iso, row: DATA.plan[iso]});
 }
 function recipeById(id){ return RECIPES.find(r=>r.id===id) || null; }
+/* recipes transcribed before we started tagging addedDate all share one
+   backfilled date; anything added after 2026-08-23 carries a real one. */
+function addedDateOf(r){ return r.addedDate || '2026-08-23'; }
 function slotServings(entry, r){
   if(entry && entry.servings) return entry.servings;
   const sv = r && r._servings;
@@ -13262,10 +13336,38 @@ function prepTasks(weekStart){
   return out.sort((a,b)=> a.when.localeCompare(b.when));
 }
 
+/* ---------------- inventory (pantry / fridge / freezer / shopping) ---------------- */
+function invItems(kind){ return DATA.inventory.items.filter(it=> it.kind===kind && !it._d); }
+function addInvItem(kind, name, qty, unit){
+  const row = {id:uid(), kind, name, qty: qty||'', unit: unit||'', _t: Date.now()};
+  DATA.inventory.items.push(row);
+  persist();
+  if(typeof pushWrite === 'function') pushWrite({table:'inventory_items', kind, row});
+  return row;
+}
+function removeInvItem(id){
+  const it = DATA.inventory.items.find(x=>x.id===id);
+  if(it){ it._d = true; it._t = Date.now(); }
+  persist();
+  if(it && typeof pushWrite === 'function') pushWrite({table:'inventory_items', kind: it.kind, row: it});
+}
+/* marking something empty both zeroes it out in place and (if not already
+   queued) drops it onto the shopping list, so "ran out" becomes "need to buy"
+   without a separate step. */
+function markInvEmpty(id){
+  const it = DATA.inventory.items.find(x=>x.id===id);
+  if(!it) return;
+  it.qty = 0; it._t = Date.now();
+  const already = invItems('shopping').some(s=> s.name.toLowerCase() === it.name.toLowerCase());
+  persist();
+  if(typeof pushWrite === 'function') pushWrite({table:'inventory_items', kind: it.kind, row: it});
+  if(!already) addInvItem('shopping', it.name, '', it.unit);
+}
+function hasQty(it){ return !(it.qty===0 || it.qty==='0' || it.qty===''); }
 /* ---------------- shopping list ---------------- */
 function haveInInventory(noun){
-  const inv = [...(DATA.inventory.freezer||[]), ...(DATA.inventory.pantry||[])];
-  return inv.find(it=> it && it.name && noun.indexOf(String(it.name).toLowerCase()) !== -1);
+  const inv = [...invItems('pantry'), ...invItems('fridge'), ...invItems('freezer')];
+  return inv.find(it=> it && it.name && hasQty(it) && noun.indexOf(String(it.name).toLowerCase()) !== -1);
 }
 function buildShoppingList(weekStart){
   const bySection = {};
@@ -13290,9 +13392,15 @@ function buildShoppingList(weekStart){
       (bySection[sec] || (bySection[sec] = [])).push(item);
     });
   }
+  const extra = invItems('shopping');
+  if(extra.length){
+    bySection['Shopping list'] = extra.map(it=> ({
+      text: [it.qty, it.unit, it.name].filter(Boolean).join(' '), from: ['added manually'], have: false, invId: it.id
+    }));
+  }
   return bySection;
 }
-const SECTION_ORDER = ['Produce','Meat & Seafood','Dairy & Eggs','Bakery','Frozen','Pantry','Spices','Other'];
+const SECTION_ORDER = ['Shopping list','Produce','Meat & Seafood','Dairy & Eggs','Bakery','Frozen','Pantry','Spices','Other'];
 
 /* ---------------- view switching ---------------- */
 let view = 'cookbook';
@@ -13304,9 +13412,11 @@ function setView(v){
   document.getElementById('cookbookView').style.display = v==='cookbook' ? '' : 'none';
   document.getElementById('planView').style.display     = v==='plan'     ? '' : 'none';
   document.getElementById('historyView').style.display  = v==='history'  ? '' : 'none';
+  document.getElementById('storageView').style.display  = v==='storage'  ? '' : 'none';
   document.querySelectorAll('#viewTabs .vt').forEach(b=> b.classList.toggle('on', b.dataset.view===v));
   if(v==='plan') renderWeek();
   if(v==='history') renderMonth();
+  if(v==='storage') renderStorage();
 }
 document.querySelectorAll('#viewTabs .vt').forEach(b=> b.onclick = ()=> setView(b.dataset.view));
 
@@ -13427,14 +13537,70 @@ function renderShop(){
   const host = document.getElementById('shopPanel');
   const list = buildShoppingList(weekStart);
   const secs = SECTION_ORDER.filter(s=> list[s] && list[s].length);
-  if(!secs.length){ host.innerHTML = `<div class="shop"><h3>Shopping list</h3><div class="shop-empty">Plan some dinners first.</div></div>`; return; }
+  if(!secs.length){ host.innerHTML = `<div class="shop"><h3>Shopping list</h3><div class="shop-empty">Plan some dinners first, or add items from Storage.</div></div>`; return; }
   host.innerHTML = `<div class="shop">
     <h3>Shopping list — ${fmtRange(weekStart, addDays(weekStart,6))}</h3>
     <div class="shop-cols">${secs.map(s=>`
       <div class="shop-sec"><h4>${s}</h4><ul>${list[s].map(it=>
-        `<li>${it.have?'<span class="from">[have] </span>':''}${zwsp(escapeHTML(it.text))}${it.from.length>1?` <span class="from">×${it.from.length}</span>`:''}</li>`
+        `<li>${it.have?'<span class="from">[have] </span>':''}${zwsp(escapeHTML(it.text))}${it.from.length>1?` <span class="from">×${it.from.length}</span>`:''}${it.invId?` <span class="ch-del" data-bought="${it.invId}">bought</span>`:''}</li>`
       ).join('')}</ul></div>`).join('')}</div>
   </div>`;
+  host.querySelectorAll('[data-bought]').forEach(b=> b.onclick = ()=>{ removeInvItem(b.dataset.bought); renderShop(); });
+}
+
+/* ---------------- storage (pantry / fridge / freezer / shopping) ---------------- */
+function renderStorage(){
+  const host = document.getElementById('storagePanel');
+  const label = {pantry:'Pantry', fridge:'Fridge', freezer:'Freezer'};
+  const kindSec = k => `
+    <div class="inv-sec">
+      <h4>${label[k]}</h4>
+      <ul class="inv-list">${invItems(k).map(it=>`
+        <li class="inv-row" data-id="${it.id}">
+          <span class="inv-name${hasQty(it)?'':' inv-out'}">${escapeHTML(it.name)}</span>
+          <span class="inv-qty">${escapeHTML([it.qty,it.unit].filter(Boolean).join(' '))}</span>
+          <button class="ch-del" data-empty="${it.id}">out</button>
+          <button class="ch-del" data-remove="${it.id}">×</button>
+        </li>`).join('') || '<li class="inv-empty">Nothing tracked yet.</li>'}</ul>
+      <div class="inv-add">
+        <input type="text" placeholder="Item" id="invName-${k}">
+        <input type="text" placeholder="Qty" id="invQty-${k}">
+        <input type="text" placeholder="Unit" id="invUnit-${k}">
+        <button class="cook-btn" data-addkind="${k}">Add</button>
+      </div>
+    </div>`;
+  const shopping = invItems('shopping');
+  host.innerHTML = `<div class="settings">
+    <h3>Storage — ${escapeHTML(HOUSEHOLD_LABEL[currentHousehold()]||'')}</h3>
+    <p class="hint">Private to your household. Mark something "out" to zero it and drop it onto the shopping list automatically.</p>
+    <div class="inv-grid">
+      ${INVENTORY_KINDS.map(kindSec).join('')}
+      <div class="inv-sec">
+        <h4>Shopping list</h4>
+        <ul class="inv-list">${shopping.map(it=>`
+          <li class="inv-row" data-id="${it.id}">
+            <span class="inv-name">${escapeHTML([it.qty,it.unit,it.name].filter(Boolean).join(' '))}</span>
+            <button class="ch-del" data-remove="${it.id}">bought</button>
+          </li>`).join('') || '<li class="inv-empty">Nothing on the list.</li>'}</ul>
+        <div class="inv-add">
+          <input type="text" placeholder="Item" id="invName-shopping">
+          <input type="text" placeholder="Qty" id="invQty-shopping">
+          <input type="text" placeholder="Unit" id="invUnit-shopping">
+          <button class="cook-btn" data-addkind="shopping">Add</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+  host.querySelectorAll('[data-addkind]').forEach(b=> b.onclick = ()=>{
+    const k = b.dataset.addkind;
+    const nameEl = document.getElementById('invName-'+k);
+    const name = nameEl.value.trim();
+    if(!name) return;
+    addInvItem(k, name, document.getElementById('invQty-'+k).value.trim(), document.getElementById('invUnit-'+k).value.trim());
+    renderStorage();
+  });
+  host.querySelectorAll('[data-empty]').forEach(b=> b.onclick = ()=>{ markInvEmpty(b.dataset.empty); renderStorage(); });
+  host.querySelectorAll('[data-remove]').forEach(b=> b.onclick = ()=>{ removeInvItem(b.dataset.remove); renderStorage(); });
 }
 
 document.getElementById('weekPrev').onclick  = ()=>{ weekStart = addDays(weekStart,-7); renderWeek(); };
@@ -13778,15 +13944,17 @@ const sb = (SUPABASE_URL.startsWith('http'))
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
 
-let session = null;
 let realtimeChannel = null;
 
 function isEditor(){ return !!session; }
 
 /* ---------------- row <-> local shape mapping ---------------- */
-function rowToCook(r){ return {id:r.id, recipeId:r.recipe_id, date:r.date, rating:r.rating, note:r.note||'', _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
+/* NOTE: prefs.household is the existing integer "household size" field (used for
+   leftover heuristics); the multi-tenant household GROUP id lives in a separate
+   household_id text column on every synced table, to avoid colliding with it. */
+function rowToCook(r){ return {id:r.id, recipeId:r.recipe_id, date:r.date, rating:r.rating, note:r.note||'', leftover:r.leftover||'', household:r.household_id||'deemer-berdux', _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
 function rowToPlan(r){ return {recipeId:r.recipe_id||undefined, leftoverOf:r.leftover_of||undefined, ritual:!!r.ritual, servings:r.servings||undefined, _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
-function rowToInv(r){ return {id:r.id, name:r.name, qty:r.qty, unit:r.unit, _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
+function rowToInv(r){ return {id:r.id, kind:r.kind, name:r.name, qty:r.qty, unit:r.unit, _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
 
 async function remoteFetchAll(){
   if(!sb || !session) return null;
@@ -13794,7 +13962,7 @@ async function remoteFetchAll(){
     sb.from('cook_log').select('*'),
     sb.from('plan_days').select('*'),
     sb.from('inventory_items').select('*'),
-    sb.from('prefs').select('*').eq('id', 1).single()
+    sb.from('prefs').select('*').eq('household_id', currentHousehold()).maybeSingle()
   ]);
   if(cl.error || pd.error || iv.error || pf.error){
     console.error('Supabase fetch error', cl.error||pd.error||iv.error||pf.error);
@@ -13802,14 +13970,13 @@ async function remoteFetchAll(){
   }
   const plan = {};
   pd.data.forEach(r=> plan[r.iso_date] = rowToPlan(r));
-  const freezer = [], pantry = [];
-  iv.data.forEach(r=> (r.kind==='freezer'?freezer:pantry).push(rowToInv(r)));
+  const p = pf.data || {household: currentHousehold(), rituals: [], updated_at: new Date(0).toISOString()};
   return {
     version: 1,
     cookLog: cl.data.map(rowToCook),
     plan,
-    inventory: {freezer, pantry, _t: Date.parse(pf.data.updated_at)},
-    prefs: Object.assign({household: pf.data.household, rituals: pf.data.rituals||[]}, {_t: Date.parse(pf.data.updated_at)})
+    inventory: {items: iv.data.map(rowToInv)},
+    prefs: Object.assign({household: p.household, rituals: p.rituals||[]}, {_t: Date.parse(p.updated_at)})
   };
 }
 
@@ -13823,27 +13990,30 @@ async function runOp(op){
   if(op.table === 'cook_log'){
     return sb.from('cook_log').upsert({
       id: op.row.id, recipe_id: op.row.recipeId, date: op.row.date,
-      rating: op.row.rating, note: op.row.note, deleted: !!op.row._d,
+      rating: op.row.rating, note: op.row.note, leftover: op.row.leftover||'',
+      household_id: op.row.household || currentHousehold(), deleted: !!op.row._d,
       updated_at: new Date(op.row._t).toISOString()
     });
   }
   if(op.table === 'plan_days'){
     return sb.from('plan_days').upsert({
-      iso_date: op.iso, recipe_id: op.row.recipeId||null, leftover_of: op.row.leftoverOf||null,
+      iso_date: op.iso, household_id: currentHousehold(),
+      recipe_id: op.row.recipeId||null, leftover_of: op.row.leftoverOf||null,
       ritual: !!op.row.ritual, servings: op.row.servings||null, deleted: !!op.row._d,
       updated_at: new Date(op.row._t).toISOString()
     });
   }
   if(op.table === 'inventory_items'){
     return sb.from('inventory_items').upsert({
-      id: op.row.id, kind: op.kind, name: op.row.name, qty: op.row.qty, unit: op.row.unit,
+      id: op.row.id, household_id: currentHousehold(), kind: op.kind, name: op.row.name, qty: op.row.qty, unit: op.row.unit,
       deleted: !!op.row._d, updated_at: new Date(op.row._t).toISOString()
     });
   }
   if(op.table === 'prefs'){
-    return sb.from('prefs').update({
-      household: op.row.household, rituals: op.row.rituals, updated_at: new Date(op.row._t).toISOString()
-    }).eq('id', 1);
+    return sb.from('prefs').upsert({
+      household_id: currentHousehold(), household: op.row.household, rituals: op.row.rituals,
+      updated_at: new Date(op.row._t).toISOString()
+    });
   }
 }
 
@@ -13899,6 +14069,7 @@ function onRemoteChange(){
     render();
     if(view==='plan') renderWeek();
     if(view==='history') renderMonth();
+    if(view==='storage') renderStorage();
   }, 400);
 }
 
@@ -13948,9 +14119,9 @@ function openAuthPanel(){
 /* ---------------- boot ---------------- */
 function applyAuthGate(){
   const signedIn = isEditor();
-  document.querySelectorAll('#viewTabs .vt[data-view="plan"], #viewTabs .vt[data-view="history"]')
+  document.querySelectorAll('#viewTabs .vt[data-view="plan"], #viewTabs .vt[data-view="history"], #viewTabs .vt[data-view="storage"]')
     .forEach(b=> b.style.display = signedIn ? '' : 'none');
-  if(!signedIn && (view==='plan' || view==='history')) setView('cookbook');
+  if(!signedIn && (view==='plan' || view==='history' || view==='storage')) setView('cookbook');
 }
 async function authBoot(){
   if(!sb){ paintAuth(); applyAuthGate(); return; }
@@ -13970,7 +14141,7 @@ async function authBoot(){
       const authPanel = document.getElementById('authPanel');
       authPanel.dataset.open=''; authPanel.innerHTML='';
       const remote = await remoteFetchAll();
-      if(remote){ DATA = mergeStates(remote, DATA); persist(true); render(); if(view==='plan') renderWeek(); }
+      if(remote){ DATA = mergeStates(remote, DATA); persist(true); render(); if(view==='plan') renderWeek(); if(view==='storage') renderStorage(); }
       subscribeRealtime();
       flushQueue();
     } else {
