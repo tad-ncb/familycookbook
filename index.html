@@ -416,6 +416,13 @@
   .slot-actions button:hover{ color:var(--stamp); border-color:var(--stamp); }
   .slot-actions button.done{ color:#fff; background:var(--stamp); border-color:var(--stamp); }
   .slot.leftover .slot-title{ font-style:italic; color:var(--ink-soft); font-weight:500; }
+  /* a day can hold several dishes now (lunch + dinner, more than one each) --
+     each meal gets its own labeled block instead of one slot filling the card */
+  .meal-block{ display:flex; flex-direction:column; margin-bottom:10px; }
+  .meal-block:last-child{ margin-bottom:0; }
+  .meal-label{ font-family:'IBM Plex Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-faint); margin-bottom:4px; }
+  .meal-block .slot{ flex:none; border:1px solid var(--line); border-radius:3px; padding:8px; margin-bottom:6px; }
+  .meal-block .slot-empty{ flex:none; padding:4px 0; }
   .lo-pill{
     font-family:'IBM Plex Mono', monospace; font-size:8.5px; text-transform:uppercase;
     letter-spacing:0.07em; background:var(--stamp-soft); color:var(--stamp);
@@ -482,6 +489,11 @@
     border:1px solid var(--line); border-radius:3px; background:var(--card); color:var(--ink);
   }
   .picker-search label{ display:flex; align-items:center; gap:5px; cursor:pointer; }
+  .picker-custom{ margin:0 0 14px; }
+  .pc-toggle{ cursor:pointer; font-size:13px; color:var(--ink-soft); text-decoration:underline; text-underline-offset:2px; }
+  .pc-form{ display:none; flex-direction:column; gap:8px; margin-top:10px; }
+  .pc-form.open{ display:flex; }
+  .pc-form input, .pc-form textarea{ padding:7px 9px; border:1px solid var(--line); border-radius:3px; font-size:13.5px; background:var(--paper); color:var(--ink); font-family:inherit; resize:vertical; }
   .picker-list{ max-height:46vh; overflow-y:auto; border-top:1px solid var(--line); }
   .prow{
     display:flex; align-items:baseline; gap:10px; padding:9px 4px;
@@ -772,6 +784,14 @@
         <label class="tb-name"><input type="checkbox" id="pickerAll"> include every course</label>
       </div>
       <div id="pickerSuggest"></div>
+      <div class="picker-custom" id="pickerCustom">
+        <div class="pc-toggle" id="pickerCustomToggle">+ not in the cookbook — add a custom dish</div>
+        <div class="pc-form" id="pickerCustomForm">
+          <input type="text" id="pcName" placeholder="Dish name">
+          <textarea id="pcIngredients" placeholder="Ingredients, one per line (optional, feeds the shopping list)" rows="3"></textarea>
+          <button class="cook-btn" id="pcSave">Add dish</button>
+        </div>
+      </div>
       <div class="picker-list" id="pickerList"></div>
     </div>
   </div>
@@ -12435,7 +12455,7 @@ const SEED_STATE = {
   "cookLog": [
     { "id": "seed-ctm-1", "recipeId": "chicken-tikka-masala", "date": "2026-08-23", "rating": 3, "note": "", "leftover": "", "household": "deemer-berdux", "_t": 1787443200000 }
   ],
-  "plan": {},
+  "plan": [],
   "inventory": { "items": [] },
   "prefs": {}
 };
@@ -12446,7 +12466,7 @@ const LS_KEY = 'cookbook.state.v1';
    standalone/auto-added shopping-list entries ride the same synced table
    and CRUD helpers as the three real storage tiers. */
 const INVENTORY_KINDS = ['pantry','fridge','freezer'];
-function blankState(){ return {version:1, cookLog:[], plan:{}, inventory:{items:[]}, prefs:{}}; }
+function blankState(){ return {version:1, cookLog:[], plan:[], inventory:{items:[]}, prefs:{}}; }
 /* Deletes are tombstones (_d) rather than removals, and every mutable record carries
    a _t stamp -- without both, a delete on one device is silently undone by the other. */
 function newer(x, y){ return ((y && y._t)||0) >= ((x && x._t)||0) ? y : x; }
@@ -12457,15 +12477,16 @@ function mergeStates(base, over){
     const prev = m.get(e.id);
     m.set(e.id, prev ? newer(prev, e) : e);
   });
-  const plan = {};
-  const keys = new Set([...Object.keys(base.plan||{}), ...Object.keys(over.plan||{})]);
-  keys.forEach(k=>{
-    const x = (base.plan||{})[k], y = (over.plan||{})[k];
-    const win = (!x) ? y : (!y) ? x : newer(x, y);
-    /* let old tombstones fall away so the file doesn't grow forever */
-    if(win && win._d && (Date.now() - (win._t||0)) > 60*864e5) return;
-    plan[k] = win;
+  /* plan is a flat array of meal slots (one day can hold several dishes
+     across lunch/dinner), each with its own id -- merged the same way as
+     cookLog/inventory rather than as one blob per day. */
+  const pm = new Map();
+  [...(base.plan||[]), ...(over.plan||[])].forEach(e=>{
+    if(!e || !e.id) return;
+    const prev = pm.get(e.id);
+    pm.set(e.id, prev ? newer(prev, e) : e);
   });
+  const plan = [...pm.values()].filter(e=> !(e._d && (Date.now() - (e._t||0)) > 60*864e5));
   const im = new Map();
   [...((base.inventory||{}).items||[]), ...((over.inventory||{}).items||[])].forEach(e=>{
     if(!e || !e.id) return;
@@ -13147,12 +13168,36 @@ const DINNER_CATEGORIES = ['Main','Soup'];
 function isDinnerish(r){ return DINNER_CATEGORIES.indexOf(r.category) !== -1; }
 
 /* ---------------- plan accessors ---------------- */
-function planAt(iso){ const e = DATA.plan[iso]; return (e && !e._d) ? e : null; }
-function setPlan(iso, entry){
-  DATA.plan[iso] = entry ? Object.assign({}, entry, {_t: Date.now()})
-                         : {_d: true, _t: Date.now()};
+/* Each day can hold multiple dishes across lunch and dinner, so a plan
+   "slot" is its own record (id, iso, mealType) rather than one entry per
+   day. A slot is either a cookbook recipe (recipeId), a manual/off-cookbook
+   dish (manualName + manualIngredients), or a leftover pointer (leftoverOf
+   -> another slot's id). */
+function slotsFor(iso){
+  return DATA.plan.filter(s=> s.iso===iso && !s._d)
+    .sort((a,b)=> (a.mealType==='lunch'?0:1) - (b.mealType==='lunch'?0:1) || (a._t||0)-(b._t||0));
+}
+function dinnerSlotsFor(iso){ return slotsFor(iso).filter(s=> s.mealType!=='lunch'); }
+function slotById(id){ return DATA.plan.find(s=> s.id===id && !s._d) || null; }
+function addSlot(iso, mealType, data){
+  const row = Object.assign({id:uid(), iso, mealType: mealType||'dinner'}, data, {_t: Date.now()});
+  DATA.plan.push(row);
   persist();
-  if(typeof pushWrite === 'function') pushWrite({table:'plan_days', iso, row: DATA.plan[iso]});
+  if(typeof pushWrite === 'function') pushWrite({table:'plan_days', row});
+  return row;
+}
+function updateSlot(id, patch){
+  const s = slotById(id);
+  if(!s) return;
+  Object.assign(s, patch, {_t: Date.now()});
+  persist();
+  if(typeof pushWrite === 'function') pushWrite({table:'plan_days', row:s});
+}
+function removeSlot(id){
+  const s = DATA.plan.find(x=>x.id===id);
+  if(s){ s._d = true; s._t = Date.now(); }
+  persist();
+  if(s && typeof pushWrite === 'function') pushWrite({table:'plan_days', row:s});
 }
 function recipeById(id){ return RECIPES.find(r=>r.id===id) || null; }
 /* recipes transcribed before we started tagging addedDate all share one
@@ -13228,6 +13273,13 @@ function overlapCount(a, b){ return overlapWeight(a, b).shared.length; }
 
 /* ---------------- suggestion engine ---------------- */
 function hashJitter(str){ let h=0; for(let i=0;i<str.length;i++) h=(h*31+str.charCodeAt(i))|0; return Math.abs(h)%7; }
+/* what fraction of a recipe's key ingredients are already in some tier of storage --
+   used both to nudge score and to say plainly "you have what this needs" in why. */
+function inventoryMatchRatio(r){
+  const ing = [...keyIng(r)];
+  if(!ing.length) return 0;
+  return ing.filter(n=> haveInInventory(n)).length / ing.length;
+}
 function scoreFor(r, iso, ctx){
   if(ctx.used.has(r.id)) return -Infinity;
   const dayIdx = (dateOf(iso).getDay()+6)%7;      /* 0 = Monday */
@@ -13235,14 +13287,15 @@ function scoreFor(r, iso, ctx){
   let s = 0, why = [];
 
   const n = timesMade(r.id), d = daysSince(lastMade(r.id));
-  if(n === 0){ s += 52; why.push('new'); }
-  else if(d >= STALE_DAYS){ s += 44 + Math.min(d - STALE_DAYS, 200)/10; why.push('due a revisit'); }
+  if(n === 0){ s += 52; why.push('try something new'); }
+  else if(d >= STALE_DAYS){ s += 44 + Math.min(d - STALE_DAYS, 200)/10; why.push("haven't had it in a while"); }
   else if(d >= 30){ s += 8; }
   else { s -= 65; }
-  if(n >= 3 && d >= 30){ s += 10; why.push('a favourite'); }
+  if(n >= 3 && d >= 30){ s += 10; why.push('a regular favourite'); }
 
   const avg = avgRating(r.id);
-  if(avg) s += (avg - 3) * 9;
+  if(avg) s += (avg - 2) * 9;
+  if(avg === 3) why.unshift('3-star favorite');
 
   const t = r._plan;
   if(t !== null){
@@ -13268,6 +13321,12 @@ function scoreFor(r, iso, ctx){
     why.push(herb ? ('shares the '+herb) : 'uses what you already need');
   }
 
+  /* separate from week-to-week overlap: does the pantry/fridge/freezer already
+     cover this recipe right now? */
+  const invRatio = inventoryMatchRatio(r);
+  if(keyIng(r).size && invRatio >= 0.99){ s += 12; why.unshift('have all the ingredients'); }
+  else if(invRatio >= 0.6){ s += 5; }
+
   /* a dish big enough to feed the household twice is a mild plus, not a driver */
   const sv = r._servings;
   if(sv && sv.servingBased && sv.base >= prefs().household * 2) s += 5;
@@ -13280,11 +13339,12 @@ function weekContext(weekStart, skipIso){
   for(let i=0;i<7;i++){
     const iso = addDays(weekStart, i);
     if(iso === skipIso) continue;
-    const e = planAt(iso);
-    if(!e || e.leftoverOf) continue;
-    const r = recipeById(e.recipeId);
-    if(!r) continue;
-    used.add(r.id); cuisines.add(r.cuisine); slotted.push(r);
+    dinnerSlotsFor(iso).forEach(e=>{
+      if(e.leftoverOf || !e.recipeId) return;
+      const r = recipeById(e.recipeId);
+      if(!r) return;
+      used.add(r.id); cuisines.add(r.cuisine); slotted.push(r);
+    });
   }
   return {used, cuisines, slotted};
 }
@@ -13300,22 +13360,23 @@ function ritualFor(iso){
   return prefs().rituals.find(x=> x.day === dayIdx) || null;
 }
 function suggestWeek(weekStart){
-  /* fill only empty slots; rituals win their day */
+  /* fill only empty dinner slots; rituals win their day. Lunch and any
+     dinners added manually are left alone. */
   const order = [];
   for(let i=0;i<7;i++) order.push(addDays(weekStart, i));
   order.forEach(iso=>{
-    if(planAt(iso)) return;
+    if(dinnerSlotsFor(iso).length) return;
     const rit = ritualFor(iso);
     if(rit && recipeById(rit.recipeId)){
       const ctx = weekContext(weekStart, iso);
-      if(!ctx.used.has(rit.recipeId)){ setPlan(iso, {recipeId: rit.recipeId, ritual:true}); return; }
+      if(!ctx.used.has(rit.recipeId)){ addSlot(iso, 'dinner', {recipeId: rit.recipeId, ritual:true}); return; }
     }
   });
   order.forEach(iso=>{
-    if(planAt(iso)) return;
+    if(dinnerSlotsFor(iso).length) return;
     const ctx = weekContext(weekStart, iso);
     const best = candidatesFor(iso, ctx, false)[0];
-    if(best) setPlan(iso, {recipeId: best.r.id});
+    if(best) addSlot(iso, 'dinner', {recipeId: best.r.id});
   });
   persist();
 }
@@ -13325,13 +13386,14 @@ function prepTasks(weekStart){
   const out = [];
   for(let i=0;i<7;i++){
     const iso = addDays(weekStart, i);
-    const e = planAt(iso);
-    if(!e || e.leftoverOf) continue;
-    const r = recipeById(e.recipeId);
-    if(!r || !r._ahead) continue;
-    const lead = r._ahead.minutes;
-    const onIso = lead >= 8*60 ? addDays(iso, -1) : iso;
-    out.push({when: onIso, forIso: iso, recipe: r, label: r._ahead.label, minutes: lead});
+    dinnerSlotsFor(iso).forEach(e=>{
+      if(e.leftoverOf || !e.recipeId) return;
+      const r = recipeById(e.recipeId);
+      if(!r || !r._ahead) return;
+      const lead = r._ahead.minutes;
+      const onIso = lead >= 8*60 ? addDays(iso, -1) : iso;
+      out.push({when: onIso, forIso: iso, recipe: r, label: r._ahead.label, minutes: lead});
+    });
   }
   return out.sort((a,b)=> a.when.localeCompare(b.when));
 }
@@ -13374,22 +13436,36 @@ function buildShoppingList(weekStart){
   const seen = new Map();
   for(let i=0;i<7;i++){
     const iso = addDays(weekStart, i);
-    const e = planAt(iso);
-    if(!e || e.leftoverOf) continue;
-    const r = recipeById(e.recipeId);
-    if(!r) continue;
-    const f = slotFactor(e, r);
-    (r.ingredients||[]).forEach(line=>{
-      if(line.trim().endsWith(':')) return;
-      const noun = ingredientNoun(line);
-      if(!noun || noun.length < 3) return;
-      const scaled = scaleLine(line, f).text;
-      const sec = sectionFor(line);
-      const key = sec + '|' + noun;
-      if(seen.has(key)){ seen.get(key).from.push(displayTitle(r)); return; }
-      const item = {text: scaled, from: [displayTitle(r)], have: !!haveInInventory(noun)};
-      seen.set(key, item);
-      (bySection[sec] || (bySection[sec] = [])).push(item);
+    slotsFor(iso).forEach(e=>{
+      if(e.leftoverOf) return;
+      if(e.recipeId){
+        const r = recipeById(e.recipeId);
+        if(!r) return;
+        const f = slotFactor(e, r);
+        (r.ingredients||[]).forEach(line=>{
+          if(line.trim().endsWith(':')) return;
+          const noun = ingredientNoun(line);
+          if(!noun || noun.length < 3) return;
+          const scaled = scaleLine(line, f).text;
+          const sec = sectionFor(line);
+          const key = sec + '|' + noun;
+          if(seen.has(key)){ seen.get(key).from.push(displayTitle(r)); return; }
+          const item = {text: scaled, from: [displayTitle(r)], have: !!haveInInventory(noun)};
+          seen.set(key, item);
+          (bySection[sec] || (bySection[sec] = [])).push(item);
+        });
+      } else if(e.manualName && e.manualIngredients && e.manualIngredients.length){
+        e.manualIngredients.forEach(line=>{
+          const noun = ingredientNoun(line);
+          if(!noun || noun.length < 2) return;
+          const sec = sectionFor(line);
+          const key = sec + '|manual|' + noun;
+          if(seen.has(key)){ seen.get(key).from.push(e.manualName); return; }
+          const item = {text: line, from: [e.manualName], have: !!haveInInventory(noun)};
+          seen.set(key, item);
+          (bySection[sec] || (bySection[sec] = [])).push(item);
+        });
+      }
     });
   }
   const extra = invItems('shopping');
@@ -13421,6 +13497,61 @@ function setView(v){
 document.querySelectorAll('#viewTabs .vt').forEach(b=> b.onclick = ()=> setView(b.dataset.view));
 
 /* ---------------- week rendering ---------------- */
+function slotRowHTML(s, iso){
+  if(s.leftoverOf){
+    const src = slotById(s.leftoverOf);
+    const srcR = src && src.recipeId ? recipeById(src.recipeId) : null;
+    const srcName = srcR ? displayTitle(srcR) : (src && src.manualName) || '';
+    return `<div class="slot leftover" data-sid="${s.id}">
+        <div class="slot-title">Leftovers</div>
+        <div class="slot-meta">${src?`<span class="lo-pill">from ${DAY_NAMES[(dateOf(src.iso).getDay()+6)%7]}</span>`:''}${srcName?`<span>${escapeHTML(srcName)}</span>`:''}</div>
+        <div class="slot-actions"><button data-clear="${s.id}">×</button></div>
+      </div>`;
+  }
+  if(s.manualName){
+    return `<div class="slot" data-sid="${s.id}">
+        <div class="slot-title">${escapeHTML(s.manualName)}</div>
+        <div class="slot-meta"><span class="lo-pill">custom dish</span></div>
+        <div class="slot-actions">
+          <button data-add="${iso}" data-meal="${s.mealType}" data-swap="${s.id}">edit</button>
+          <button data-lo="${s.id}">leftovers →</button>
+          <button data-clear="${s.id}">×</button>
+        </div>
+      </div>`;
+  }
+  const r = recipeById(s.recipeId);
+  if(!r) return `<div class="slot-empty" data-sid="${s.id}"><button data-clear="${s.id}">missing recipe — clear</button></div>`;
+  const serv = slotServings(s, r);
+  const cooked = cookEvents(r.id).some(ev=> ev.date === iso);
+  const meta = [];
+  if(r._plan) meta.push(`<span>${fmtDur(r._plan)}</span>`);
+  if(serv) meta.push(`<span>serves ${serv}</span>`);
+  meta.push(`<span>${zwsp(escapeHTML(r.cuisine))}</span>`);
+  if(s.ritual) meta.push(`<span class="lo-pill">ritual</span>`);
+  if(serv && serv >= prefs().household * 2) meta.push(`<span class="lo-pill">makes leftovers</span>`);
+  if(r._ahead) meta.push(`<span class="ahead-pill">${r._ahead.label}</span>`);
+  if(cooked) meta.push(`<span class="cooked-flag">✓ cooked</span>`);
+  return `<div class="slot" data-sid="${s.id}">
+      <div class="slot-title" data-open="${r.id}">${zwsp(escapeHTML(displayTitle(r)))}</div>
+      <div class="slot-meta">${meta.join('')}</div>
+      <div class="slot-actions">
+        <button class="${cooked?'done':''}" data-cook="${s.id}">${cooked?'✓ cooked':'cooked'}</button>
+        <button data-add="${iso}" data-meal="${s.mealType}" data-swap="${s.id}">swap</button>
+        <button data-lo="${s.id}">leftovers →</button>
+        <button data-clear="${s.id}">×</button>
+      </div>
+    </div>`;
+}
+function mealBlockHTML(iso, mealType, label){
+  const slots = slotsFor(iso).filter(s=> (s.mealType||'dinner') === mealType);
+  let html = `<div class="meal-block"><div class="meal-label">${label}</div>`;
+  slots.forEach(s=> html += slotRowHTML(s, iso));
+  html += `<div class="slot-empty">
+      <button data-add="${iso}" data-meal="${mealType}">+ add ${label.toLowerCase()}</button>
+      ${(mealType==='dinner' && !slots.length) ? `<button data-sug="${iso}">suggest</button>` : ''}
+    </div></div>`;
+  return html;
+}
 function renderWeek(){
   const grid = document.getElementById('weekGrid');
   document.getElementById('weekRange').textContent = fmtRange(weekStart, addDays(weekStart,6));
@@ -13429,71 +13560,37 @@ function renderWeek(){
 
   for(let i=0;i<7;i++){
     const iso = addDays(weekStart, i);
-    const e = planAt(iso);
     const cell = document.createElement('div');
     cell.className = 'day' + (iso===today ? ' today' : '') + (iso<today ? ' past' : '');
     let inner = `<div class="day-head"><span>${DAY_NAMES[i]}</span><span class="dnum">${dateOf(iso).getDate()}</span></div>`;
-
-    if(!e){
-      inner += `<div class="slot-empty">
-          <button data-add="${iso}">+ add dinner</button>
-          <button data-sug="${iso}">suggest</button>
-        </div>`;
-    } else if(e.leftoverOf){
-      const src = recipeById((planAt(e.leftoverOf)||{}).recipeId);
-      inner += `<div class="slot leftover">
-          <div class="slot-title">Leftovers</div>
-          <div class="slot-meta"><span class="lo-pill">from ${DAY_NAMES[(dateOf(e.leftoverOf).getDay()+6)%7]}</span>${src?`<span>${escapeHTML(displayTitle(src))}</span>`:''}</div>
-          <div class="slot-actions"><button data-clear="${iso}">remove</button></div>
-        </div>`;
-    } else {
-      const r = recipeById(e.recipeId);
-      if(!r){ inner += `<div class="slot-empty"><button data-clear="${iso}">missing recipe — clear</button></div>`; }
-      else {
-        const serv = slotServings(e, r);
-        const cooked = cookEvents(r.id).some(ev=> ev.date === iso);
-        const meta = [];
-        if(r._plan) meta.push(`<span>${fmtDur(r._plan)}</span>`);
-        if(serv) meta.push(`<span>serves ${serv}</span>`);
-        meta.push(`<span>${zwsp(escapeHTML(r.cuisine))}</span>`);
-        if(e.ritual) meta.push(`<span class="lo-pill">ritual</span>`);
-        if(serv && serv >= prefs().household * 2) meta.push(`<span class="lo-pill">makes leftovers</span>`);
-        if(r._ahead) meta.push(`<span class="ahead-pill">${r._ahead.label}</span>`);
-        if(cooked) meta.push(`<span class="cooked-flag">✓ cooked</span>`);
-        inner += `<div class="slot">
-            <div class="slot-title" data-open="${r.id}">${zwsp(escapeHTML(displayTitle(r)))}</div>
-            <div class="slot-meta">${meta.join('')}</div>
-            <div class="slot-actions">
-              <button class="${cooked?'done':''}" data-cook="${iso}">${cooked?'✓ cooked':'cooked'}</button>
-              <button data-add="${iso}">swap</button>
-              <button data-lo="${iso}">leftovers →</button>
-              <button data-clear="${iso}">×</button>
-            </div>
-          </div>`;
-      }
-    }
+    inner += mealBlockHTML(iso, 'dinner', 'Dinner');
+    inner += mealBlockHTML(iso, 'lunch', 'Lunch');
     cell.innerHTML = inner;
     grid.appendChild(cell);
   }
 
-  grid.querySelectorAll('[data-add]').forEach(b=> b.onclick = ()=> openPicker(b.dataset.add));
+  grid.querySelectorAll('[data-add]').forEach(b=> b.onclick = ()=> openPicker(b.dataset.add, b.dataset.meal, b.dataset.swap||null));
   grid.querySelectorAll('[data-sug]').forEach(b=> b.onclick = ()=>{
     const iso = b.dataset.sug;
     const best = candidatesFor(iso, weekContext(weekStart, iso), false)[0];
-    if(best){ setPlan(iso, {recipeId: best.r.id}); renderWeek(); }
+    if(best){ addSlot(iso, 'dinner', {recipeId: best.r.id}); renderWeek(); }
   });
-  grid.querySelectorAll('[data-clear]').forEach(b=> b.onclick = ()=>{ setPlan(b.dataset.clear, null); renderWeek(); });
+  grid.querySelectorAll('[data-clear]').forEach(b=> b.onclick = ()=>{ removeSlot(b.dataset.clear); renderWeek(); });
   grid.querySelectorAll('[data-open]').forEach(b=> b.onclick = ()=>{ const r=recipeById(b.dataset.open); if(r) openModal(r); });
   grid.querySelectorAll('[data-lo]').forEach(b=> b.onclick = ()=>{
-    const iso = b.dataset.lo, next = addDays(iso, 1);
-    if(planAt(next) && !confirm('Replace what is planned for the next day with leftovers?')) return;
-    setPlan(next, {leftoverOf: iso}); renderWeek();
+    const srcId = b.dataset.lo, src = slotById(srcId);
+    if(!src) return;
+    const next = addDays(src.iso, 1);
+    const already = slotsFor(next).filter(s=> (s.mealType||'dinner') === (src.mealType||'dinner'));
+    if(already.length && !confirm('Add leftovers alongside what is already planned for the next day?')) return;
+    addSlot(next, src.mealType||'dinner', {leftoverOf: srcId});
+    renderWeek();
   });
   grid.querySelectorAll('[data-cook]').forEach(b=> b.onclick = ()=>{
-    const iso = b.dataset.cook, e = planAt(iso);
-    if(!e) return;
-    const existing = cookEvents(e.recipeId).find(ev=> ev.date === iso);
-    if(existing) removeCook(existing.id); else addCook(e.recipeId, iso, null, '');
+    const sid = b.dataset.cook, s = slotById(sid);
+    if(!s || !s.recipeId) return;
+    const existing = cookEvents(s.recipeId).find(ev=> ev.date === s.iso);
+    if(existing) removeCook(existing.id); else addCook(s.recipeId, s.iso, null, '');
     renderWeek(); renderGrid();
   });
 
@@ -13518,11 +13615,13 @@ function renderWeekSummary(){
   const host = document.getElementById('weekSummary');
   let filled=0, mins=0, news=0; const cuis=new Set();
   for(let i=0;i<7;i++){
-    const e = planAt(addDays(weekStart,i));
-    if(!e || e.leftoverOf) continue;
-    const r = recipeById(e.recipeId); if(!r) continue;
-    filled++; mins += r._plan||0; cuis.add(r.cuisine);
-    if(timesMade(r.id)===0) news++;
+    dinnerSlotsFor(addDays(weekStart,i)).forEach(e=>{
+      if(e.leftoverOf) return;
+      if(!e.recipeId){ if(e.manualName) filled++; return; }
+      const r = recipeById(e.recipeId); if(!r) return;
+      filled++; mins += r._plan||0; cuis.add(r.cuisine);
+      if(timesMade(r.id)===0) news++;
+    });
   }
   if(!filled){ host.innerHTML=''; return; }
   host.innerHTML = `<div class="week-summary">
@@ -13608,8 +13707,8 @@ document.getElementById('weekNext').onclick  = ()=>{ weekStart = addDays(weekSta
 document.getElementById('weekToday').onclick = ()=>{ weekStart = mondayOf(todayISO()); renderWeek(); };
 document.getElementById('suggestWeek').onclick = ()=>{ suggestWeek(weekStart); renderWeek(); };
 document.getElementById('clearWeek').onclick = ()=>{
-  if(!confirm('Clear every dinner planned this week?')) return;
-  for(let i=0;i<7;i++) setPlan(addDays(weekStart,i), null);
+  if(!confirm('Clear every meal planned this week?')) return;
+  for(let i=0;i<7;i++) slotsFor(addDays(weekStart,i)).forEach(s=> removeSlot(s.id));
   renderWeek();
 };
 document.getElementById('shopBtn').onclick = ()=>{
@@ -13666,12 +13765,26 @@ document.getElementById('setBtn').onclick = ()=>{
 };
 
 /* ---------------- picker ---------------- */
-let pickerIso = null;
-function openPicker(iso){
+let pickerIso = null, pickerMeal = 'dinner', pickerSwapId = null;
+function openPicker(iso, mealType, swapId){
   pickerIso = iso;
+  pickerMeal = mealType || 'dinner';
+  pickerSwapId = swapId || null;
+  const label = pickerMeal === 'lunch' ? 'Lunch' : 'Dinner';
   document.getElementById('pickerTitle').textContent =
-    'Dinner for ' + DAY_NAMES[(dateOf(iso).getDay()+6)%7] + ' ' + fmtDayLabel(iso);
+    label + ' for ' + DAY_NAMES[(dateOf(iso).getDay()+6)%7] + ' ' + fmtDayLabel(iso);
   document.getElementById('pickerInput').value = '';
+  document.getElementById('pickerCustomForm').classList.remove('open');
+  document.getElementById('pcName').value = '';
+  document.getElementById('pcIngredients').value = '';
+  if(pickerSwapId){
+    const s = slotById(pickerSwapId);
+    if(s && s.manualName){
+      document.getElementById('pcName').value = s.manualName;
+      document.getElementById('pcIngredients').value = (s.manualIngredients||[]).join('\n');
+      document.getElementById('pickerCustomForm').classList.add('open');
+    }
+  }
   document.getElementById('pickerOverlay').classList.add('open');
   document.body.style.overflow = 'hidden';
   renderPicker();
@@ -13679,7 +13792,20 @@ function openPicker(iso){
 }
 function closePicker(){
   document.getElementById('pickerOverlay').classList.remove('open');
-  document.body.style.overflow=''; pickerIso=null;
+  document.body.style.overflow=''; pickerIso=null; pickerMeal='dinner'; pickerSwapId=null;
+}
+function pickRecipe(recipeId){
+  if(pickerSwapId) updateSlot(pickerSwapId, {recipeId, manualName: undefined, manualIngredients: undefined, leftoverOf: undefined});
+  else addSlot(pickerIso, pickerMeal, {recipeId});
+  closePicker(); renderWeek();
+}
+function saveCustomDish(){
+  const name = document.getElementById('pcName').value.trim();
+  if(!name) return;
+  const ingredients = document.getElementById('pcIngredients').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  if(pickerSwapId) updateSlot(pickerSwapId, {manualName: name, manualIngredients: ingredients, recipeId: undefined, leftoverOf: undefined});
+  else addSlot(pickerIso, pickerMeal, {manualName: name, manualIngredients: ingredients});
+  closePicker(); renderWeek();
 }
 function renderPicker(){
   const q = document.getElementById('pickerInput').value.trim().toLowerCase();
@@ -13707,15 +13833,14 @@ function renderPicker(){
     </div>`;
   }).join('') || `<div class="cook-empty">Nothing matches that.</div>`;
 
-  document.querySelectorAll('#pickerOverlay [data-pick]').forEach(el=> el.onclick = ()=>{
-    setPlan(pickerIso, {recipeId: el.dataset.pick});
-    closePicker(); renderWeek();
-  });
+  document.querySelectorAll('#pickerOverlay [data-pick]').forEach(el=> el.onclick = ()=> pickRecipe(el.dataset.pick));
 }
 document.getElementById('pickerClose').onclick = closePicker;
 document.getElementById('pickerOverlay').onclick = e=>{ if(e.target.id==='pickerOverlay') closePicker(); };
 document.getElementById('pickerInput').addEventListener('input', renderPicker);
 document.getElementById('pickerAll').addEventListener('change', renderPicker);
+document.getElementById('pickerCustomToggle').onclick = ()=> document.getElementById('pickerCustomForm').classList.toggle('open');
+document.getElementById('pcSave').onclick = saveCustomDish;
 
 /* ---------------- history / month ---------------- */
 function renderMonth(){
@@ -13737,15 +13862,18 @@ function renderMonth(){
     if(!iso){ div.className='mcell out'; grid.appendChild(div); return; }
     div.className = 'mcell' + (iso===today?' today':'');
     const evs = DATA.cookLog.filter(e=> e.date === iso && !e._d);
-    const planned = planAt(iso);
+    const planned = dinnerSlotsFor(iso).filter(s=> !s.leftoverOf);
     let html = `<div class="mnum">${dateOf(iso).getDate()}</div>`;
     evs.forEach(e=>{
       const r = recipeById(e.recipeId);
       html += `<div class="mitem" data-open="${e.recipeId}">${r?zwsp(escapeHTML(displayTitle(r))):'—'}${e.rating?`<div class="mstars">${starStr(e.rating)}</div>`:''}</div>`;
     });
-    if(!evs.length && planned && !planned.leftoverOf){
-      const r = recipeById(planned.recipeId);
-      if(r) html += `<div class="mitem" style="opacity:.5" data-open="${r.id}">${zwsp(escapeHTML(displayTitle(r)))}</div>`;
+    if(!evs.length){
+      planned.forEach(s=>{
+        const r = s.recipeId ? recipeById(s.recipeId) : null;
+        const name = r ? displayTitle(r) : s.manualName;
+        if(name) html += `<div class="mitem" style="opacity:.5" data-open="${r?r.id:''}">${zwsp(escapeHTML(name))}</div>`;
+      });
     }
     div.innerHTML = html;
     grid.appendChild(div);
@@ -13953,7 +14081,15 @@ function isEditor(){ return !!session; }
    leftover heuristics); the multi-tenant household GROUP id lives in a separate
    household_id text column on every synced table, to avoid colliding with it. */
 function rowToCook(r){ return {id:r.id, recipeId:r.recipe_id, date:r.date, rating:r.rating, note:r.note||'', leftover:r.leftover||'', household:r.household_id||'deemer-berdux', _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
-function rowToPlan(r){ return {recipeId:r.recipe_id||undefined, leftoverOf:r.leftover_of||undefined, ritual:!!r.ritual, servings:r.servings||undefined, _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
+function rowToPlan(r){
+  return {
+    id: r.slot_id, iso: r.iso_date, mealType: r.meal_type||'dinner',
+    recipeId: r.recipe_id||undefined,
+    manualName: r.manual_name||undefined, manualIngredients: r.manual_ingredients||undefined,
+    leftoverOf: r.leftover_of||undefined, ritual: !!r.ritual, servings: r.servings||undefined,
+    _d: !!r.deleted, _t: Date.parse(r.updated_at)
+  };
+}
 function rowToInv(r){ return {id:r.id, kind:r.kind, name:r.name, qty:r.qty, unit:r.unit, _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
 
 async function remoteFetchAll(){
@@ -13968,13 +14104,11 @@ async function remoteFetchAll(){
     console.error('Supabase fetch error', cl.error||pd.error||iv.error||pf.error);
     return null;
   }
-  const plan = {};
-  pd.data.forEach(r=> plan[r.iso_date] = rowToPlan(r));
   const p = pf.data || {household: currentHousehold(), rituals: [], updated_at: new Date(0).toISOString()};
   return {
     version: 1,
     cookLog: cl.data.map(rowToCook),
-    plan,
+    plan: pd.data.map(rowToPlan),
     inventory: {items: iv.data.map(rowToInv)},
     prefs: Object.assign({household: p.household, rituals: p.rituals||[]}, {_t: Date.parse(p.updated_at)})
   };
@@ -13997,15 +14131,17 @@ async function runOp(op){
   }
   if(op.table === 'plan_days'){
     return sb.from('plan_days').upsert({
-      iso_date: op.iso, household_id: currentHousehold(),
-      recipe_id: op.row.recipeId||null, leftover_of: op.row.leftoverOf||null,
-      ritual: !!op.row.ritual, servings: op.row.servings||null, deleted: !!op.row._d,
-      updated_at: new Date(op.row._t).toISOString()
+      slot_id: op.row.id, iso_date: op.row.iso, household_id: currentHousehold(),
+      meal_type: op.row.mealType||'dinner', recipe_id: op.row.recipeId||null,
+      manual_name: op.row.manualName||null, manual_ingredients: op.row.manualIngredients||null,
+      leftover_of: op.row.leftoverOf||null, ritual: !!op.row.ritual, servings: op.row.servings||null,
+      deleted: !!op.row._d, updated_at: new Date(op.row._t).toISOString()
     });
   }
   if(op.table === 'inventory_items'){
     return sb.from('inventory_items').upsert({
-      id: op.row.id, household_id: currentHousehold(), kind: op.kind, name: op.row.name, qty: op.row.qty, unit: op.row.unit,
+      id: op.row.id, household_id: currentHousehold(), kind: op.kind, name: op.row.name,
+      qty: (op.row.qty===''||op.row.qty===undefined) ? null : op.row.qty, unit: op.row.unit||null,
       deleted: !!op.row._d, updated_at: new Date(op.row._t).toISOString()
     });
   }
