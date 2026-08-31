@@ -16296,14 +16296,15 @@ const HOUSEHOLD_MAP = {
   'jcberdux@gmail.com': 'berdux'
 };
 const HOUSEHOLD_LABEL = { 'deemer-berdux': 'Deemer-Berdux', 'berdux': "Nick's parents" };
-/* declared here (not down by the rest of the auth code) so it's already
-   initialized the first time render() runs and calls currentHousehold() --
-   a `let` still in its temporal dead zone throws even under `typeof`. */
-let session = null;
-function currentHousehold(){
-  const email = (session && session.user) ? session.user.email : null;
-  return (email && HOUSEHOLD_MAP[email]) || 'deemer-berdux';
-}
+/* No per-person login: whichever household is "unlocked" on this device
+   (a simple shared code, not a real account) decides what plan/pantry/
+   history data loads and can be written. Declared here (not down by the
+   rest of the sync code) so it's already initialized the first time
+   render() runs and calls currentHousehold(). */
+const HOUSEHOLD_LOCK_KEY = 'cookbook.household';
+function loadUnlockedHousehold(){ try{ return localStorage.getItem(HOUSEHOLD_LOCK_KEY) || null; }catch(e){ return null; } }
+let unlockedHousehold = loadUnlockedHousehold();
+function currentHousehold(){ return unlockedHousehold || 'deemer-berdux'; }
 /* cook_log rows written before household scoping existed have no tag --
    they all belong to the original (only) household. */
 function householdOf(e){ return e.household || 'deemer-berdux'; }
@@ -16536,7 +16537,7 @@ RECIPES.forEach(r=>{
 });
 
 /* ---------------- app state ---------------- */
-let state = { query:"", category:null, cuisine:null, sort:"az", made:"all", aheadOnly:false };
+let state = { query:"", category:null, cuisine:null, sort:"az", sortDir:1, made:"all", aheadOnly:false };
 const COURSE_ORDER = ["Appetizer","Salad","Soup","Bread","Side","Main","Dessert","Breakfast","Drink"];
 const STALE_DAYS = 75;   /* "had it, but not in 2-3 months" */
 
@@ -16610,7 +16611,9 @@ function getFiltered(){
     quick:  (a,b)=>{ const A=a._plan===null?1e9:a._plan, B=b._plan===null?1e9:b._plan; return A-B || byTitle(a,b); },
     newest: (a,b)=> addedDateOf(b).localeCompare(addedDateOf(a)) || byTitle(a,b)
   };
-  return list.sort(sorters[state.sort] || byTitle);
+  const base = sorters[state.sort] || byTitle;
+  const dir = state.sortDir || 1;
+  return list.sort(dir === -1 ? (a,b)=> -base(a,b) : base);
 }
 
 /* ---------------- toolbar ---------------- */
@@ -16630,6 +16633,7 @@ function renderToolbar(){
         <option value="quick">Quickest</option>
         <option value="newest">Newest added</option>
       </select>
+      <button class="tb-btn" id="sortDirBtn" title="Reverse sort order">↓</button>
     </div>
     <div class="tb-group">
       <label class="tb-name">Show</label>
@@ -16643,6 +16647,7 @@ function renderToolbar(){
     </div>
     <div class="tb-spacer"></div>`;
   tb.querySelector('#sortSelect').onchange = e=>{ state.sort = e.target.value; renderGrid(); };
+  tb.querySelector('#sortDirBtn').onclick = ()=>{ state.sortDir = (state.sortDir === -1) ? 1 : -1; syncToolbar(); renderGrid(); };
   tb.querySelectorAll('[data-made]').forEach(b=>{
     b.onclick = ()=>{ state.made = b.dataset.made; renderToolbar(); renderGrid(); };
   });
@@ -16654,6 +16659,9 @@ function syncToolbar(){
   tb.querySelector('#sortSelect').value = state.sort;
   tb.querySelectorAll('[data-made]').forEach(b=> b.classList.toggle('on', b.dataset.made===state.made));
   tb.querySelector('#aheadBtn').classList.toggle('on', state.aheadOnly);
+  const dirBtn = tb.querySelector('#sortDirBtn');
+  dirBtn.textContent = (state.sortDir === -1) ? '↑' : '↓';
+  dirBtn.classList.toggle('on', state.sortDir === -1);
 }
 function exportData(){
   const payload = JSON.stringify(DATA, null, 2);
@@ -16905,7 +16913,7 @@ document.getElementById('searchInput').addEventListener('input', e=>{
   searchTimer = setTimeout(()=>{ state.query = val; renderGrid(); }, 80);
 });
 document.getElementById('clearFilters').onclick = ()=>{
-  state = {query:"", category:null, cuisine:null, sort:"az", made:"all", aheadOnly:false};
+  state = {query:"", category:null, cuisine:null, sort:"az", sortDir:1, made:"all", aheadOnly:false};
   document.getElementById('searchInput').value = '';
   render();
 };
@@ -17848,7 +17856,7 @@ const sb = (SUPABASE_URL.startsWith('http'))
 
 let realtimeChannel = null;
 
-function isEditor(){ return !!session; }
+function isEditor(){ return !!unlockedHousehold; }
 
 /* ---------------- row <-> local shape mapping ---------------- */
 /* NOTE: prefs.household is the existing integer "household size" field (used for
@@ -17867,12 +17875,13 @@ function rowToPlan(r){
 function rowToInv(r){ return {id:r.id, kind:r.kind, name:r.name, qty:r.qty, unit:r.unit, _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
 
 async function remoteFetchAll(){
-  if(!sb || !session) return null;
+  if(!sb || !unlockedHousehold) return null;
+  const hh = unlockedHousehold;
   const [cl, pd, iv, pf] = await Promise.all([
     sb.from('cook_log').select('*'),
-    sb.from('plan_days').select('*'),
-    sb.from('inventory_items').select('*'),
-    sb.from('prefs').select('*').eq('household_id', currentHousehold()).maybeSingle()
+    sb.from('plan_days').select('*').eq('household_id', hh),
+    sb.from('inventory_items').select('*').eq('household_id', hh),
+    sb.from('prefs').select('*').eq('household_id', hh).maybeSingle()
   ]);
   if(cl.error || pd.error || iv.error || pf.error){
     console.error('Supabase fetch error', cl.error||pd.error||iv.error||pf.error);
@@ -17929,7 +17938,7 @@ async function runOp(op){
 
 let flushing = false;
 async function flushQueue(){
-  if(!sb || !session || flushing) return;
+  if(!sb || !unlockedHousehold || flushing) return;
   flushing = true;
   let q = loadQueue();
   while(q.length){
@@ -17955,7 +17964,7 @@ function pushWrite(op){
 
 /* ---------------- realtime ---------------- */
 function subscribeRealtime(){
-  if(!sb || !session || realtimeChannel) return;
+  if(!sb || !unlockedHousehold || realtimeChannel) return;
   realtimeChannel = sb.channel('household-sync')
     .on('postgres_changes', {event:'*', schema:'public', table:'cook_log'}, onRemoteChange)
     .on('postgres_changes', {event:'*', schema:'public', table:'plan_days'}, onRemoteChange)
@@ -17990,40 +17999,64 @@ function syncLabel(){
   return {off:'', ok:'● synced', error:'▲ retrying…', syncing:'◍ syncing…'}[syncState] || '';
 }
 
-/* ---------------- auth UI ---------------- */
+/* ---------------- household unlock UI ---------------- */
+/* Not real accounts -- just a shared code per household so the right
+   people can get to their own plan/pantry/history without an email
+   round-trip. Anyone who knows a code can unlock that household on their
+   device; a recipe link never carries or needs one, since recipes are
+   public either way. Change these whenever you like -- they're plain
+   strings, not stored anywhere else. */
+const HOUSEHOLD_CODES = { 'deemer-berdux': '123', 'berdux': 'abc' };
 function paintAuth(){
   const host = document.getElementById('authArea');
   if(!sb){ host.innerHTML = `<span class="icon-btn" style="cursor:default">Supabase not configured</span>`; return; }
-  if(session){
+  if(unlockedHousehold){
     host.innerHTML = `<span class="icon-btn sync-dot s-${syncState==='error'?'error':'ok'}" style="cursor:default">${syncLabel()}</span>
-      <button class="icon-btn" id="signOutBtn">Sign out (${escapeHTML(session.user.email)})</button>`;
-    document.getElementById('signOutBtn').onclick = async ()=>{ await sb.auth.signOut(); };
+      <button class="icon-btn" id="lockBtn">Leave ${escapeHTML(HOUSEHOLD_LABEL[unlockedHousehold]||unlockedHousehold)}</button>`;
+    document.getElementById('lockBtn').onclick = lockHousehold;
   } else {
-    host.innerHTML = `<button class="icon-btn" id="signInBtn">Sign in to plan &amp; track</button>`;
-    document.getElementById('signInBtn').onclick = openAuthPanel;
+    host.innerHTML = Object.keys(HOUSEHOLD_CODES).map(hh=>
+      `<button class="icon-btn" data-hh="${hh}">${escapeHTML(HOUSEHOLD_LABEL[hh]||hh)}</button>`).join('');
+    host.querySelectorAll('[data-hh]').forEach(b=> b.onclick = ()=> openHouseholdPanel(b.dataset.hh));
   }
 }
-function openAuthPanel(){
+function openHouseholdPanel(hh){
   const host = document.getElementById('authPanel');
-  if(host.dataset.open){ host.dataset.open=''; host.innerHTML=''; return; }
-  host.dataset.open = '1';
+  if(host.dataset.open === hh){ host.dataset.open=''; host.innerHTML=''; return; }
+  host.dataset.open = hh;
   host.innerHTML = `<div class="bench"><div class="bench-inner">
-      <h3>Sign in</h3>
-      <p>Enter your email and we'll send a sign-in link. Only household emails can access the planner.</p>
+      <h3>${escapeHTML(HOUSEHOLD_LABEL[hh]||hh)}</h3>
+      <p>Enter the household code to plan &amp; track meals.</p>
       <div class="bench-btns">
-        <input type="email" id="authEmail" placeholder="you@example.com" style="flex:1 1 220px; min-width:0; font-family:'Inter',sans-serif; font-size:14px; padding:7px 9px; border:1px solid var(--line); border-radius:3px; background:var(--card); color:var(--ink);">
-        <button class="tb-btn" id="authSend">Send link</button>
+        <input type="password" id="hhCode" placeholder="code" style="flex:1 1 140px; min-width:0; font-family:'Inter',sans-serif; font-size:14px; padding:7px 9px; border:1px solid var(--line); border-radius:3px; background:var(--card); color:var(--ink);">
+        <button class="tb-btn" id="hhGo">Unlock</button>
       </div>
-      <p id="authMsg" style="margin-top:10px;"></p>
+      <p id="hhMsg" style="margin-top:10px;"></p>
     </div></div>`;
-  document.getElementById('authSend').onclick = async ()=>{
-    const email = document.getElementById('authEmail').value.trim();
-    const msg = document.getElementById('authMsg');
-    if(!email){ msg.textContent = 'Enter an email first.'; return; }
-    msg.textContent = 'Sending…';
-    const {error} = await sb.auth.signInWithOtp({email, options:{emailRedirectTo: location.origin + location.pathname}});
-    msg.textContent = error ? ('Could not send link: ' + error.message) : 'Check your email for the sign-in link.';
+  const go = ()=>{
+    const val = document.getElementById('hhCode').value.trim();
+    if(val === HOUSEHOLD_CODES[hh]) unlockHousehold(hh);
+    else document.getElementById('hhMsg').textContent = 'Wrong code.';
   };
+  document.getElementById('hhGo').onclick = go;
+  document.getElementById('hhCode').addEventListener('keydown', e=>{ if(e.key==='Enter') go(); });
+}
+async function unlockHousehold(hh){
+  unlockedHousehold = hh;
+  try{ localStorage.setItem(HOUSEHOLD_LOCK_KEY, hh); }catch(e){}
+  const host = document.getElementById('authPanel');
+  host.dataset.open=''; host.innerHTML='';
+  paintAuth(); applyAuthGate();
+  const remote = await remoteFetchAll();
+  if(remote){ DATA = mergeStates(remote, DATA); persist(true); render(); if(view==='plan') renderWeek(); if(view==='storage') renderStorage(); }
+  subscribeRealtime();
+  flushQueue();
+}
+function lockHousehold(){
+  unlockedHousehold = null;
+  try{ localStorage.removeItem(HOUSEHOLD_LOCK_KEY); }catch(e){}
+  unsubscribeRealtime();
+  paintAuth(); applyAuthGate();
 }
 
 /* ---------------- boot ---------------- */
@@ -18034,30 +18067,12 @@ function applyAuthGate(){
   if(!signedIn && (view==='plan' || view==='history' || view==='storage')) setView('cookbook');
 }
 async function authBoot(){
-  if(!sb){ paintAuth(); applyAuthGate(); return; }
-  const {data} = await sb.auth.getSession();
-  session = data.session;
   paintAuth(); applyAuthGate();
-  if(session){
-    const remote = await remoteFetchAll();
-    if(remote){ DATA = mergeStates(remote, DATA); persist(true); render(); }
-    subscribeRealtime();
-    flushQueue();
-  }
-  sb.auth.onAuthStateChange(async (event, newSession)=>{
-    session = newSession;
-    paintAuth(); applyAuthGate();
-    if(session){
-      const authPanel = document.getElementById('authPanel');
-      authPanel.dataset.open=''; authPanel.innerHTML='';
-      const remote = await remoteFetchAll();
-      if(remote){ DATA = mergeStates(remote, DATA); persist(true); render(); if(view==='plan') renderWeek(); if(view==='storage') renderStorage(); }
-      subscribeRealtime();
-      flushQueue();
-    } else {
-      unsubscribeRealtime();
-    }
-  });
+  if(!sb || !unlockedHousehold) return;
+  const remote = await remoteFetchAll();
+  if(remote){ DATA = mergeStates(remote, DATA); persist(true); render(); }
+  subscribeRealtime();
+  flushQueue();
 }
 authBoot();
 
