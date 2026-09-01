@@ -166,6 +166,10 @@
     font-family:'IBM Plex Mono', monospace; font-size:10px; color:var(--ink-faint);
     white-space:nowrap; flex:0 0 auto;
   }
+  .card-added{
+    font-family:'IBM Plex Mono', monospace; font-size:9px; color:var(--ink-faint);
+    margin-top:4px; white-space:nowrap;
+  }
 
   .modal-overlay{
     position:fixed; inset:0; background:var(--scrim); display:none;
@@ -631,14 +635,6 @@
     font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--ink-soft);
     font-variant-numeric:tabular-nums;
   }
-  .fontsize{ display:flex; gap:3px; align-items:center; }
-  .fontsize button{
-    background:var(--card); border:1px solid var(--line); border-radius:3px;
-    color:var(--ink-soft); cursor:pointer; padding:3px 8px; line-height:1.2;
-    font-family:'Inter',sans-serif;
-  }
-  .fontsize button:hover{ color:var(--stamp); border-color:var(--stamp); }
-  .fontsize .fs-a{ font-size:11px; } .fontsize .fs-b{ font-size:14px; } .fontsize .fs-c{ font-size:17px; }
 
   /* checkable ingredients + steps while cooking */
   .making .ing-list li:not(.heading), .making .steps li{ cursor:pointer; }
@@ -651,13 +647,15 @@
   .making .ing-list li.tick::before{
     background:var(--stamp); border-color:var(--stamp);
   }
-  .making .steps li.tick{ color:var(--ink-faint); }
-  .making .steps li.tick::before{ color:var(--ink-faint); text-decoration:line-through; }
-  .making .steps li::after{
-    content:""; position:absolute; left:0; top:2px; width:22px; height:22px;
-    border-radius:3px; pointer-events:none;
+  .making .steps li{ padding-left:28px; }
+  .making .steps li::before{
+    content:""; left:2px; top:calc(0.5em + 3px); width:13px; height:13px; border-radius:3px;
+    background:transparent; border:1.5px solid var(--ink-faint); opacity:1;
   }
-  .making .steps li.tick::after{ background:var(--stamp); opacity:0.1; }
+  .making .steps li.tick{ color:var(--ink-faint); text-decoration:line-through; }
+  .making .steps li.tick::before{
+    background:var(--stamp); border-color:var(--stamp);
+  }
 
   .modal-actions{
     display:flex; flex-wrap:wrap; gap:8px; align-items:center;
@@ -21434,7 +21432,7 @@ const HOUSEHOLD_MAP = {
   'berdux@hotmail.com': 'berdux',
   'jcberdux@gmail.com': 'berdux'
 };
-const HOUSEHOLD_LABEL = { 'deemer-berdux': 'Deemer-Berdux', 'berdux': "Nick's parents" };
+const HOUSEHOLD_LABEL = { 'deemer-berdux': 'Nick and Tyler', 'berdux': 'Jen and Chris' };
 /* No per-person login: whichever household is "unlocked" on this device
    (a simple shared code, not a real account) decides what plan/pantry/
    history data loads and can be written. Declared here (not down by the
@@ -21680,7 +21678,7 @@ RECIPES.forEach(r=>{
 });
 
 /* ---------------- app state ---------------- */
-let state = { query:"", category:null, cuisine:null, sort:"cuisine", sortDir:1, made:"all", aheadOnly:false };
+let state = { query:"", category:null, cuisine:null, sort:"newest", sortDir:1, made:"all", aheadOnly:false };
 const COURSE_ORDER = ["Appetizer","Salad","Soup","Bread","Side","Main","Dessert","Breakfast","Drink"];
 const STALE_DAYS = 75;   /* "had it, but not in 2-3 months" */
 
@@ -21752,8 +21750,7 @@ function getFiltered(){
     most:   (a,b)=> timesMade(b.id)-timesMade(a.id) || byTitle(a,b),
     rating: (a,b)=>{ const A=avgRating(a.id)||-1, B=avgRating(b.id)||-1; return B-A || byTitle(a,b); },
     quick:  (a,b)=>{ const A=a._plan===null?1e9:a._plan, B=b._plan===null?1e9:b._plan; return A-B || byTitle(a,b); },
-    newest: (a,b)=> addedDateOf(b).localeCompare(addedDateOf(a)) || byTitle(a,b),
-    cuisine: (a,b)=> (a.cuisine||'').localeCompare(b.cuisine||'') || byTitle(a,b)
+    newest: (a,b)=> addedDateOf(b).localeCompare(addedDateOf(a)) || byTitle(a,b)
   };
   const base = sorters[state.sort] || byTitle;
   const dir = state.sortDir || 1;
@@ -21770,7 +21767,6 @@ function renderToolbar(){
       <label class="tb-name" for="sortSelect">Sort</label>
       <select class="tb-select" id="sortSelect">
         <option value="az">A – Z</option>
-        <option value="cuisine">Cuisine, A – Z</option>
         <option value="recent">Recently made</option>
         <option value="stale">Longest since made</option>
         <option value="most">Most made</option>
@@ -21880,7 +21876,8 @@ function renderGrid(){
       <div class="card-bottom">
         <span class="card-source">${zwsp(escapeHTML(r.source||''))}</span>
         <span class="card-servings">${r.servings ? zwsp(escapeHTML(servingsLabel(r.servings))) : ''}</span>
-      </div>`;
+      </div>
+      <div class="card-added">Added ${fmtAddedDate(addedDateOf(r))}</div>`;
     card.onclick = ()=> openModal(r);
     grid.appendChild(card);
   });
@@ -22060,7 +22057,7 @@ document.getElementById('searchInput').addEventListener('input', e=>{
   searchTimer = setTimeout(()=>{ state.query = val; renderGrid(); }, 80);
 });
 document.getElementById('clearFilters').onclick = ()=>{
-  state = {query:"", category:null, cuisine:null, sort:"cuisine", sortDir:1, made:"all", aheadOnly:false};
+  state = {query:"", category:null, cuisine:null, sort:"newest", sortDir:1, made:"all", aheadOnly:false};
   document.getElementById('searchInput').value = '';
   render();
 };
@@ -22132,6 +22129,11 @@ function recipeById(id){ return RECIPES.find(r=>r.id===id) || null; }
 /* recipes transcribed before we started tagging addedDate all share one
    backfilled date; anything added after 2026-08-23 carries a real one. */
 function addedDateOf(r){ return r.addedDate || '2026-08-23'; }
+function fmtAddedDate(iso){
+  const MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const d = new Date(iso+'T00:00:00');
+  return MO[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear();
+}
 function slotServings(entry, r){
   if(entry && entry.servings) return entry.servings;
   const sv = r && r._servings;
@@ -22849,18 +22851,6 @@ function applyTheme(mode){
 applyTheme(currentTheme());
 document.getElementById('themeBtn').onclick = ()=> applyTheme(currentTheme()==='dark' ? 'light' : 'dark');
 
-/* ---------------- reading size ---------------- */
-const FONT_KEY = 'cookbook.fontsize';
-const FONT_STEPS = [[13.5,14],[15.5,16],[18,18.5]];
-function fontIdx(){ const n = parseInt(localStorage.getItem(FONT_KEY)||'0',10); return isNaN(n)?0:Math.max(0,Math.min(2,n)); }
-function applyFont(i){
-  const [ing, step] = FONT_STEPS[i];
-  document.documentElement.style.setProperty('--recipe-font', ing+'px');
-  document.documentElement.style.setProperty('--step-font', step+'px');
-  try{ localStorage.setItem(FONT_KEY, String(i)); }catch(e){}
-  document.querySelectorAll('.fontsize button').forEach((b,k)=> b.classList.toggle('on', k===i));
-}
-
 /* ---------------- making mode (transient, device-local) ---------------- */
 let making = false;
 function makeKey(id){ return 'cookbook.making.'+id; }
@@ -22909,24 +22899,16 @@ function setMaking(on){
 }
 function renderMakeBar(){
   const host = document.getElementById('modalMake');
-  const i = fontIdx();
   host.innerHTML = `<div class="make-bar ${making?'on':''}">
       <button class="icon-btn ${making?'on':''}" id="makeToggle">${making?'✓ Making mode on':'Start making mode'}</button>
       <span class="make-prog" id="makeProg"></span>
       ${making?`<button class="icon-btn" id="makeReset">reset ticks</button>`:''}
       <span style="flex:1"></span>
-      <span class="sb-key">Text</span>
-      <span class="fontsize">
-        <button class="fs-a ${i===0?'on':''}" data-fs="0">A</button>
-        <button class="fs-b ${i===1?'on':''}" data-fs="1">A</button>
-        <button class="fs-c ${i===2?'on':''}" data-fs="2">A</button>
-      </span>
       ${wakeSupported()?`<button class="icon-btn ${wakeOn?'on':''}" id="wakeBtn" title="Stop the screen dimming">${wakeOn?'☀ screen on':'☀ keep screen on'}</button>`:''}
     </div>`;
   host.querySelector('#makeToggle').onclick = ()=> setMaking(!making);
   const rst = host.querySelector('#makeReset');
   if(rst) rst.onclick = ()=>{ ticks={ing:[],step:[]}; clearTicks(modalRecipe.id); paintTicks(); };
-  host.querySelectorAll('[data-fs]').forEach(b=> b.onclick = ()=>{ applyFont(+b.dataset.fs); renderMakeBar(); paintTicks(); });
   const wb = host.querySelector('#wakeBtn');
   if(wb) wb.onclick = ()=> wakeOn ? releaseWake(true) : requestWake(true);
 }
@@ -22980,7 +22962,6 @@ function renderModalActions(){
   };
 }
 
-applyFont(fontIdx());
 setTimeout(openFromHash, 0);
 
 /* ============================================================
