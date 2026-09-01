@@ -21433,7 +21433,7 @@ const RECIPES = [
 const SEED_STATE = {
   "version": 1,
   "cookLog": [
-    { "id": "seed-ctm-1", "recipeId": "chicken-tikka-masala", "date": "2026-08-23", "rating": 3, "note": "", "leftover": "", "household": "deemer-berdux", "_t": 1787443200000 }
+    { "id": "seed-ctm-1", "recipeId": "chicken-tikka-masala", "date": "2026-08-23", "rating": 5, "note": "", "leftover": "", "household": "deemer-berdux", "_t": 1787443200000 }
   ],
   "plan": [],
   "inventory": { "items": [] },
@@ -21925,7 +21925,7 @@ function importData(e){
 }
 
 /* ---------------- grid ---------------- */
-function starStr(n){ const k=Math.max(0,Math.min(3,Math.round(n))); return '★★★'.slice(0,k) + '☆☆☆'.slice(0,3-k); }
+function starStr(n){ const k=Math.max(0,Math.min(5,Math.round(n))); return '★★★★★'.slice(0,k) + '☆☆☆☆☆'.slice(0,5-k); }
 function cardTimeHTML(r){
   const t = r._total; if(!t) return '';
   const out = [`<span class="t-total">${fmtTime(t)} total</span>`];
@@ -22051,7 +22051,7 @@ function renderCookPanel(){
       </div>
       <div class="cook-form" id="cookForm">
         <input type="date" id="cookDate" value="${todayISO()}">
-        <div class="rate-pick" id="ratePick">${[1,2,3].map(i=>`<span data-v="${i}">★</span>`).join('')}</div>
+        <div class="rate-pick" id="ratePick">${[1,2,3,4,5].map(i=>`<span data-v="${i}">★</span>`).join('')}</div>
         <input type="text" id="cookNote" placeholder="Note for next time (optional)">
         <input type="text" id="cookLeftover" placeholder="Leftovers? (e.g. half, 2 servings)">
         <button class="cook-btn" id="cookSave">Save</button>
@@ -22321,8 +22321,8 @@ function scoreFor(r, iso, ctx){
   if(n >= 3 && d >= 30){ s += 10; why.push('a regular favourite'); }
 
   const avg = avgRating(r.id);
-  if(avg) s += (avg - 2) * 9;
-  if(avg === 3) why.unshift('3-star favorite');
+  if(avg) s += (avg - 3) * 4.5;
+  if(avg === 5) why.unshift('5-star favorite');
 
   const t = r._plan;
   if(t !== null){
