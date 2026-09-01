@@ -22870,10 +22870,12 @@ function paintTicks(){
     li.classList.toggle('tick', ticks.ing.indexOf(i) !== -1);
   });
   [...steps.querySelectorAll('li')].forEach((li,i)=> li.classList.toggle('tick', ticks.step.indexOf(i) !== -1));
-  const done = ticks.ing.length + ticks.step.length;
-  const total = [...ing.querySelectorAll('li:not(.heading)')].length + steps.querySelectorAll('li').length;
+  const ingTotal = [...ing.querySelectorAll('li:not(.heading)')].length;
+  const stepTotal = steps.querySelectorAll('li').length;
   const prog = document.getElementById('makeProg');
-  if(prog) prog.textContent = making ? `${done} of ${total} done` : '';
+  if(prog) prog.textContent = making
+    ? `${ticks.ing.length} of ${ingTotal} ingredients · ${ticks.step.length} of ${stepTotal} steps`
+    : '';
 }
 function toggleTick(kind, i){
   const arr = ticks[kind], at = arr.indexOf(i);
