@@ -150,6 +150,9 @@
     line-height:1.22; margin:0 0 8px; transition:color .12s ease;
     overflow-wrap:anywhere;
   }
+  /* dishes shown as "Native Name (English Name)" run longer than a normal
+     title, so they get a smaller size to fit without dominating the card. */
+  .card-title.dual-name{ font-size:14.5px; line-height:1.28; }
   .card-bottom{
     margin-top:auto; padding-top:12px; border-top:1px solid var(--line);
     display:flex; flex-wrap:wrap; justify-content:space-between; align-items:baseline; gap:3px 10px;
@@ -192,6 +195,7 @@
     font-family:'Inter',sans-serif; font-weight:700; font-size:clamp(21px, 5vw, 28px);
     line-height:1.14; margin:0 0 6px; padding-right:20px; overflow-wrap:anywhere;
   }
+  .modal h2.dual-name{ font-size:clamp(16px, 4vw, 21px); line-height:1.2; }
   .modal .source-line{
     font-family:'Inter',sans-serif; font-style:italic; color:var(--ink-soft); font-size:13.5px;
     margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid var(--line);
@@ -17556,7 +17560,7 @@ const RECIPES = [
     "id": "spinach-salad-insalata-di-spinaci",
     "addedDate": "2026-08-31",
     "title": "Spinach Salad",
-    "shortTitle": "Spinach Salad (Insalata di Spinaci)",
+    "nativeName": "Insalata di Spinaci",
     "category": "Salad",
     "cuisine": "Italian",
     "source": "Cookbook photo",
@@ -17586,7 +17590,7 @@ const RECIPES = [
     "id": "penne-rigate-vodka-sauce",
     "addedDate": "2026-08-31",
     "title": "Penne Rigate in a Vodka Sauce",
-    "shortTitle": "Penne alla Vodka",
+    "nativeName": "Penne alla Vodka",
     "category": "Main",
     "cuisine": "Italian",
     "source": "Cookbook photo",
@@ -18003,7 +18007,7 @@ const RECIPES = [
     "id": "peanut-topped-sugar-cookies-cinq-centimes",
     "addedDate": "2026-09-01",
     "title": "Peanut-Topped Sugar Cookies",
-    "shortTitle": "Peanut-Topped Sugar Cookies (Cinq Centimes)",
+    "nativeName": "Cinq Centimes",
     "category": "Dessert",
     "cuisine": "West African",
     "source": "Cookbook photo",
@@ -18040,7 +18044,7 @@ const RECIPES = [
     "id": "peanut-filled-shortbread-cookies-kuih-makmur",
     "addedDate": "2026-09-01",
     "title": "Peanut-Filled Shortbread Cookies",
-    "shortTitle": "Peanut-Filled Shortbread (Kuih Makmur)",
+    "nativeName": "Kuih Makmur",
     "category": "Dessert",
     "cuisine": "Southeast Asian",
     "source": "Cookbook photo",
@@ -18075,7 +18079,7 @@ const RECIPES = [
     "id": "crisp-rice-flour-wafers-kue-semprong",
     "addedDate": "2026-09-01",
     "title": "Crisp Rice-Flour Wafers",
-    "shortTitle": "Rice-Flour Wafers (Kue Semprong)",
+    "nativeName": "Kue Semprong",
     "category": "Dessert",
     "cuisine": "Indonesian",
     "source": "Cookbook photo",
@@ -18108,7 +18112,7 @@ const RECIPES = [
     "id": "milky-cashew-cookies-biskut-gajus",
     "addedDate": "2026-09-01",
     "title": "Milky Cashew Cookies",
-    "shortTitle": "Milky Cashew Cookies (Biskut Gajus)",
+    "nativeName": "Biskut Gajus",
     "category": "Dessert",
     "cuisine": "Malaysian",
     "source": "Cookbook photo",
@@ -18183,7 +18187,7 @@ const RECIPES = [
     "id": "browned-butter-spoon-cookies-lusikkaleivat",
     "addedDate": "2026-09-01",
     "title": "Browned Butter Spoon Cookies",
-    "shortTitle": "Browned Butter Spoon Cookies (Lusikkaleivät)",
+    "nativeName": "Lusikkaleivät",
     "category": "Dessert",
     "cuisine": "Finnish",
     "source": "Cookbook photo",
@@ -18287,8 +18291,8 @@ const RECIPES = [
   {
     "id": "twice-baked-almond-cookies-carquinyolis",
     "addedDate": "2026-09-01",
-    "title": "Twice-Baked Almond Cookies (Carquinyolis)",
-    "shortTitle": "Carquinyolis",
+    "title": "Twice-Baked Almond Cookies",
+    "nativeName": "Carquinyolis",
     "category": "Dessert",
     "cuisine": "Spanish",
     "source": "Cookbook photo",
@@ -18328,7 +18332,7 @@ const RECIPES = [
     "id": "cinnamon-shortbread-rage-cookies-raivas",
     "addedDate": "2026-09-01",
     "title": "Cinnamon Shortbread Squiggle Cookies",
-    "shortTitle": "Raivas de Aveiro",
+    "nativeName": "Raivas de Aveiro",
     "category": "Dessert",
     "cuisine": "Portuguese",
     "source": "Cookbook photo",
@@ -18361,7 +18365,7 @@ const RECIPES = [
     "id": "cakey-egg-yolk-cookies-doce-de-gema",
     "addedDate": "2026-09-01",
     "title": "Cakey Egg Yolk Cookies",
-    "shortTitle": "Egg Yolk Cookies (Doce de Gema)",
+    "nativeName": "Doce de Gema",
     "category": "Dessert",
     "cuisine": "Portuguese",
     "source": "Cookbook photo",
@@ -18399,7 +18403,7 @@ const RECIPES = [
     "id": "molasses-spice-cookies-broas-de-mel",
     "addedDate": "2026-09-01",
     "title": "Molasses and Spice Cookies",
-    "shortTitle": "Molasses & Spice Cookies (Broas de Mel)",
+    "nativeName": "Broas de Mel",
     "category": "Dessert",
     "cuisine": "Portuguese",
     "source": "Cookbook photo",
@@ -18440,7 +18444,7 @@ const RECIPES = [
     "id": "portuguese-lemon-cookies-biscoitos",
     "addedDate": "2026-09-01",
     "title": "Portuguese Lemon Cookies",
-    "shortTitle": "Biscoitos",
+    "nativeName": "Biscoitos",
     "category": "Dessert",
     "cuisine": "Portuguese",
     "source": "Cookbook photo",
@@ -18475,7 +18479,7 @@ const RECIPES = [
     "id": "olive-oil-honey-cookies-melomakarona",
     "addedDate": "2026-09-01",
     "title": "Olive Oil and Honey Cookies",
-    "shortTitle": "Melomakarona",
+    "nativeName": "Melomakarona",
     "category": "Dessert",
     "cuisine": "Greek",
     "source": "Cookbook photo",
@@ -18525,7 +18529,7 @@ const RECIPES = [
     "id": "honey-cinnamon-cookies-medenki",
     "addedDate": "2026-09-01",
     "title": "Honey and Cinnamon Cookies",
-    "shortTitle": "Medenki",
+    "nativeName": "Medenki",
     "category": "Dessert",
     "cuisine": "Bulgarian",
     "source": "Cookbook photo",
@@ -18563,7 +18567,7 @@ const RECIPES = [
     "id": "custard-tarts-belem-style",
     "addedDate": "2026-09-01",
     "title": "Custard Tarts, Belem Style",
-    "shortTitle": "Pasteis de Nata",
+    "nativeName": "Pasteis de Nata",
     "category": "Dessert",
     "cuisine": "Portuguese",
     "source": "Cookbook photo",
@@ -18603,7 +18607,7 @@ const RECIPES = [
     "id": "sweet-rice-pastries-pasteis-de-arroz",
     "addedDate": "2026-09-01",
     "title": "Sweet Rice Pastries",
-    "shortTitle": "Pasteis de Arroz",
+    "nativeName": "Pasteis de Arroz",
     "category": "Dessert",
     "cuisine": "Portuguese",
     "source": "Cookbook photo",
@@ -18644,7 +18648,7 @@ const RECIPES = [
     "id": "creamy-custard-tartlets-natercias",
     "addedDate": "2026-09-01",
     "title": "Creamy Custard Tartlets",
-    "shortTitle": "Natércias",
+    "nativeName": "Natércias",
     "category": "Dessert",
     "cuisine": "Portuguese",
     "source": "Cookbook photo",
@@ -18673,7 +18677,7 @@ const RECIPES = [
     "id": "beef-filled-puff-pastry-pillows",
     "addedDate": "2026-09-01",
     "title": "Beef-Filled Puff Pastry Pillows",
-    "shortTitle": "Almofadas com Recheio de Bife",
+    "nativeName": "Almofadas com Recheio de Bife",
     "category": "Appetizer",
     "cuisine": "Portuguese",
     "source": "Cookbook photo",
@@ -18710,7 +18714,7 @@ const RECIPES = [
     "id": "azorean-style-spicy-beef-stew",
     "addedDate": "2026-09-01",
     "title": "Spicy Azorean-Style Beef Stew",
-    "shortTitle": "Carne Guisada a Açoreano",
+    "nativeName": "Carne Guisada a Açoreano",
     "category": "Main",
     "cuisine": "Portuguese",
     "source": "Cookbook photo",
@@ -18745,7 +18749,7 @@ const RECIPES = [
     "id": "pico-island-pot-roast-allspice",
     "addedDate": "2026-09-01",
     "title": "Pico Island Pot Roast with Allspice",
-    "shortTitle": "Carne Assada à Moda do Pico",
+    "nativeName": "Carne Assada à Moda do Pico",
     "category": "Main",
     "cuisine": "Portuguese",
     "source": "Cookbook photo",
@@ -20511,7 +20515,7 @@ const RECIPES = [
     "id": "gruyere-parm-cheese-puffs-gougeres",
     "addedDate": "2026-09-01",
     "title": "Gruyère and Parm Cheese Puffs",
-    "shortTitle": "Gougères",
+    "nativeName": "Gougères",
     "category": "Appetizer",
     "cuisine": "French",
     "source": "Cookbook photo",
@@ -21016,6 +21020,116 @@ const RECIPES = [
     "needsReview": false,
     "cookTime": "20 minutes",
     "prepTime": "10 minutes"
+  },
+  {
+    "id": "smash-cookies",
+    "addedDate": "2026-09-01",
+    "title": "Smash Cookies",
+    "category": "Dessert",
+    "cuisine": "American",
+    "source": "Cookbook photo",
+    "servings": "About 12 large cookies",
+    "ingredients": [
+      "3 1/2 cups all-purpose flour",
+      "1 tsp baking powder",
+      "1 tsp baking soda",
+      "1 1/4 tsp kosher salt",
+      "3/4 cup plus 2 Tbsp unsalted butter, melted and slightly cooled",
+      "2 tsp pure vanilla extract",
+      "2 eggs, at room temperature",
+      "2 1/4 cups lightly packed brown sugar",
+      "5 oz bittersweet chocolate, finely chopped",
+      "1 cup toasted pecan pieces (or walnuts, macadamia nuts, dried cherries, M&Ms, or a mix)"
+    ],
+    "instructions": [
+      "In a medium bowl, whisk together the flour, baking powder, baking soda, and salt. Set aside.",
+      "In a large bowl, whisk together the melted butter, brown sugar, and vanilla. Add the eggs one at a time, whisking until uniformly mixed.",
+      "With a wooden spoon, mix in the flour mixture all at once, stirring just until incorporated -- the dough should be quite thick but not dry. Fold in the chopped chocolate and nut pieces.",
+      "Line a baking sheet with parchment paper. Portion the dough into 9 rough balls, shaping each about the size of a baseball (roughly 4 1/4 oz / 120 g). Don't flatten them -- they should stay tall and round.",
+      "Refrigerate the dough balls for at least 1 hour before baking; they'll hold together better if thicker. Chilled dough balls can also be frozen for baking later.",
+      "Preheat the oven to 375°F (or 400°F if your oven has convection, using the flat-heat setting). Evenly space six chilled dough balls on two doubled baking sheets lined with parchment paper, leaving 2 inches / 5 cm between them. The doubled sheets keep the bottoms from over-browning in a hot oven.",
+      "Bake one sheet at a time, in the middle of the oven, for about 12-14 minutes, until golden brown on the outside but still soft in the center.",
+      "Remove from the oven and, while still hot, gently smash each cookie with a metal spatula to a 1-inch / 2.5 cm thick disk.",
+      "Let cool on the baking sheets for about 5 minutes, then move to a cooling rack. Enjoy warm or at room temperature."
+    ],
+    "notes": "A giant, thick, chocolaty riff on the smash-cookie style that became popular in New York -- pressed flat right out of the oven so the outside turns crackly and crisp while the inside stays soft and gooey. Variation (Brown Butter Smash Blondies): brown the butter before mixing, then press the dough into a greased 9 x 13-inch pan lined with a parchment sling. Bake at 375°F for about 12 minutes, until the edges are golden brown, and cool completely in the pan before cutting into squares.",
+    "tags": [
+      "Vegetarian"
+    ],
+    "needsReview": false,
+    "cookTime": "14 minutes",
+    "prepTime": "20 minutes, plus chilling"
+  },
+  {
+    "id": "grilled-bbq-chicken-smoked-paprika-rub",
+    "addedDate": "2026-09-01",
+    "title": "Grilled BBQ Chicken with Smoked Paprika Rub",
+    "shortTitle": "Grilled BBQ Chicken",
+    "category": "Main",
+    "cuisine": "American",
+    "source": "Cookbook photo",
+    "servings": "4",
+    "ingredients": [
+      "1 3/4 lb chicken tenderloins or boneless skinless chicken breasts",
+      "1/4 cup vegetable oil",
+      "3 cloves garlic, minced",
+      "1 1/4 tsp salt",
+      "1 Tbsp packed light brown sugar",
+      "2 tsp smoked paprika",
+      "1 tsp ground cumin",
+      "1 tsp chili powder",
+      "1/8 tsp cayenne pepper",
+      "About 1 cup store-bought or homemade barbecue sauce"
+    ],
+    "instructions": [
+      "If using chicken breasts, place them one at a time in a 1-gallon zip-top bag and pound with a meat mallet to an even 1/2-inch thickness (skip this step for tenderloins).",
+      "In a large bowl, whisk together the oil, garlic, salt, brown sugar, smoked paprika, cumin, chili powder, and cayenne. Add the chicken and toss with tongs until evenly coated with the marinade. Cover and refrigerate at least 6 hours or up to 24 hours.",
+      "Preheat a grill to high heat and oil the grates. Grill the chicken, covered, for 2-3 minutes. Flip and brush with some of the barbecue sauce. Cook 2-3 minutes more, until cooked through (tenderloins will cook faster than breasts)."
+    ],
+    "tags": [
+      "Gluten Free"
+    ],
+    "needsReview": false,
+    "cookTime": "10 minutes",
+    "prepTime": "15 minutes, plus at least 6 hours marinating"
+  },
+  {
+    "id": "moms-italian-bread",
+    "addedDate": "2026-09-01",
+    "title": "Mom's Italian Bread",
+    "category": "Bread",
+    "cuisine": "Italian",
+    "source": "Cookbook photo",
+    "servings": "Makes 2 loaves, 9 dinner rolls, or 8 breadsticks",
+    "ingredients": [
+      "1 (1/4-oz) packet active dry yeast",
+      "2 cups warm water",
+      "3 Tbsp sugar",
+      "3 Tbsp extra-virgin olive oil, plus more for greasing",
+      "4 tsp kosher salt",
+      "6 cups all-purpose flour, plus more for dusting",
+      "For serving: softened butter, extra-virgin olive oil, balsamic vinegar, and flaky salt"
+    ],
+    "instructions": [
+      "Preheat the oven to 200°F, then turn it off once it reaches temperature.",
+      "In the biggest oven-safe bowl you own, combine the yeast with the warm water and whisk until the yeast dissolves. Add the sugar, oil, and salt, then stir in the flour until the dough comes together into a shaggy mass.",
+      "Using a wooden spoon (or a stand mixer fitted with the dough hook), knead the dough on a lightly floured work surface for about 10 minutes, until it forms a smooth ball -- or mix with the dough hook for about 5 minutes, until smooth.",
+      "Clean out the large bowl and lightly grease it with oil. Return the dough to the bowl, cover with a clean damp towel, and place in the warm (turned-off) oven. Let rise until doubled in size, about 1 hour. (If you're not sure the dough has risen enough, poke a finger into it -- if the indentation stays, it's ready.)",
+      "Remove the bowl from the oven, punch the dough down, cover it again with the same towel, and let rise on the countertop until doubled in size again, about 1 hour more.",
+      "Preheat the oven to 400°F. Prepare your pan(s) of choice (see below).",
+      "Lightly flour a clean work surface, turn out the dough, and punch it down again. Shape the dough according to your chosen format below. Cover the pan(s) with damp kitchen towels and let rest at room temperature until the dough rises to fill the pans, about 30 minutes.",
+      "Bake for 30-35 minutes, until golden brown. Serve hot, at room temperature, or toasted, with softened butter, or with olive oil and balsamic vinegar for dipping.",
+      "To make loaves: divide the dough between two greased 9x5-inch loaf pans.",
+      "To make rolls: cut the dough into 9 equal pieces, roll into tight balls, and arrange in a greased 8x8-inch baking dish.",
+      "To make breadsticks: roll the dough into an 8x10-inch rectangle on a parchment-lined rimmed sheet pan, then cut into eight 1-inch-wide strips and arrange on the pan."
+    ],
+    "notes": "Wrap any extra loaves, rolls, or breadsticks tightly in plastic wrap and freeze for up to 6 months; thaw on the counter overnight or reheat at 400°F for about 5 minutes.",
+    "tags": [
+      "Vegetarian"
+    ],
+    "needsReview": true,
+    "cookTime": "35 minutes",
+    "prepTime": "40 minutes, plus about 2 hours rising"
   }
 ];
 
@@ -21188,7 +21302,11 @@ function escapeHTML(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt
 /* zero-width space after slashes -> lets long titles/cuisines wrap without a visible gap */
 function zwsp(s){ return String(s).replace(/\/(?!​)/g, '/​'); }
 function renderInline(s){ return zwsp(escapeHTML(s)).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'); }
-function displayTitle(r){ return r.shortTitle || r.title; }
+/* dishes with a native-language name and an English one show both, e.g.
+   "Pasteis de Nata (Custard Tarts, Belem Style)" -- everywhere else falls
+   back to the existing shortTitle/title behavior unchanged. */
+function combinedTitle(r){ return r.nativeName ? (r.nativeName + ' (' + r.title + ')') : null; }
+function displayTitle(r){ return combinedTitle(r) || r.shortTitle || r.title; }
 
 /* ---------------- time parsing ---------------- */
 function roundUp5(n){ return Math.ceil(n/5)*5; }
@@ -21557,7 +21675,7 @@ function renderGrid(){
           <span class="stamp-badge cuisine">${zwsp(escapeHTML(r.cuisine))}</span>
         </div>
       </div>
-      <h3 class="card-title">${zwsp(escapeHTML(displayTitle(r)))}</h3>
+      <h3 class="card-title${r.nativeName?' dual-name':''}">${zwsp(escapeHTML(displayTitle(r)))}</h3>
       <div class="card-time">${cardTimeHTML(r)}</div>
       ${cardMetaHTML(r)}
       <div class="card-bottom">
@@ -21680,7 +21798,9 @@ function openModal(r){
     `<span>${escapeHTML(r.category)}</span><span>${zwsp(escapeHTML(r.cuisine))}</span>` +
     (p?`<span>Prep ${fmtTime(p)}</span>`:'') + (c?`<span>Cook ${fmtTime(c)}</span>`:'') +
     (t?`<span>Total ${fmtTime(t)}</span>`:'');
-  document.getElementById('modalTitle').innerHTML = zwsp(escapeHTML(r.title));
+  const modalTitleEl = document.getElementById('modalTitle');
+  modalTitleEl.innerHTML = zwsp(escapeHTML(combinedTitle(r) || r.title));
+  modalTitleEl.classList.toggle('dual-name', !!r.nativeName);
   document.getElementById('modalSource').innerHTML =
     zwsp(escapeHTML([r.source, r.servings ? servingsLabel(r.servings) : null].filter(Boolean).join(' — ')));
 
