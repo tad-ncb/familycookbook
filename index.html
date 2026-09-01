@@ -718,6 +718,10 @@
     <div class="facet-row">
       <span class="facet-name">Cuisine</span>
       <div id="cuisineChips" style="display:flex; flex-wrap:wrap;"></div>
+    </div>
+    <div class="facet-row">
+      <span class="facet-name">Diet</span>
+      <div id="dietChips" style="display:flex; flex-wrap:wrap;"></div>
       <span class="clear-link" id="clearFilters">clear filters</span>
     </div>
   </div>
@@ -21449,7 +21453,7 @@ const RECIPES = [
 const SEED_STATE = {
   "version": 1,
   "cookLog": [
-    { "id": "seed-ctm-1", "recipeId": "chicken-tikka-masala", "date": "2026-08-23", "rating": 5, "note": "", "leftover": "", "household": "deemer-berdux", "_t": 1787443200000 }
+    { "id": "seed-ctm-1", "recipeId": "chicken-tikka-masala", "date": "2026-08-23", "rating": 5, "note": "", "leftover": "", "household": "deemer-berdux", "_t": 1788264000000 }
   ],
   "plan": [],
   "inventory": { "items": [] },
@@ -21790,7 +21794,7 @@ RECIPES.forEach(r=>{
 });
 
 /* ---------------- app state ---------------- */
-let state = { query:"", category:null, cuisine:null, sort:"newest", sortDir:1, made:"all", aheadOnly:false };
+let state = { query:"", category:null, cuisine:null, diet:null, sort:"newest", sortDir:1, made:"all", aheadOnly:false };
 const COURSE_ORDER = ["Appetizer","Salad","Soup","Bread","Side","Main","Dessert","Breakfast","Drink"];
 const STALE_DAYS = 75;   /* "had it, but not in 2-3 months" */
 
@@ -21803,7 +21807,9 @@ function orderByList(values, order){
 }
 const ALL_CATEGORIES = orderByList(RECIPES.map(r=>r.category), COURSE_ORDER);
 const ALL_CUISINES   = uniqueSorted(RECIPES.map(r=>r.cuisine));
+const ALL_DIETS = ['Vegan','Vegetarian','Gluten Free','Dairy Free'].filter(d=>RECIPES.some(r=>(r.tags||[]).includes(d)));
 function countFor(field, value){ return RECIPES.filter(r=>r[field]===value).length; }
+function countForTag(tag){ return RECIPES.filter(r=>(r.tags||[]).includes(tag)).length; }
 
 function renderChips(){
   const catWrap = document.getElementById('categoryChips');
@@ -21823,6 +21829,15 @@ function renderChips(){
     chip.innerHTML = `${zwsp(escapeHTML(c))} <span class="n">${countFor('cuisine',c)}</span>`;
     chip.onclick = ()=>{ state.cuisine = state.cuisine===c ? null : c; render(); };
     cuiWrap.appendChild(chip);
+  });
+  const dietWrap = document.getElementById('dietChips');
+  dietWrap.innerHTML = '';
+  ALL_DIETS.forEach(d=>{
+    const chip = document.createElement('span');
+    chip.className = 'facet-link' + (state.diet===d ? ' active':'');
+    chip.innerHTML = `${zwsp(escapeHTML(d))} <span class="n">${countForTag(d)}</span>`;
+    chip.onclick = ()=>{ state.diet = state.diet===d ? null : d; render(); };
+    dietWrap.appendChild(chip);
   });
 }
 
@@ -21847,6 +21862,7 @@ function getFiltered(){
   let list = RECIPES.filter(r=>
     (!state.category || r.category===state.category) &&
     (!state.cuisine  || r.cuisine ===state.cuisine)  &&
+    (!state.diet     || (r.tags||[]).includes(state.diet)) &&
     (!state.aheadOnly || r._ahead) &&
     passesMade(r) && matchesQuery(r, state.query)
   );
@@ -22169,7 +22185,7 @@ document.getElementById('searchInput').addEventListener('input', e=>{
   searchTimer = setTimeout(()=>{ state.query = val; renderGrid(); }, 80);
 });
 document.getElementById('clearFilters').onclick = ()=>{
-  state = {query:"", category:null, cuisine:null, sort:"newest", sortDir:1, made:"all", aheadOnly:false};
+  state = {query:"", category:null, cuisine:null, diet:null, sort:"newest", sortDir:1, made:"all", aheadOnly:false};
   document.getElementById('searchInput').value = '';
   render();
 };
