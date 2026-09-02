@@ -23361,22 +23361,37 @@ async function nytBoot(){
 
   /* PostgREST caps a single response at 1000 rows by default -- page through
      with .range() until a page comes back short, or only the first 1000 of the
-     19,163 NYT recipes would ever load. */
+     19,163 NYT recipes would ever load. ~20 sequential requests means a single
+     transient failure (rate limit, cold-start timeout, network blip) is likely
+     over a full fetch -- retry each page a few times, and if a page still fails,
+     keep whatever pages DID succeed instead of throwing all of it away. */
   const PAGE_SIZE = 1000;
-  let allData = [], from = 0;
+  let allData = [], from = 0, hadError = false;
   while(true){
-    const { data, error } = await sb.from('nyt_recipes').select('*').eq('needs_review', false)
-      .range(from, from + PAGE_SIZE - 1);
-    if(error){ console.error('nyt_recipes fetch error', error); return; }
+    let data = null, error = null;
+    for(let attempt = 1; attempt <= 3; attempt++){
+      const res = await sb.from('nyt_recipes').select('*').eq('needs_review', false)
+        .range(from, from + PAGE_SIZE - 1);
+      data = res.data; error = res.error;
+      if(!error) break;
+      console.error(`nyt_recipes fetch error (page starting at ${from}, attempt ${attempt})`, error);
+      if(attempt < 3) await new Promise(r => setTimeout(r, 500 * attempt));
+    }
+    if(error){ hadError = true; break; } /* keep whatever pages already succeeded, stop here */
     allData = allData.concat(data);
     if(data.length < PAGE_SIZE) break;
     from += PAGE_SIZE;
   }
   const rows = allData.map(rowToNytRecipe);
-  try{ localStorage.setItem(NYT_CACHE_KEY, JSON.stringify({version: NYT_CACHE_VERSION, rows})); }catch(e){}
+  /* only cache on a fully clean fetch -- a partial result cached would silently
+     cap every future load at whatever happened to succeed this one time */
+  if(!hadError){
+    try{ localStorage.setItem(NYT_CACHE_KEY, JSON.stringify({version: NYT_CACHE_VERSION, rows})); }catch(e){}
+  }
   const before = RECIPES.length;
   mergeNytRecipes(rows);
   if(RECIPES.length !== before) render(); /* only re-render if the fetch actually added anything new vs. the cache */
+  if(hadError) console.error(`nytBoot: stopped early after fetching ${allData.length} NYT recipes -- see errors above`);
 }
 
 /* ---------------- offline write queue ---------------- */
