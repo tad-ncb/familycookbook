@@ -31,7 +31,7 @@
     --step-font: 14px;
   }
   :root[data-theme="light"]{
-    --paper: #FAF9F5;
+    --paper: #F1F1EF;
     --card: #FFFFFF;
     --card-hover: #FDFCFA;
     --ink: #16130F;
@@ -103,12 +103,13 @@
   .facet-link .n{color:var(--ink-faint); font-size:11px;}
   .facet-link.active .n{color:var(--stamp); opacity:0.6;}
 
-  .clear-link{
-    font-family:'IBM Plex Mono', monospace; font-size:10.5px;
-    text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-faint);
-    cursor:pointer; text-decoration:underline; text-underline-offset:3px; margin-left:4px;
+  .clear-row{ max-width:var(--maxw); margin:0 auto; padding:0 clamp(12px,2.6vw,32px) 20px; }
+  button.clear-btn{
+    font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase;
+    letter-spacing:0.07em; color:var(--ink-soft); background:var(--card);
+    border:1px solid var(--line); border-radius:3px; padding:6px 10px; cursor:pointer;
   }
-  .clear-link:hover{color:var(--alert);}
+  button.clear-btn:hover{ color:var(--alert); border-color:var(--alert); }
 
   .grid{
     max-width:var(--maxw); margin:0 auto; padding:8px 24px 100px;
@@ -267,7 +268,7 @@
     max-width:var(--maxw); margin:0 auto; padding:0 clamp(12px,2.6vw,32px) 18px;
     display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px;
   }
-  .toolbar .tb-group{ display:flex; align-items:center; gap:8px; }
+  .toolbar .tb-group{ display:flex; align-items:center; gap:8px; flex-basis:100%; }
   .toolbar label.tb-name{
     font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase;
     letter-spacing:0.09em; color:var(--ink-faint);
@@ -689,9 +690,8 @@
 
 <div class="masthead">
   <div class="masthead-inner">
-    <h1 class="title">The Deemer-Berdux Family Cookbook</h1>
+    <h1 class="title" id="homeTitle" title="Back to the cookbook" style="cursor:pointer;">The Deemer-Berdux Family Cookbook</h1>
     <div class="viewtabs" id="viewTabs">
-      <button class="vt" data-view="cookbook">Cookbook</button>
       <button class="vt" data-view="plan" style="display:none">Plan the week</button>
       <button class="vt" data-view="history" style="display:none">History</button>
       <button class="vt" data-view="storage" style="display:none">Storage</button>
@@ -716,21 +716,21 @@
   <div class="facet-rows">
     <div class="facet-row">
       <span class="facet-name">Course</span>
-      <div id="categoryChips" style="display:flex; flex-wrap:wrap;"></div>
+      <div id="categoryChips" style="display:flex; flex-wrap:wrap; flex-basis:100%;"></div>
     </div>
     <div class="facet-row">
       <span class="facet-name">Cuisine</span>
-      <div id="cuisineChips" style="display:flex; flex-wrap:wrap;"></div>
+      <div id="cuisineChips" style="display:flex; flex-wrap:wrap; flex-basis:100%;"></div>
     </div>
     <div class="facet-row">
       <span class="facet-name">Diet</span>
-      <div id="dietChips" style="display:flex; flex-wrap:wrap;"></div>
-      <span class="clear-link" id="clearFilters">clear filters</span>
+      <div id="dietChips" style="display:flex; flex-wrap:wrap; flex-basis:100%;"></div>
     </div>
   </div>
 </div>
 
 <div class="toolbar" id="toolbar"></div>
+<div class="clear-row"><button class="clear-btn" id="clearFilters">Clear filters</button></div>
 
 <main class="grid" id="grid"></main>
 
@@ -1010,7 +1010,7 @@ const RECIPES = [
     "title": "Watermelon Cosmopolitans",
     "category": "Drink",
     "cuisine": "American",
-    "source": "\"Go-To Dinners\" cookbook",
+    "source": "Ina Garten, \"Go-To Dinners\"",
     "servings": "4 drinks",
     "ingredients": [
       "4 cups (960 ml) (3/4-inch diced) red watermelon (see note)",
@@ -1036,7 +1036,7 @@ const RECIPES = [
     "title": "Chipotle Cheddar Crackers",
     "category": "Appetizer",
     "cuisine": "American",
-    "source": "\"Go-To Dinners\" cookbook",
+    "source": "Ina Garten, \"Go-To Dinners\"",
     "servings": "24 to 28 crackers",
     "ingredients": [
       "1/4 lb (115 g) (1 stick) unsalted butter, at room temperature",
@@ -2423,7 +2423,7 @@ const RECIPES = [
     "title": "Melon & Prosciutto",
     "category": "Appetizer",
     "cuisine": "Italian",
-    "source": "\"Go-To Dinners\" cookbook",
+    "source": "Ina Garten, \"Go-To Dinners\"",
     "servings": "4",
     "tags": [
       "Assembled"
@@ -3761,7 +3761,7 @@ const RECIPES = [
     "title": "Brown Butter Skillet Cornbread",
     "category": "Bread",
     "cuisine": "American",
-    "source": "\"Go-To Dinners\" cookbook",
+    "source": "Ina Garten, \"Go-To Dinners\"",
     "servings": "10 to 12",
     "tags": [
       "Easy"
@@ -3851,7 +3851,7 @@ const RECIPES = [
     "title": "Gruyère Omelet",
     "category": "Breakfast",
     "cuisine": "French",
-    "source": "\"Go-To Dinners\" cookbook",
+    "source": "Ina Garten, \"Go-To Dinners\"",
     "servings": "1",
     "tags": [
       "Really Fast"
@@ -3907,7 +3907,7 @@ const RECIPES = [
     "title": "Creamy Chicken Thighs with Lemon & Thyme",
     "category": "Main",
     "cuisine": "French",
-    "source": "\"Go-To Dinners\" cookbook",
+    "source": "Ina Garten, \"Go-To Dinners\"",
     "servings": "4",
     "tags": [
       "Make Ahead"
@@ -4908,7 +4908,7 @@ const RECIPES = [
     "title": "Lemon Meringue Squares",
     "category": "Dessert",
     "cuisine": "American",
-    "source": "\"Go-To Dinners\" cookbook",
+    "source": "Ina Garten, \"Go-To Dinners\"",
     "servings": "12",
     "tags": [
       "Make Ahead"
@@ -6475,7 +6475,7 @@ const RECIPES = [
     "title": "French Bistro Salad",
     "category": "Salad",
     "cuisine": "French",
-    "source": "\"Go-To Dinners\" cookbook",
+    "source": "Ina Garten, \"Go-To Dinners\"",
     "servings": "6",
     "tags": [
       "Easy",
@@ -6508,7 +6508,7 @@ const RECIPES = [
     "title": "Lemon Linguine with Zucchini & Basil",
     "category": "Main",
     "cuisine": "Italian",
-    "source": "\"Go-To Dinners\" cookbook",
+    "source": "Ina Garten, \"Go-To Dinners\"",
     "servings": "4",
     "tags": [
       "Easy"
@@ -6645,7 +6645,7 @@ const RECIPES = [
     "title": "Bourbon Chocolate Pecan Pie",
     "category": "Dessert",
     "cuisine": "American",
-    "source": "\"Go-To Dinners\" cookbook",
+    "source": "Ina Garten, \"Go-To Dinners\"",
     "servings": "6 to 8",
     "tags": [
       "Easy"
@@ -6708,7 +6708,7 @@ const RECIPES = [
     "title": "Bourbon Arnold Palmers",
     "category": "Drink",
     "cuisine": "American",
-    "source": "\"Go-To Dinners\" cookbook",
+    "source": "Ina Garten, \"Go-To Dinners\"",
     "servings": "6",
     "tags": [
       "Easy",
@@ -6737,7 +6737,7 @@ const RECIPES = [
     "title": "Garlic-Roasted Haricots Verts",
     "category": "Side",
     "cuisine": "French",
-    "source": "\"Go-To Dinners\" cookbook",
+    "source": "Ina Garten, \"Go-To Dinners\"",
     "servings": "4 to 6",
     "tags": [
       "Easy"
@@ -6792,7 +6792,7 @@ const RECIPES = [
     "title": "Veal Meatballs",
     "category": "Main",
     "cuisine": "Italian",
-    "source": "\"Go-To Dinners\" cookbook",
+    "source": "Ina Garten, \"Go-To Dinners\"",
     "servings": "Makes 22 meatballs, Serves 6 to 8",
     "tags": [
       "Prep Ahead",
@@ -7341,7 +7341,7 @@ const RECIPES = [
     "title": "Hot Spiced Mulled Wine",
     "category": "Drink",
     "cuisine": "American",
-    "source": "\"Go-To Dinners\" cookbook",
+    "source": "Ina Garten, \"Go-To Dinners\"",
     "servings": "8",
     "tags": [
       "Make Ahead"
@@ -7731,7 +7731,7 @@ const RECIPES = [
     "title": "One-Pot Oven Risotto",
     "category": "Main",
     "cuisine": "Italian",
-    "source": "\"Go-To Dinners\" cookbook",
+    "source": "Ina Garten, \"Go-To Dinners\"",
     "servings": "4",
     "tags": [
       "Easy"
@@ -21944,25 +21944,78 @@ const ALL_DIETS = ['Vegan','Vegetarian','Gluten Free','Dairy Free'].filter(d=>RE
 function countFor(field, value){ return RECIPES.filter(r=>r[field]===value).length; }
 function countForTag(tag){ return RECIPES.filter(r=>(r.tags||[]).includes(tag)).length; }
 
-/* ---------------- author filter ---------------- */
-/* Named-author sources were normalized (2026-09-02) so each one starts with a
-   stable author-name prefix -- Ina Garten has several distinct books, all still
-   prefixed "Ina Garten," so they group under one filter value. NYT Cooking
-   recipes are deliberately excluded (return null) -- they already have their own
-   "Hide NYT" toggle, and including 17,000+ of them here would swamp the handful
-   of curated "Individual/Unknown" sources this filter actually exists to surface. */
-const AUTHOR_PREFIXES = ['Kalaya (Nok Suntaranon)', 'Jet Tila', 'Ina Garten', 'Molly Baz',
-  'Meera Sodha', 'Alison Roman', "America's Test Kitchen", 'Paul Hollywood', 'Mary Berry'];
+/* ---------------- author/cookbook filter ---------------- */
+/* Named-author and named-book/site sources were normalized (2026-09-02) so each
+   one starts with a stable prefix -- Ina Garten has several distinct books, all
+   still prefixed "Ina Garten," so they group under one filter value. Anything
+   with NO identifiable book/author/site (plain "Cookbook photo", handwritten
+   cards, "Family recipe", etc.) falls into "Individual/Unknown". NYT Cooking
+   gets its own dedicated bucket (matched via the tag, not source prefix) rather
+   than being excluded -- it's just one more option here, on top of its separate
+   "Hide NYT" toggle. */
+const AUTHOR_GROUPS = [
+  // named people
+  ['Kalaya (Nok Suntaranon)', 'Kalaya (Nok Suntaranon)'],
+  ['Jet Tila', 'Jet Tila'],
+  ['Ina Garten', 'Ina Garten'],
+  ['Molly Baz', 'Molly Baz'],
+  ['Meera Sodha', 'Meera Sodha'],
+  ['Alison Roman', 'Alison Roman'],
+  ["America's Test Kitchen", "America's Test Kitchen"],
+  ['Paul Hollywood', 'Paul Hollywood'],
+  ['Mary Berry', 'Mary Berry'],
+  // named books (no personal author attached)
+  ['"Family Thai" cookbook', 'Family Thai'],
+  ['Macedonia: The Cookbook', 'Macedonia: The Cookbook'],
+  ['Homemade-ish', 'Homemade-ish'],
+  ['Big Bites: Time to Eat!', 'Big Bites: Time to Eat!'],
+  ['German cookbook (ebook)', 'German Cookbook (ebook)'],
+  ['Life-Changing Salads', 'Life-Changing Salads'],
+  ["Lidia's From Our Family Table to Yours", "Lidia's From Our Family Table to Yours"],
+  ['Cookie encyclopedia photo', 'Cookie Encyclopedia'],
+  ['Authentic Portuguese Cooking', 'Authentic Portuguese Cooking'],
+  ['Easy German Cookbook', 'Easy German Cookbook'],
+  ['"Night + Market" cookbook', 'Night + Market'],
+  ['Cauliflower Power', 'Cauliflower Power'],
+  ['The Balkan Kitchen', 'The Balkan Kitchen'],
+  ['Sur La Table cooking class handout', 'Sur La Table Class'],
+  ['Favorite Family Recipes', 'Favorite Family Recipes'],
+  // named websites/brands
+  ['allrecipes.com', 'AllRecipes'], ['Allrecipes.com', 'AllRecipes'],
+  ['epicurious.com', 'Epicurious'],
+  ['foodnetwork.com', 'FoodNetwork'],
+  ['Food.com', 'Food.com'],
+  ['Cooks.com', 'Cooks.com'],
+  ['Delish.com', 'Delish'],
+  ['Simply Recipes', 'Simply Recipes'],
+  ['weight-watchers-points-plus-recipes.com', 'Weight Watchers'], ['Weight Watchers', 'Weight Watchers'],
+  ['kraftfoods.com', 'Kraft'], ['Kraft Foods', 'Kraft'],
+  ['rockrecipes.com', 'Rock Recipes'],
+  ['woocancook.com', 'WooCanCook'],
+  ['feelgoodfoodie.net', 'Feel Good Foodie'],
+];
 const UNKNOWN_AUTHOR = 'Individual/Unknown';
+const NYT_AUTHOR = 'NYT Cooking';
 function authorOf(r){
-  if((r.tags||[]).includes('NYT Cooking')) return null;
+  if((r.tags||[]).includes('NYT Cooking')) return NYT_AUTHOR;
   const src = r.source || '';
-  const known = AUTHOR_PREFIXES.find(p => src.startsWith(p));
-  return known || UNKNOWN_AUTHOR;
+  const hit = AUTHOR_GROUPS.find(([prefix]) => src.startsWith(prefix));
+  return hit ? hit[1] : UNKNOWN_AUTHOR;
 }
-const ALL_AUTHORS = uniqueSorted(RECIPES.map(authorOf).filter(Boolean).filter(a=>a!==UNKNOWN_AUTHOR))
-  .concat(RECIPES.some(r=>authorOf(r)===UNKNOWN_AUTHOR) ? [UNKNOWN_AUTHOR] : []);
 function countForAuthor(a){ return RECIPES.filter(r=>authorOf(r)===a).length; }
+/* computed fresh every call, NOT a one-time const -- NYT Cooking's real count
+   (and technically the whole option list) depends on the async NYT fetch having
+   merged into RECIPES by the time this runs, which hasn't happened yet the very
+   first time the toolbar builds. See syncToolbar(), which calls this on every
+   render() rather than baking options in once like the toolbar's other controls. */
+function computeAllAuthors(){
+  const present = new Set(RECIPES.map(authorOf));
+  const named = AUTHOR_GROUPS.map(g=>g[1]).filter((v,i,a)=>a.indexOf(v)===i).filter(a=>present.has(a));
+  const rest = [];
+  if(present.has(NYT_AUTHOR)) rest.push(NYT_AUTHOR);
+  if(present.has(UNKNOWN_AUTHOR)) rest.push(UNKNOWN_AUTHOR);
+  return named.concat(rest);
+}
 
 function renderChips(){
   const catWrap = document.getElementById('categoryChips');
@@ -22060,6 +22113,11 @@ function renderToolbar(){
       <button class="tb-btn" id="sortDirBtn" title="Reverse sort order">↓</button>
     </div>
     <div class="tb-group">
+      <label class="tb-name" for="authorSelect">Author/Cookbook</label>
+      <select class="tb-select" id="authorSelect"></select>
+      <button class="tb-btn" id="hideNytBtn" title="Hide NYT Cooking imports, show only the curated cookbook">Hide NYT</button>
+    </div>
+    <div class="tb-group">
       <label class="tb-name">Show</label>
       <button class="tb-btn" data-made="all">All</button>
       <button class="tb-btn" data-made="never">Never made</button>
@@ -22068,16 +22126,7 @@ function renderToolbar(){
     </div>
     <div class="tb-group">
       <button class="tb-btn" id="aheadBtn">Plan ahead</button>
-      <button class="tb-btn" id="hideNytBtn" title="Hide NYT Cooking imports, show only the curated cookbook">Hide NYT</button>
-    </div>
-    <div class="tb-group">
-      <label class="tb-name" for="authorSelect">Author</label>
-      <select class="tb-select" id="authorSelect">
-        <option value="">All</option>
-        ${ALL_AUTHORS.map(a=>`<option value="${escapeHTML(a)}">${escapeHTML(a)} (${countForAuthor(a)})</option>`).join('')}
-      </select>
-    </div>
-    <div class="tb-spacer"></div>`;
+    </div>`;
   tb.querySelector('#sortSelect').onchange = e=>{ state.sort = e.target.value; renderGrid(); };
   tb.querySelector('#sortDirBtn').onclick = ()=>{ state.sortDir = (state.sortDir === -1) ? 1 : -1; syncToolbar(); renderGrid(); };
   tb.querySelectorAll('[data-made]').forEach(b=>{
@@ -22096,7 +22145,13 @@ function syncToolbar(){
   tb.querySelectorAll('[data-made]').forEach(b=> b.classList.toggle('on', b.dataset.made===state.made));
   tb.querySelector('#aheadBtn').classList.toggle('on', state.aheadOnly);
   tb.querySelector('#hideNytBtn').classList.toggle('on', state.hideNyt);
-  tb.querySelector('#authorSelect').value = state.author || '';
+  /* rebuilt fresh every call (not baked in once like the other controls) --
+     NYT Cooking's real count depends on the async fetch having merged into
+     RECIPES, which isn't true yet the first time the toolbar is built. */
+  const authorSel = tb.querySelector('#authorSelect');
+  authorSel.innerHTML = '<option value="">All</option>' +
+    computeAllAuthors().map(a=>`<option value="${escapeHTML(a)}">${escapeHTML(a)} (${countForAuthor(a)})</option>`).join('');
+  authorSel.value = state.author || '';
   const dirBtn = tb.querySelector('#sortDirBtn');
   dirBtn.textContent = (state.sortDir === -1) ? '↑' : '↓';
   dirBtn.classList.toggle('on', state.sortDir === -1);
@@ -22725,6 +22780,10 @@ function setView(v){
   if(v==='storage') renderStorage();
 }
 document.querySelectorAll('#viewTabs .vt').forEach(b=> b.onclick = ()=> setView(b.dataset.view));
+/* the "Cookbook" tab was removed (2026-09-02) -- clicking the site title is now
+   the way back from Plan/History/Storage, since those tabs no longer have a
+   sibling "Cookbook" button to click back to. */
+document.getElementById('homeTitle').onclick = ()=> setView('cookbook');
 
 /* ---------------- week rendering ---------------- */
 function slotRowHTML(s, iso){
