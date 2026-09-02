@@ -137,6 +137,9 @@
   .stamp-badge.cuisine{
     color:var(--ink-soft); border-color:var(--line); background:var(--stamp-soft);
   }
+  .stamp-badge.nyt{
+    color:#fff; background:var(--stamp); border-color:var(--stamp);
+  }
   /* time sits on its own row and wraps -- it used to be nowrap beside the
      badges, which overflowed once the total + split were both shown */
   .card-time{
@@ -21782,7 +21785,7 @@ function fmtTime(t){
 }
 function totalTime(r){
   const p = parseTime(r.prepTime), c = parseTime(r.cookTime);
-  if(!p && !c) return null;
+  if(!p && !c) return parseTime(r.totalTime); /* no prep/cook split known (e.g. bulk NYT import) -- fall back to the raw total */
   const min = (p?p.min:0) + (c?c.min:0);
   const max = (p?p.max:0) + (c?c.max:0);
   const qual = ((p&&p.qual==='atleast')||(c&&c.qual==='atleast')) ? 'atleast'
@@ -22121,8 +22124,9 @@ function renderGrid(){
     card.innerHTML = `
       <div class="card-top">
         <div class="card-tags">
-          <span class="stamp-badge">${escapeHTML(r.category)}</span>
-          <span class="stamp-badge cuisine">${zwsp(escapeHTML(r.cuisine))}</span>
+          ${(r.tags||[]).includes('NYT Cooking') ? `<span class="stamp-badge nyt">NYT</span>` : ''}
+          ${r.category ? `<span class="stamp-badge">${escapeHTML(r.category)}</span>` : ''}
+          ${r.cuisine ? `<span class="stamp-badge cuisine">${zwsp(escapeHTML(r.cuisine))}</span>` : ''}
         </div>
       </div>
       <h3 class="card-title${r.nativeName?' dual-name':''}">${zwsp(escapeHTML(displayTitle(r)))}</h3>
@@ -22246,7 +22250,7 @@ function openModal(r){
   modalRecipe = r; modalFactor = 1;
   const p = parseTime(r.prepTime), c = parseTime(r.cookTime), t = r._total;
   document.getElementById('modalEyebrow').innerHTML =
-    `<span>${escapeHTML(r.category)}</span><span>${zwsp(escapeHTML(r.cuisine))}</span>` +
+    (r.category?`<span>${escapeHTML(r.category)}</span>`:'') + (r.cuisine?`<span>${zwsp(escapeHTML(r.cuisine))}</span>`:'') +
     (p?`<span>Prep ${fmtTime(p)}</span>`:'') + (c?`<span>Cook ${fmtTime(c)}</span>`:'') +
     (t?`<span>Total ${fmtTime(t)}</span>`:'');
   const modalTitleEl = document.getElementById('modalTitle');
@@ -23223,7 +23227,10 @@ setTimeout(openFromHash, 0);
 
 /* ============================================================
    PHASE 4 — Supabase backend: auth-gated planner, live sync,
-   offline queue. Recipes stay public and static; everything a
+   offline queue. The curated cookbook stays public and static (the
+   RECIPES array below); the bulk NYT Cooking import instead lives in
+   a public-read-only `nyt_recipes` table (see nytBoot() further down)
+   fetched once and merged into RECIPES at runtime. Everything a
    household member writes (cook log, plan, inventory, prefs)
    lives in Postgres behind row-level security keyed to three
    allow-listed emails.
@@ -23280,6 +23287,75 @@ async function remoteFetchAll(){
     inventory: {items: iv.data.map(rowToInv)},
     prefs: Object.assign({household: p.household, rituals: p.rituals||[]}, {_t: Date.parse(p.updated_at)})
   };
+}
+
+/* ---------------- NYT Cooking bulk import (read-only, public) ---------------- */
+/* Lives in its own Supabase table (nyt_recipes), NOT the static RECIPES array --
+   19,163 rows is too much to keep hand-editing/committing to index.html. Fetched
+   once per device and cached in localStorage (rather than re-fetched every page
+   load) to stay well under Supabase's free-tier egress cap -- recipes here change
+   rarely, so a stale cache is a non-issue; bump NYT_CACHE_VERSION to force every
+   device to refetch after a real data change (e.g. once category/cuisine get
+   filled in). needs_review rows (broken/placeholder instructions from the import)
+   are excluded at the query level -- that cleanup is a separate future workstream,
+   not shown in the cookbook yet. */
+const NYT_CACHE_KEY = 'cookbook.nytRecipes';
+const NYT_CACHE_VERSION = 1;
+
+function rowToNytRecipe(r){
+  return {
+    id: r.id,
+    title: r.title,
+    category: r.category || null,
+    cuisine: r.cuisine || null,
+    source: r.source,
+    servings: r.servings || '',
+    ingredients: r.ingredients || [],
+    instructions: r.instructions || [],
+    notes: r.notes || '',
+    needsReview: !!r.needs_review,
+    totalTime: r.total_time || null,
+    cookTime: r.cook_time || null,
+    prepTime: r.prep_time || null,
+    tags: [...(r.tags || []), 'NYT Cooking'],
+    addedDate: '2026-09-02'
+  };
+}
+
+function mergeNytRecipes(rows){
+  /* RECIPES is a const -- mutate in place with push() rather than reassigning,
+     since dozens of functions elsewhere close over the RECIPES identifier directly. */
+  const existingIds = new Set(RECIPES.map(r=>r.id));
+  rows.forEach(r=>{
+    if(existingIds.has(r.id)) return;
+    /* the one-time _ahead/_servings/_total/_plan derived-index pass already ran
+       over RECIPES at load, before these rows existed -- redo it per-row here or
+       cards/scale-bar/plan-ahead logic would silently see undefined for all of them. */
+    r._ahead    = detectAhead(r);
+    r._servings = parseServings(r.servings);
+    r._total    = totalTime(r);
+    r._plan     = planMinutes(r);
+    RECIPES.push(r);
+  });
+}
+
+async function nytBoot(){
+  if(!sb) return;
+  try{
+    const cached = JSON.parse(localStorage.getItem(NYT_CACHE_KEY));
+    if(cached && cached.version === NYT_CACHE_VERSION && Array.isArray(cached.rows)){
+      mergeNytRecipes(cached.rows);
+      render();
+    }
+  }catch(e){ /* corrupt/missing cache -- fall through to a fresh fetch */ }
+
+  const { data, error } = await sb.from('nyt_recipes').select('*').eq('needs_review', false);
+  if(error){ console.error('nyt_recipes fetch error', error); return; }
+  const rows = data.map(rowToNytRecipe);
+  try{ localStorage.setItem(NYT_CACHE_KEY, JSON.stringify({version: NYT_CACHE_VERSION, rows})); }catch(e){}
+  const before = RECIPES.length;
+  mergeNytRecipes(rows);
+  if(RECIPES.length !== before) render(); /* only re-render if the fetch actually added anything new vs. the cache */
 }
 
 /* ---------------- offline write queue ---------------- */
@@ -23460,6 +23536,7 @@ async function authBoot(){
   flushQueue();
 }
 authBoot();
+nytBoot();
 
 </script>
 </body>
