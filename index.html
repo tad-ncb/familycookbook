@@ -23302,15 +23302,56 @@ async function remoteFetchAll(){
 /* ---------------- NYT Cooking bulk import (read-only, public) ---------------- */
 /* Lives in its own Supabase table (nyt_recipes), NOT the static RECIPES array --
    19,163 rows is too much to keep hand-editing/committing to index.html. Fetched
-   once per device and cached in localStorage (rather than re-fetched every page
-   load) to stay well under Supabase's free-tier egress cap -- recipes here change
-   rarely, so a stale cache is a non-issue; bump NYT_CACHE_VERSION to force every
-   device to refetch after a real data change (e.g. once category/cuisine get
-   filled in). needs_review rows (broken/placeholder instructions from the import)
-   are excluded at the query level -- that cleanup is a separate future workstream,
-   not shown in the cookbook yet. */
+   once per device and cached (rather than re-fetched every page load) to stay
+   well under Supabase's free-tier egress cap -- recipes here change rarely, so a
+   stale cache is a non-issue; bump NYT_CACHE_VERSION to force every device to
+   refetch after a real data change (e.g. once category/cuisine get filled in).
+   needs_review rows (broken/placeholder instructions from the import) are
+   excluded at the query level -- that cleanup is a separate future workstream,
+   not shown in the cookbook yet.
+
+   Cache lives in IndexedDB, NOT localStorage -- the full NYT payload (ingredients/
+   instructions/notes for ~17,700 recipes) is tens of MB as JSON, well past
+   localStorage's typical 5-10MB per-origin quota. A `localStorage.setItem` over
+   quota throws, and the original implementation swallowed that silently in a
+   bare try/catch, so the cache never actually persisted -- every single page
+   load paid the full ~20-request paginated fetch, with no visible error at all.
+   IndexedDB's quota is far higher (typically hundreds of MB+), so this actually
+   persists across visits. */
 const NYT_CACHE_KEY = 'cookbook.nytRecipes';
 const NYT_CACHE_VERSION = 2; /* bumped: v1 cache only ever held the first 1000 rows (PostgREST's default page cap) before pagination was added */
+const NYT_DB_NAME = 'cookbookCache', NYT_DB_STORE = 'nytRecipes';
+
+function openNytDB(){
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(NYT_DB_NAME, 1);
+    req.onupgradeneeded = () => { req.result.createObjectStore(NYT_DB_STORE); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function loadNytCache(){
+  try{
+    const db = await openNytDB();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(NYT_DB_STORE, 'readonly');
+      const req = tx.objectStore(NYT_DB_STORE).get(NYT_CACHE_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  }catch(e){ return null; } /* corrupt/missing/unsupported -- fall through to a fresh fetch */
+}
+async function saveNytCache(payload){
+  try{
+    const db = await openNytDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(NYT_DB_STORE, 'readwrite');
+      tx.objectStore(NYT_DB_STORE).put(payload, NYT_CACHE_KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }catch(e){ console.error('nyt cache save failed', e); } /* cache is a nice-to-have, not fatal if it fails */
+}
 
 function rowToNytRecipe(r){
   return {
@@ -23351,13 +23392,11 @@ function mergeNytRecipes(rows){
 
 async function nytBoot(){
   if(!sb) return;
-  try{
-    const cached = JSON.parse(localStorage.getItem(NYT_CACHE_KEY));
-    if(cached && cached.version === NYT_CACHE_VERSION && Array.isArray(cached.rows)){
-      mergeNytRecipes(cached.rows);
-      render();
-    }
-  }catch(e){ /* corrupt/missing cache -- fall through to a fresh fetch */ }
+  const cached = await loadNytCache();
+  if(cached && cached.version === NYT_CACHE_VERSION && Array.isArray(cached.rows)){
+    mergeNytRecipes(cached.rows);
+    render();
+  }
 
   /* PostgREST caps a single response at 1000 rows by default -- page through
      with .range() until a page comes back short, or only the first 1000 of the
@@ -23386,7 +23425,7 @@ async function nytBoot(){
   /* only cache on a fully clean fetch -- a partial result cached would silently
      cap every future load at whatever happened to succeed this one time */
   if(!hadError){
-    try{ localStorage.setItem(NYT_CACHE_KEY, JSON.stringify({version: NYT_CACHE_VERSION, rows})); }catch(e){}
+    await saveNytCache({version: NYT_CACHE_VERSION, rows});
   }
   const before = RECIPES.length;
   mergeNytRecipes(rows);
