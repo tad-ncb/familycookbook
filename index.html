@@ -23394,9 +23394,14 @@ async function nytBoot(){
   if(!sb) return;
   const cached = await loadNytCache();
   if(cached && cached.version === NYT_CACHE_VERSION && Array.isArray(cached.rows)){
+    console.log(`nytBoot: cache hit, showing ${cached.rows.length} cached NYT recipes, skipping the network fetch`);
     mergeNytRecipes(cached.rows);
     render();
+    return; /* the whole point of caching is to skip the ~20-request paginated
+               fetch on repeat visits -- only a version bump (a real data change)
+               or a missing/corrupt cache should ever trigger a full refetch */
   }
+  console.log('nytBoot: no usable cache, fetching all NYT recipes from Supabase');
 
   /* PostgREST caps a single response at 1000 rows by default -- page through
      with .range() until a page comes back short, or only the first 1000 of the
