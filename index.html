@@ -23300,7 +23300,7 @@ async function remoteFetchAll(){
    are excluded at the query level -- that cleanup is a separate future workstream,
    not shown in the cookbook yet. */
 const NYT_CACHE_KEY = 'cookbook.nytRecipes';
-const NYT_CACHE_VERSION = 1;
+const NYT_CACHE_VERSION = 2; /* bumped: v1 cache only ever held the first 1000 rows (PostgREST's default page cap) before pagination was added */
 
 function rowToNytRecipe(r){
   return {
@@ -23349,9 +23349,20 @@ async function nytBoot(){
     }
   }catch(e){ /* corrupt/missing cache -- fall through to a fresh fetch */ }
 
-  const { data, error } = await sb.from('nyt_recipes').select('*').eq('needs_review', false);
-  if(error){ console.error('nyt_recipes fetch error', error); return; }
-  const rows = data.map(rowToNytRecipe);
+  /* PostgREST caps a single response at 1000 rows by default -- page through
+     with .range() until a page comes back short, or only the first 1000 of the
+     19,163 NYT recipes would ever load. */
+  const PAGE_SIZE = 1000;
+  let allData = [], from = 0;
+  while(true){
+    const { data, error } = await sb.from('nyt_recipes').select('*').eq('needs_review', false)
+      .range(from, from + PAGE_SIZE - 1);
+    if(error){ console.error('nyt_recipes fetch error', error); return; }
+    allData = allData.concat(data);
+    if(data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+  const rows = allData.map(rowToNytRecipe);
   try{ localStorage.setItem(NYT_CACHE_KEY, JSON.stringify({version: NYT_CACHE_VERSION, rows})); }catch(e){}
   const before = RECIPES.length;
   mergeNytRecipes(rows);
