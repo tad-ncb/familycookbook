@@ -731,6 +731,7 @@
 
 <div class="toolbar" id="toolbar"></div>
 <div class="clear-row"><button class="clear-btn" id="clearFilters">Clear filters</button></div>
+<div class="toolbar" id="sortToolbar"></div>
 
 <main class="grid" id="grid"></main>
 
@@ -22096,63 +22097,67 @@ function getFiltered(){
 /* ---------------- toolbar ---------------- */
 function renderToolbar(){
   const tb = document.getElementById('toolbar');
-  if(tb.dataset.built) { syncToolbar(); return; }
-  tb.dataset.built = '1';
-  tb.innerHTML = `
-    <div class="tb-group">
-      <label class="tb-name" for="sortSelect">Sort</label>
-      <select class="tb-select" id="sortSelect">
-        <option value="az">A – Z</option>
-        <option value="recent">Recently made</option>
-        <option value="stale">Longest since made</option>
-        <option value="most">Most made</option>
-        <option value="rating">Highest rated</option>
-        <option value="quick">Quickest</option>
-        <option value="newest">Newest added</option>
-      </select>
-      <button class="tb-btn" id="sortDirBtn" title="Reverse sort order">↓</button>
-    </div>
-    <div class="tb-group">
-      <label class="tb-name" for="authorSelect">Author/Cookbook</label>
-      <select class="tb-select" id="authorSelect"></select>
-      <button class="tb-btn" id="hideNytBtn" title="Hide NYT Cooking imports, show only the curated cookbook">Hide NYT</button>
-    </div>
-    <div class="tb-group">
-      <label class="tb-name">Show</label>
-      <button class="tb-btn" data-made="all">All</button>
-      <button class="tb-btn" data-made="never">Never made</button>
-      <button class="tb-btn" data-made="made">Made</button>
-      <button class="tb-btn" data-made="stale">Due a revisit</button>
-    </div>
-    <div class="tb-group">
-      <button class="tb-btn" id="aheadBtn">Plan ahead</button>
-    </div>`;
-  tb.querySelector('#sortSelect').onchange = e=>{ state.sort = e.target.value; renderGrid(); };
-  tb.querySelector('#sortDirBtn').onclick = ()=>{ state.sortDir = (state.sortDir === -1) ? 1 : -1; syncToolbar(); renderGrid(); };
-  tb.querySelectorAll('[data-made]').forEach(b=>{
-    b.onclick = ()=>{ state.made = b.dataset.made; renderToolbar(); renderGrid(); };
-  });
-  tb.querySelector('#aheadBtn').onclick = ()=>{ state.aheadOnly = !state.aheadOnly; renderToolbar(); renderGrid(); };
-  tb.querySelector('#hideNytBtn').onclick = ()=>{
-    state.hideNyt = !state.hideNyt; saveHideNyt(state.hideNyt); renderToolbar(); renderGrid();
-  };
-  tb.querySelector('#authorSelect').onchange = e=>{ state.author = e.target.value || null; renderGrid(); };
+  if(!tb.dataset.built){
+    tb.dataset.built = '1';
+    tb.innerHTML = `
+      <div class="tb-group">
+        <label class="tb-name" for="authorSelect">Author/Cookbook</label>
+        <select class="tb-select" id="authorSelect"></select>
+        <button class="tb-btn" id="hideNytBtn" title="Hide NYT Cooking imports, show only the curated cookbook">Hide NYT</button>
+      </div>
+      <div class="tb-group">
+        <label class="tb-name">Show</label>
+        <button class="tb-btn" data-made="all">All</button>
+        <button class="tb-btn" data-made="never">Never made</button>
+        <button class="tb-btn" data-made="made">Made</button>
+        <button class="tb-btn" data-made="stale">Due a revisit</button>
+        <button class="tb-btn" id="aheadBtn">Plan ahead</button>
+      </div>`;
+    tb.querySelectorAll('[data-made]').forEach(b=>{
+      b.onclick = ()=>{ state.made = b.dataset.made; renderToolbar(); renderGrid(); };
+    });
+    document.getElementById('aheadBtn').onclick = ()=>{ state.aheadOnly = !state.aheadOnly; renderToolbar(); renderGrid(); };
+    document.getElementById('hideNytBtn').onclick = ()=>{
+      state.hideNyt = !state.hideNyt; saveHideNyt(state.hideNyt); renderToolbar(); renderGrid();
+    };
+    document.getElementById('authorSelect').onchange = e=>{ state.author = e.target.value || null; renderGrid(); };
+  }
+  const st = document.getElementById('sortToolbar');
+  if(!st.dataset.built){
+    st.dataset.built = '1';
+    st.innerHTML = `
+      <div class="tb-group">
+        <label class="tb-name" for="sortSelect">Sort</label>
+        <select class="tb-select" id="sortSelect">
+          <option value="az">A – Z</option>
+          <option value="recent">Recently made</option>
+          <option value="stale">Longest since made</option>
+          <option value="most">Most made</option>
+          <option value="rating">Highest rated</option>
+          <option value="quick">Quickest</option>
+          <option value="newest">Newest added</option>
+        </select>
+        <button class="tb-btn" id="sortDirBtn" title="Reverse sort order">↓</button>
+      </div>`;
+    document.getElementById('sortSelect').onchange = e=>{ state.sort = e.target.value; renderGrid(); };
+    document.getElementById('sortDirBtn').onclick = ()=>{ state.sortDir = (state.sortDir === -1) ? 1 : -1; syncToolbar(); renderGrid(); };
+  }
   syncToolbar();
 }
 function syncToolbar(){
   const tb = document.getElementById('toolbar');
-  tb.querySelector('#sortSelect').value = state.sort;
   tb.querySelectorAll('[data-made]').forEach(b=> b.classList.toggle('on', b.dataset.made===state.made));
-  tb.querySelector('#aheadBtn').classList.toggle('on', state.aheadOnly);
-  tb.querySelector('#hideNytBtn').classList.toggle('on', state.hideNyt);
+  document.getElementById('aheadBtn').classList.toggle('on', state.aheadOnly);
+  document.getElementById('hideNytBtn').classList.toggle('on', state.hideNyt);
   /* rebuilt fresh every call (not baked in once like the other controls) --
      NYT Cooking's real count depends on the async fetch having merged into
      RECIPES, which isn't true yet the first time the toolbar is built. */
-  const authorSel = tb.querySelector('#authorSelect');
+  const authorSel = document.getElementById('authorSelect');
   authorSel.innerHTML = '<option value="">All</option>' +
     computeAllAuthors().map(a=>`<option value="${escapeHTML(a)}">${escapeHTML(a)} (${countForAuthor(a)})</option>`).join('');
   authorSel.value = state.author || '';
-  const dirBtn = tb.querySelector('#sortDirBtn');
+  document.getElementById('sortSelect').value = state.sort;
+  const dirBtn = document.getElementById('sortDirBtn');
   dirBtn.textContent = (state.sortDir === -1) ? '↑' : '↓';
   dirBtn.classList.toggle('on', state.sortDir === -1);
 }
