@@ -21924,7 +21924,10 @@ RECIPES.forEach(r=>{
 });
 
 /* ---------------- app state ---------------- */
-let state = { query:"", category:null, cuisine:null, diet:null, sort:"newest", sortDir:1, made:"all", aheadOnly:false };
+const HIDE_NYT_KEY = 'cookbook.hideNyt';
+function loadHideNyt(){ try{ return localStorage.getItem(HIDE_NYT_KEY) === '1'; }catch(e){ return false; } }
+function saveHideNyt(v){ try{ localStorage.setItem(HIDE_NYT_KEY, v ? '1' : '0'); }catch(e){} }
+let state = { query:"", category:null, cuisine:null, diet:null, sort:"newest", sortDir:1, made:"all", aheadOnly:false, hideNyt: loadHideNyt() };
 const COURSE_ORDER = ["Appetizer","Salad","Soup","Bread","Side","Main","Dessert","Breakfast","Drink"];
 const STALE_DAYS = 75;   /* "had it, but not in 2-3 months" */
 
@@ -21994,6 +21997,7 @@ function getFiltered(){
     (!state.cuisine  || r.cuisine ===state.cuisine)  &&
     (!state.diet     || (r.tags||[]).includes(state.diet)) &&
     (!state.aheadOnly || r._ahead) &&
+    (!state.hideNyt || !(r.tags||[]).includes('NYT Cooking')) &&
     passesMade(r) && matchesQuery(r, state.query)
   );
   const byTitle = (a,b)=>a.title.localeCompare(b.title);
@@ -22043,6 +22047,7 @@ function renderToolbar(){
     </div>
     <div class="tb-group">
       <button class="tb-btn" id="aheadBtn">Plan ahead</button>
+      <button class="tb-btn" id="hideNytBtn" title="Hide NYT Cooking imports, show only the curated cookbook">Hide NYT</button>
     </div>
     <div class="tb-spacer"></div>`;
   tb.querySelector('#sortSelect').onchange = e=>{ state.sort = e.target.value; renderGrid(); };
@@ -22051,6 +22056,9 @@ function renderToolbar(){
     b.onclick = ()=>{ state.made = b.dataset.made; renderToolbar(); renderGrid(); };
   });
   tb.querySelector('#aheadBtn').onclick = ()=>{ state.aheadOnly = !state.aheadOnly; renderToolbar(); renderGrid(); };
+  tb.querySelector('#hideNytBtn').onclick = ()=>{
+    state.hideNyt = !state.hideNyt; saveHideNyt(state.hideNyt); renderToolbar(); renderGrid();
+  };
   syncToolbar();
 }
 function syncToolbar(){
@@ -22058,6 +22066,7 @@ function syncToolbar(){
   tb.querySelector('#sortSelect').value = state.sort;
   tb.querySelectorAll('[data-made]').forEach(b=> b.classList.toggle('on', b.dataset.made===state.made));
   tb.querySelector('#aheadBtn').classList.toggle('on', state.aheadOnly);
+  tb.querySelector('#hideNytBtn').classList.toggle('on', state.hideNyt);
   const dirBtn = tb.querySelector('#sortDirBtn');
   dirBtn.textContent = (state.sortDir === -1) ? '↑' : '↓';
   dirBtn.classList.toggle('on', state.sortDir === -1);
@@ -22316,7 +22325,8 @@ document.getElementById('searchInput').addEventListener('input', e=>{
   searchTimer = setTimeout(()=>{ state.query = val; renderGrid(); }, 80);
 });
 document.getElementById('clearFilters').onclick = ()=>{
-  state = {query:"", category:null, cuisine:null, diet:null, sort:"newest", sortDir:1, made:"all", aheadOnly:false};
+  state = {query:"", category:null, cuisine:null, diet:null, sort:"newest", sortDir:1, made:"all", aheadOnly:false, hideNyt:false};
+  saveHideNyt(false);
   document.getElementById('searchInput').value = '';
   render();
 };
