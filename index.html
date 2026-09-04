@@ -54228,7 +54228,7 @@ async function remoteFetchAll(){
    IndexedDB's quota is far higher (typically hundreds of MB+), so this actually
    persists across visits. */
 const NYT_CACHE_KEY = 'cookbook.nytRecipes';
-const NYT_CACHE_VERSION = 6; /* bumped: v5 cache predates adding game/exotic-protein groups (rabbit, venison, elk, goose, bison, boar, langoustine, geoduck, grouper, etc.) and fixing "duck breast with skin on"-style phrasing that was wrongly excluded from core */
+const NYT_CACHE_VERSION = 7; /* bumped: v6 cache predates fixing rowToNytRecipe() unconditionally tagging every nyt_recipes row 'NYT Cooking' -- the ~27k non-NYT candidate-import recipes were getting mislabeled and hidden by the Hide NYT toggle */
 const NYT_DB_NAME = 'cookbookCache', NYT_DB_STORE = 'nytRecipes';
 
 function openNytDB(){
@@ -54277,7 +54277,10 @@ function rowToNytRecipe(r){
     totalTime: r.total_time || null,
     cookTime: r.cook_time || null,
     prepTime: r.prep_time || null,
-    tags: [...(r.tags || []), 'NYT Cooking'],
+    /* nyt_recipes now also holds ~27k non-NYT recipes from other sites (food.com,
+       epicurious.com, etc.) -- only stamp the NYT Cooking tag when the row's own
+       source actually says so, instead of blindly tagging every row in the table */
+    tags: r.source === 'NYT Cooking' ? [...new Set([...(r.tags || []), 'NYT Cooking'])] : (r.tags || []),
     ingredientCore: r.ingredient_core || [],
     ingredientAll: r.ingredient_all || [],
     ingredientDietary: r.ingredient_dietary || [],
