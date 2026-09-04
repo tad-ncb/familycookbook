@@ -52591,14 +52591,19 @@ document.getElementById('clearFilters').onclick = ()=>{
   render();
 };
 
-/* datalist selections fire a normal 'input' event with the chosen option's
-   value already in the field -- add it as a chip and clear the box so the
-   next keystroke starts fresh, same UX as a tag input. Typing that doesn't
-   match any known option is ignored (silently, on blur) rather than adding
-   an unrecognized/no-op filter value. */
+/* Adding a chip requires an explicit action -- pressing Enter, or picking a
+   suggestion from the datalist dropdown -- never just typing text that
+   happens to exactly match an option, which used to add it silently
+   mid-keystroke and felt like the field was grabbing input out from under you.
+
+   A native datalist selection and manual typing both fire 'input' with no
+   reliable event to tell them apart -- except InputEvent.inputType, which
+   browsers leave empty/undefined for a datalist pick but always set (e.g.
+   "insertText") for a real keystroke. That's what distinguishes "selected"
+   from "typed it out by hand" below. */
 function wireIngredientInput(inputId, optionsFn, stateKey){
   const input = document.getElementById(inputId);
-  input.addEventListener('input', ()=>{
+  const tryAdd = ()=>{
     const val = input.value;
     if(optionsFn().includes(val)){
       if(!state[stateKey].includes(val)) state[stateKey] = [...state[stateKey], val];
@@ -52606,6 +52611,12 @@ function wireIngredientInput(inputId, optionsFn, stateKey){
       render();
       document.getElementById(inputId).focus();
     }
+  };
+  input.addEventListener('input', e=>{
+    if(!e.inputType) tryAdd(); /* datalist selection, not a keystroke */
+  });
+  input.addEventListener('keydown', e=>{
+    if(e.key === 'Enter'){ e.preventDefault(); tryAdd(); }
   });
 }
 wireIngredientInput('ingIncludeInput', computeIncludeIngredientOptions, 'includeIngredients');
