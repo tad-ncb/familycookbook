@@ -74,7 +74,7 @@
   /* Search sits as just another labeled row, same shape as Course/Cuisine
      below it -- not a separate oversized hero bar -- and the input itself
      is sized to the text, half-width, like the Must-include/exclude boxes. */
-  .search-row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; flex-basis:100%; }
+  .search-row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
   .search-row input{
     background:var(--card); border:1px solid var(--line); border-radius:6px;
     font-family:'Work Sans',sans-serif;
@@ -90,7 +90,7 @@
   }
 
   .facet-rows{ margin-top:4px; display:flex; flex-direction:column; gap:0; }
-  .facet-row{ display:flex; align-items:baseline; flex-wrap:wrap; gap:5px 6px; padding:9px 0; border-bottom:1px solid var(--line); }
+  .facet-row{ display:flex; align-items:baseline; flex-wrap:wrap; gap:5px 6px; padding:7px 0; border-bottom:1px solid var(--line); }
   .facet-name{
     font-family:'Work Sans', sans-serif; font-size:11px; font-weight:500;
     text-transform:uppercase; letter-spacing:0.07em; color:var(--ink-faint);
@@ -108,15 +108,12 @@
   .facet-link .n{color:var(--ink-faint); font-size:11px;}
   .facet-link.active .n{ color:var(--paper); opacity:0.75; }
 
-  .clear-row{ max-width:var(--maxw); margin:0 auto; padding:0 clamp(12px,2.6vw,32px) 20px; display:flex; }
-  .clear-row .tb-name-spacer{ width:140px; flex:0 0 auto; }
-  @media (max-width:640px){ .clear-row .tb-name-spacer{ display:none; } }
   button.clear-btn{
     font-family:'Work Sans', sans-serif; font-size:12.5px;
     color:var(--ink); background:var(--card);
     border:1px solid var(--line); border-radius:6px; padding:3px 8px; cursor:pointer; line-height:1.3;
   }
-  button.clear-btn:hover{ color:var(--alert); border-color:var(--alert); }
+  button.clear-btn:hover{ color:var(--alert) !important; border-color:var(--alert) !important; }
 
   .grid{
     max-width:var(--maxw); margin:0 auto; padding:8px 24px 100px;
@@ -732,15 +729,15 @@
     </div>
     <div class="facet-row">
       <span class="facet-name">Course</span>
-      <div id="categoryChips" style="display:flex; flex-wrap:wrap;"></div>
+      <div id="categoryChips" style="display:flex; flex-wrap:wrap; flex:1 1 auto; min-width:0; gap:5px 6px;"></div>
     </div>
     <div class="facet-row">
       <span class="facet-name">Cuisine</span>
-      <div id="cuisineChips" style="display:flex; flex-wrap:wrap;"></div>
+      <div id="cuisineChips" style="display:flex; flex-wrap:wrap; flex:1 1 auto; min-width:0; gap:5px 6px;"></div>
     </div>
     <div class="facet-row">
       <span class="facet-name">Diet</span>
-      <div id="dietChips" style="display:flex; flex-wrap:wrap;"></div>
+      <div id="dietChips" style="display:flex; flex-wrap:wrap; flex:1 1 auto; min-width:0; gap:5px 6px;"></div>
     </div>
     <div class="facet-row">
       <span class="facet-name">Must include</span>
@@ -762,7 +759,6 @@
 </div>
 
 <div class="toolbar" id="toolbar"></div>
-<div class="clear-row"><span class="tb-name-spacer"></span><button class="clear-btn" id="clearFilters">Clear filters</button></div>
 <div class="toolbar" id="sortToolbar"></div>
 
 <main class="grid" id="grid"></main>
@@ -52887,13 +52883,11 @@ function renderToolbar(){
         <label class="tb-name">Show</label>
         <button class="tb-btn" data-made="never">Never made</button>
         <button class="tb-btn" data-made="made">Made</button>
-      </div>
-      <div class="tb-group">
-        <!-- own group, not a 4th "Show" radio option -- this is an independent
-             toggle that combines with whichever Show state is active, not a
-             mutually-exclusive alternative to it. -->
-        <span class="tb-name-spacer"></span>
+        <!-- "+ Plan ahead" is an independent toggle that combines with whichever
+             Show state is active, not a mutually-exclusive 3rd Show option --
+             sharing this row is just to save vertical space, not a grouping claim. -->
         <button class="tb-btn" id="aheadBtn">+ Plan ahead</button>
+        <button class="tb-btn clear-btn" id="clearFilters">Clear filters</button>
       </div>`;
     tb.querySelectorAll('[data-made]').forEach(b=>{
       /* clicking the already-active button toggles back to "all" -- with the
@@ -52905,6 +52899,14 @@ function renderToolbar(){
       state.hideNyt = !state.hideNyt; saveHideNyt(state.hideNyt); renderToolbar(); renderGrid();
     };
     document.getElementById('authorSelect').onchange = e=>{ state.author = e.target.value || null; renderGrid(); };
+    document.getElementById('clearFilters').onclick = ()=>{
+      state = {query:"", category:null, cuisine:null, diets:[], author:null, sort:"newest", sortDir:1, made:"all", aheadOnly:false, hideNyt:false, includeIngredients:[], excludeIngredients:[]};
+      saveHideNyt(false);
+      document.getElementById('searchInput').value = '';
+      document.getElementById('ingIncludeInput').value = '';
+      document.getElementById('ingExcludeInput').value = '';
+      render();
+    };
   }
   const st = document.getElementById('sortToolbar');
   if(!st.dataset.built){
@@ -53203,15 +53205,6 @@ document.getElementById('searchInput').addEventListener('input', e=>{
   const val = e.target.value;
   searchTimer = setTimeout(()=>{ state.query = val; renderGrid(); }, 80);
 });
-document.getElementById('clearFilters').onclick = ()=>{
-  state = {query:"", category:null, cuisine:null, diets:[], author:null, sort:"newest", sortDir:1, made:"all", aheadOnly:false, hideNyt:false, includeIngredients:[], excludeIngredients:[]};
-  saveHideNyt(false);
-  document.getElementById('searchInput').value = '';
-  document.getElementById('ingIncludeInput').value = '';
-  document.getElementById('ingExcludeInput').value = '';
-  render();
-};
-
 /* Adding a chip requires an explicit action -- pressing Enter, or picking a
    suggestion from the datalist dropdown -- never just typing text that
    happens to exactly match an option, which used to add it silently
