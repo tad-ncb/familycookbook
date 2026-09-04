@@ -739,7 +739,7 @@
     </div>
     <div class="facet-row">
       <span class="facet-name">Must include</span>
-      <div style="display:flex; flex-wrap:wrap; flex-basis:100%; align-items:center; gap:6px;">
+      <div style="display:flex; flex-wrap:wrap; align-items:center; gap:6px;">
         <input id="ingIncludeInput" type="text" list="ingIncludeOptions" placeholder="e.g. chicken" style="font-family:'Work Sans',sans-serif; font-size:13px; line-height:1.3; padding:4px 8px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink); width:200px;">
         <datalist id="ingIncludeOptions"></datalist>
         <div id="ingIncludeChips" style="display:flex; flex-wrap:wrap; gap:4px;"></div>
@@ -747,8 +747,8 @@
     </div>
     <div class="facet-row">
       <span class="facet-name">Must not include</span>
-      <div style="display:flex; flex-wrap:wrap; flex-basis:100%; align-items:center; gap:6px;">
-        <input id="ingExcludeInput" type="text" list="ingExcludeOptions" placeholder="e.g. dairy, mushroom" style="font-family:'Work Sans',sans-serif; font-size:13px; line-height:1.3; padding:4px 8px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink); width:200px;">
+      <div style="display:flex; flex-wrap:wrap; align-items:center; gap:6px;">
+        <input id="ingExcludeInput" type="text" list="ingExcludeOptions" placeholder="e.g. cinnamon, celery" style="font-family:'Work Sans',sans-serif; font-size:13px; line-height:1.3; padding:4px 8px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink); width:200px;">
         <datalist id="ingExcludeOptions"></datalist>
         <div id="ingExcludeChips" style="display:flex; flex-wrap:wrap; gap:4px;"></div>
       </div>
@@ -52746,7 +52746,7 @@ function computeAllAuthors(){
   const rest = [];
   if(present.has(NYT_AUTHOR)) rest.push(NYT_AUTHOR);
   if(present.has(UNKNOWN_AUTHOR)) rest.push(UNKNOWN_AUTHOR);
-  return named.concat(rest);
+  return named.concat(rest).sort((a,b)=> countForAuthor(b) - countForAuthor(a));
 }
 
 function renderChips(){
@@ -52880,7 +52880,6 @@ function renderToolbar(){
       </div>
       <div class="tb-group">
         <label class="tb-name">Show</label>
-        <button class="tb-btn" data-made="all">All</button>
         <button class="tb-btn" data-made="never">Never made</button>
         <button class="tb-btn" data-made="made">Made</button>
       </div>
@@ -52891,7 +52890,9 @@ function renderToolbar(){
         <button class="tb-btn" id="aheadBtn">+ Plan ahead</button>
       </div>`;
     tb.querySelectorAll('[data-made]').forEach(b=>{
-      b.onclick = ()=>{ state.made = b.dataset.made; renderToolbar(); renderGrid(); };
+      /* clicking the already-active button toggles back to "all" -- with the
+         "All" button removed, this is the only way back to the unfiltered view */
+      b.onclick = ()=>{ state.made = (state.made === b.dataset.made) ? 'all' : b.dataset.made; renderToolbar(); renderGrid(); };
     });
     document.getElementById('aheadBtn').onclick = ()=>{ state.aheadOnly = !state.aheadOnly; renderToolbar(); renderGrid(); };
     document.getElementById('hideNytBtn').onclick = ()=>{
