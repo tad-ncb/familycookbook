@@ -52580,7 +52580,7 @@ RECIPES.forEach(r=>{
 const HIDE_NYT_KEY = 'cookbook.hideNyt';
 function loadHideNyt(){ try{ return localStorage.getItem(HIDE_NYT_KEY) === '1'; }catch(e){ return false; } }
 function saveHideNyt(v){ try{ localStorage.setItem(HIDE_NYT_KEY, v ? '1' : '0'); }catch(e){} }
-let state = { query:"", category:null, cuisine:null, diet:null, author:null, sort:"newest", sortDir:1, made:"all", aheadOnly:false, hideNyt: loadHideNyt(), includeIngredients:[], excludeIngredients:[] };
+let state = { query:"", category:null, cuisine:null, diets:[], author:null, sort:"newest", sortDir:1, made:"all", aheadOnly:false, hideNyt: loadHideNyt(), includeIngredients:[], excludeIngredients:[] };
 const COURSE_ORDER = ["Appetizer","Salad","Soup","Bread","Side","Main","Dessert","Breakfast","Drink"];
 const STALE_DAYS = 75;   /* "had it, but not in 2-3 months" */
 
@@ -52752,9 +52752,15 @@ function renderChips(){
   dietWrap.innerHTML = '';
   ALL_DIETS.forEach(d=>{
     const chip = document.createElement('span');
-    chip.className = 'facet-link' + (state.diet===d ? ' active':'');
+    /* multi-select, unlike Course/Cuisine -- Vegan and Gluten Free aren't
+       mutually exclusive the way Appetizer/Main are, so picking one
+       shouldn't clear the other. */
+    chip.className = 'facet-link' + (state.diets.includes(d) ? ' active':'');
     chip.innerHTML = `${zwsp(escapeHTML(d))} <span class="n">${countForTag(d)}</span>`;
-    chip.onclick = ()=>{ state.diet = state.diet===d ? null : d; render(); };
+    chip.onclick = ()=>{
+      state.diets = state.diets.includes(d) ? state.diets.filter(x=>x!==d) : [...state.diets, d];
+      render();
+    };
     dietWrap.appendChild(chip);
   });
   renderIngredientChips();
@@ -52813,7 +52819,7 @@ function passesMade(r){
 function matchesFiltersExcept(r, exclude){
   return (exclude==='category' || !state.category || r.category===state.category) &&
     (exclude==='cuisine' || !state.cuisine  || r.cuisine ===state.cuisine)  &&
-    (exclude==='diet'    || !state.diet     || recipeDietTags(r).includes(state.diet)) &&
+    (exclude==='diet'    || state.diets.every(d=>recipeDietTags(r).includes(d))) &&
     (!state.author   || authorOf(r)===state.author) &&
     (!state.aheadOnly || r._ahead) &&
     (!state.hideNyt || !(r.tags||[]).includes('NYT Cooking')) &&
@@ -52857,7 +52863,12 @@ function renderToolbar(){
         <button class="tb-btn" data-made="all">All</button>
         <button class="tb-btn" data-made="never">Never made</button>
         <button class="tb-btn" data-made="made">Made</button>
-        <button class="tb-btn" id="aheadBtn">Plan ahead</button>
+      </div>
+      <div class="tb-group">
+        <!-- own group, not a 4th "Show" radio option -- this is an independent
+             toggle that combines with whichever Show state is active, not a
+             mutually-exclusive alternative to it. -->
+        <button class="tb-btn" id="aheadBtn">+ Plan ahead</button>
       </div>`;
     tb.querySelectorAll('[data-made]').forEach(b=>{
       b.onclick = ()=>{ state.made = b.dataset.made; renderToolbar(); renderGrid(); };
@@ -53166,7 +53177,7 @@ document.getElementById('searchInput').addEventListener('input', e=>{
   searchTimer = setTimeout(()=>{ state.query = val; renderGrid(); }, 80);
 });
 document.getElementById('clearFilters').onclick = ()=>{
-  state = {query:"", category:null, cuisine:null, diet:null, author:null, sort:"newest", sortDir:1, made:"all", aheadOnly:false, hideNyt:false, includeIngredients:[], excludeIngredients:[]};
+  state = {query:"", category:null, cuisine:null, diets:[], author:null, sort:"newest", sortDir:1, made:"all", aheadOnly:false, hideNyt:false, includeIngredients:[], excludeIngredients:[]};
   saveHideNyt(false);
   document.getElementById('searchInput').value = '';
   document.getElementById('ingIncludeInput').value = '';
