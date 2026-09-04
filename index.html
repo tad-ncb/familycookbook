@@ -52593,9 +52593,26 @@ function orderByList(values, order){
 }
 const ALL_CATEGORIES = orderByList(RECIPES.map(r=>r.category), COURSE_ORDER);
 const ALL_CUISINES   = uniqueSorted(RECIPES.map(r=>r.cuisine));
-const ALL_DIETS = ['Vegan','Vegetarian','Gluten Free','Dairy Free'].filter(d=>RECIPES.some(r=>(r.tags||[]).includes(d)));
+/* Diet is computed from actual ingredients (ingredientDietary), not trusted
+   from NYT's own scraped tags -- cross-checking those against ingredients
+   turned up ~1,453 recipes (8%) where the tag flatly contradicted what's in
+   the recipe (e.g. "Vegetarian" halibut, "Vegan" pizza with cheese). A recipe
+   with no ingredientDietary hits for a category defaults to compliant, same
+   blind spot as any ingredient-derived check -- an untagged/long-tail
+   ingredient could in principle be missed -- but that's a much smaller and
+   more honest failure mode than trusting a label that's already known wrong
+   8% of the time. */
+const MEAT_SEAFOOD_DIETARY_TAGS = ['poultry','beef','pork','lamb','fish','shellfish'];
+const DIET_DEFINITIONS = {
+  'Vegetarian':  r => !(r.ingredientDietary||[]).some(t=>MEAT_SEAFOOD_DIETARY_TAGS.includes(t)),
+  'Vegan':       r => !(r.ingredientDietary||[]).some(t=>MEAT_SEAFOOD_DIETARY_TAGS.includes(t) || t==='dairy' || t==='egg'),
+  'Gluten Free': r => !(r.ingredientDietary||[]).includes('gluten'),
+  'Dairy Free':  r => !(r.ingredientDietary||[]).includes('dairy'),
+};
+function recipeDietTags(r){ return Object.keys(DIET_DEFINITIONS).filter(d=>DIET_DEFINITIONS[d](r)); }
+const ALL_DIETS = Object.keys(DIET_DEFINITIONS);
 function countFor(field, value){ return RECIPES.filter(r=>matchesFiltersExcept(r, field) && r[field]===value).length; }
-function countForTag(tag){ return RECIPES.filter(r=>matchesFiltersExcept(r, 'diet') && (r.tags||[]).includes(tag)).length; }
+function countForTag(tag){ return RECIPES.filter(r=>matchesFiltersExcept(r, 'diet') && recipeDietTags(r).includes(tag)).length; }
 
 /* ---------------- ingredient include/exclude filter ----------------
    ingredientCore  = the recipe's actual named ingredients/proteins (e.g.
@@ -52796,7 +52813,7 @@ function passesMade(r){
 function matchesFiltersExcept(r, exclude){
   return (exclude==='category' || !state.category || r.category===state.category) &&
     (exclude==='cuisine' || !state.cuisine  || r.cuisine ===state.cuisine)  &&
-    (exclude==='diet'    || !state.diet     || (r.tags||[]).includes(state.diet)) &&
+    (exclude==='diet'    || !state.diet     || recipeDietTags(r).includes(state.diet)) &&
     (!state.author   || authorOf(r)===state.author) &&
     (!state.aheadOnly || r._ahead) &&
     (!state.hideNyt || !(r.tags||[]).includes('NYT Cooking')) &&
@@ -53089,7 +53106,12 @@ function openModal(r){
 
   const tagsWrap = document.getElementById('modalTags');
   tagsWrap.innerHTML = '';
-  (r.tags||[]).forEach(t2=>{ const s=document.createElement('span'); s.className='tagpill'; s.textContent=t2; tagsWrap.appendChild(s); });
+  /* diet labels in r.tags come from NYT's own (unreliable -- see DIET_DEFINITIONS
+     above) scrape; drop them here and show the ingredient-computed ones instead,
+     so the modal doesn't contradict what the Diet filter just decided. */
+  const RAW_DIET_LABELS = new Set(['Vegan','Vegan-friendly','Vegetarian','Gluten Free','Dairy Free']);
+  (r.tags||[]).filter(t2=>!RAW_DIET_LABELS.has(t2)).concat(recipeDietTags(r))
+    .forEach(t2=>{ const s=document.createElement('span'); s.className='tagpill'; s.textContent=t2; tagsWrap.appendChild(s); });
   if(r._ahead){ const s=document.createElement('span'); s.className='tagpill'; s.textContent=r._ahead.label; tagsWrap.appendChild(s); }
 
   document.getElementById('modalAhead').innerHTML = r._ahead
