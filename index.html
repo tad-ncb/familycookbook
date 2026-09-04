@@ -52613,7 +52613,7 @@ const ALL_CUISINES   = uniqueSorted(RECIPES.map(r=>r.cuisine));
    ingredient could in principle be missed -- but that's a much smaller and
    more honest failure mode than trusting a label that's already known wrong
    8% of the time. */
-const MEAT_SEAFOOD_DIETARY_TAGS = ['poultry','beef','pork','lamb','fish','shellfish'];
+const MEAT_SEAFOOD_DIETARY_TAGS = ['poultry','beef','pork','lamb','fish','shellfish','game'];
 const DIET_DEFINITIONS = {
   'Vegetarian':  r => !(r.ingredientDietary||[]).some(t=>MEAT_SEAFOOD_DIETARY_TAGS.includes(t)),
   'Vegan':       r => !(r.ingredientDietary||[]).some(t=>MEAT_SEAFOOD_DIETARY_TAGS.includes(t) || t==='dairy' || t==='egg'),
@@ -52716,6 +52716,15 @@ const AUTHOR_GROUPS = [
   ['rockrecipes.com', 'Rock Recipes'],
   ['woocancook.com', 'WooCanCook'],
   ['feelgoodfoodie.net', 'Feel Good Foodie'],
+  ['myrecipes.com', 'MyRecipes'],
+  ['tasteofhome.com', 'Taste of Home'],
+  ['food52.com', 'Food52'],
+  ['foodandwine.com', 'Food & Wine'],
+  ['seriouseats.com', 'Serious Eats'],
+  ['cookstr.com', 'Cookstr'],
+  ['vegetariantimes.com', 'Vegetarian Times'],
+  ['chowhound.com', 'Chowhound'],
+  ['recipeland.com', 'RecipeLand'],
 ];
 const UNKNOWN_AUTHOR = 'Individual/Unknown';
 const NYT_AUTHOR = 'NYT Cooking';
@@ -54219,7 +54228,7 @@ async function remoteFetchAll(){
    IndexedDB's quota is far higher (typically hundreds of MB+), so this actually
    persists across visits. */
 const NYT_CACHE_KEY = 'cookbook.nytRecipes';
-const NYT_CACHE_VERSION = 5; /* bumped: v4 cache predates giving stock/broth (chicken stock, beef stock, etc.) and sauces (soy/hoisin/worcestershire/marinara) their own directly-searchable groups instead of being silently excluded from core */
+const NYT_CACHE_VERSION = 6; /* bumped: v5 cache predates adding game/exotic-protein groups (rabbit, venison, elk, goose, bison, boar, langoustine, geoduck, grouper, etc.) and fixing "duck breast with skin on"-style phrasing that was wrongly excluded from core */
 const NYT_DB_NAME = 'cookbookCache', NYT_DB_STORE = 'nytRecipes';
 
 function openNytDB(){
