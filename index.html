@@ -52036,8 +52036,8 @@ function orderByList(values, order){
 const ALL_CATEGORIES = orderByList(RECIPES.map(r=>r.category), COURSE_ORDER);
 const ALL_CUISINES   = uniqueSorted(RECIPES.map(r=>r.cuisine));
 const ALL_DIETS = ['Vegan','Vegetarian','Gluten Free','Dairy Free'].filter(d=>RECIPES.some(r=>(r.tags||[]).includes(d)));
-function countFor(field, value){ return RECIPES.filter(r=>r[field]===value).length; }
-function countForTag(tag){ return RECIPES.filter(r=>(r.tags||[]).includes(tag)).length; }
+function countFor(field, value){ return RECIPES.filter(r=>matchesFiltersExcept(r, field) && r[field]===value).length; }
+function countForTag(tag){ return RECIPES.filter(r=>matchesFiltersExcept(r, 'diet') && (r.tags||[]).includes(tag)).length; }
 
 /* ---------------- ingredient include/exclude filter ----------------
    ingredientCore  = the recipe's actual named ingredients/proteins (e.g.
@@ -52227,22 +52227,26 @@ function passesMade(r){
   switch(state.made){
     case 'never':  return n === 0;
     case 'made':   return n > 0;
-    case 'stale':  return n > 0 && d !== null && d >= STALE_DAYS;
     case 'recent': return n > 0 && d !== null && d < 30;
     default:       return true;
   }
 }
-function getFiltered(){
-  let list = RECIPES.filter(r=>
-    (!state.category || r.category===state.category) &&
-    (!state.cuisine  || r.cuisine ===state.cuisine)  &&
-    (!state.diet     || (r.tags||[]).includes(state.diet)) &&
+/* `exclude` leaves one facet's own dimension unconstrained so its per-value
+   counts (see countFor/countForTag below) show "how many would I get if I
+   also picked this," under every OTHER currently active filter -- rather
+   than a fixed global count that ignores whatever's already selected. */
+function matchesFiltersExcept(r, exclude){
+  return (exclude==='category' || !state.category || r.category===state.category) &&
+    (exclude==='cuisine' || !state.cuisine  || r.cuisine ===state.cuisine)  &&
+    (exclude==='diet'    || !state.diet     || (r.tags||[]).includes(state.diet)) &&
     (!state.author   || authorOf(r)===state.author) &&
     (!state.aheadOnly || r._ahead) &&
     (!state.hideNyt || !(r.tags||[]).includes('NYT Cooking')) &&
     passesIngredientFilters(r) &&
-    passesMade(r) && matchesQuery(r, state.query)
-  );
+    passesMade(r) && matchesQuery(r, state.query);
+}
+function getFiltered(){
+  let list = RECIPES.filter(r=>matchesFiltersExcept(r, null));
   const byTitle = (a,b)=>a.title.localeCompare(b.title);
   const sorters = {
     az: byTitle,
@@ -52278,7 +52282,6 @@ function renderToolbar(){
         <button class="tb-btn" data-made="all">All</button>
         <button class="tb-btn" data-made="never">Never made</button>
         <button class="tb-btn" data-made="made">Made</button>
-        <button class="tb-btn" data-made="stale">Due a revisit</button>
         <button class="tb-btn" id="aheadBtn">Plan ahead</button>
       </div>`;
     tb.querySelectorAll('[data-made]').forEach(b=>{
