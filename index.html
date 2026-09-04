@@ -54351,6 +54351,7 @@ async function nytBoot(){
   mergeNytRecipes(rows);
   if(RECIPES.length !== before) render(); /* only re-render if the fetch actually added anything new vs. the cache */
   if(hadError) console.error(`nytBoot: stopped early after fetching ${allData.length} NYT recipes -- see errors above`);
+  else console.log(`nytBoot: fetch complete, ${allData.length} rows fetched, RECIPES now has ${RECIPES.length} total`);
 }
 
 /* ---------------- offline write queue ---------------- */
