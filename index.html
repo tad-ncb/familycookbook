@@ -108,7 +108,9 @@
   .facet-link .n{color:var(--ink-faint); font-size:11px;}
   .facet-link.active .n{ color:var(--paper); opacity:0.75; }
 
-  .clear-row{ max-width:var(--maxw); margin:0 auto; padding:0 clamp(12px,2.6vw,32px) 20px; }
+  .clear-row{ max-width:var(--maxw); margin:0 auto; padding:0 clamp(12px,2.6vw,32px) 20px; display:flex; }
+  .clear-row .tb-name-spacer{ width:140px; flex:0 0 auto; }
+  @media (max-width:640px){ .clear-row .tb-name-spacer{ display:none; } }
   button.clear-btn{
     font-family:'Work Sans', sans-serif; font-size:12.5px;
     color:var(--ink); background:var(--card);
@@ -267,6 +269,8 @@
     .facet-name{width:100%; margin-bottom:4px; padding-top:0;}
     .search-row input{ flex-basis:100%; max-width:none; }
     #ingIncludeInput, #ingExcludeInput{ width:100% !important; }
+    .toolbar label.tb-name{width:100%; margin-bottom:4px;}
+    .toolbar .tb-name-spacer{display:none;}
     .modal{border-top-width:2px;}
     .modal-close{top:10px; right:10px; width:36px; height:36px; font-size:22px;}
   }
@@ -276,9 +280,10 @@
     display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px;
   }
   .toolbar .tb-group{ display:flex; align-items:center; gap:8px; flex-basis:100%; }
-  .toolbar label.tb-name{
+  .toolbar label.tb-name, .toolbar .tb-name-spacer{
     font-family:'Work Sans', sans-serif; font-size:11px; font-weight:500; text-transform:uppercase;
     letter-spacing:0.07em; color:var(--ink-faint);
+    width:140px; flex:0 0 auto; white-space:nowrap;
   }
   /* Author/Show controls match the facet chips exactly -- same padding,
      radius, font-size -- instead of reading as a heavier, separate kind
@@ -727,15 +732,15 @@
     </div>
     <div class="facet-row">
       <span class="facet-name">Course</span>
-      <div id="categoryChips" style="display:flex; flex-wrap:wrap; flex-basis:100%;"></div>
+      <div id="categoryChips" style="display:flex; flex-wrap:wrap;"></div>
     </div>
     <div class="facet-row">
       <span class="facet-name">Cuisine</span>
-      <div id="cuisineChips" style="display:flex; flex-wrap:wrap; flex-basis:100%;"></div>
+      <div id="cuisineChips" style="display:flex; flex-wrap:wrap;"></div>
     </div>
     <div class="facet-row">
       <span class="facet-name">Diet</span>
-      <div id="dietChips" style="display:flex; flex-wrap:wrap; flex-basis:100%;"></div>
+      <div id="dietChips" style="display:flex; flex-wrap:wrap;"></div>
     </div>
     <div class="facet-row">
       <span class="facet-name">Must include</span>
@@ -757,7 +762,7 @@
 </div>
 
 <div class="toolbar" id="toolbar"></div>
-<div class="clear-row"><button class="clear-btn" id="clearFilters">Clear filters</button></div>
+<div class="clear-row"><span class="tb-name-spacer"></span><button class="clear-btn" id="clearFilters">Clear filters</button></div>
 <div class="toolbar" id="sortToolbar"></div>
 
 <main class="grid" id="grid"></main>
@@ -52887,6 +52892,7 @@ function renderToolbar(){
         <!-- own group, not a 4th "Show" radio option -- this is an independent
              toggle that combines with whichever Show state is active, not a
              mutually-exclusive alternative to it. -->
+        <span class="tb-name-spacer"></span>
         <button class="tb-btn" id="aheadBtn">+ Plan ahead</button>
       </div>`;
     tb.querySelectorAll('[data-made]').forEach(b=>{
@@ -54229,7 +54235,7 @@ async function remoteFetchAll(){
    IndexedDB's quota is far higher (typically hundreds of MB+), so this actually
    persists across visits. */
 const NYT_CACHE_KEY = 'cookbook.nytRecipes';
-const NYT_CACHE_VERSION = 7; /* bumped: v6 cache predates fixing rowToNytRecipe() unconditionally tagging every nyt_recipes row 'NYT Cooking' -- the ~27k non-NYT candidate-import recipes were getting mislabeled and hidden by the Hide NYT toggle */
+const NYT_CACHE_VERSION = 8; /* bumped: v7 cache predates adding .order('id') to the paginated fetch -- without a stable sort, pages could repeat/skip rows once the table grew to ~46k, producing visible duplicate cards */
 const NYT_DB_NAME = 'cookbookCache', NYT_DB_STORE = 'nytRecipes';
 
 function openNytDB(){
@@ -54330,8 +54336,12 @@ async function nytBoot(){
   while(true){
     let data = null, error = null;
     for(let attempt = 1; attempt <= 3; attempt++){
+      /* .order('id') is required for stable pagination -- without it Postgres doesn't
+         guarantee row order across repeated paged queries, so rows can repeat on
+         multiple pages (and others get skipped) once the table is big enough that
+         the query planner's chosen scan order isn't naturally stable */
       const res = await sb.from('nyt_recipes').select('*').eq('needs_review', false)
-        .range(from, from + PAGE_SIZE - 1);
+        .order('id').range(from, from + PAGE_SIZE - 1);
       data = res.data; error = res.error;
       if(!error) break;
       console.error(`nyt_recipes fetch error (page starting at ${from}, attempt ${attempt})`, error);
