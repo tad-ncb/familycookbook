@@ -180,33 +180,35 @@
   }
   .modal-overlay.open{display:flex;}
   .modal{
-    background:var(--card); max-width:880px; width:100%; box-sizing:border-box;
+    background:var(--card); max-width:960px; width:100%; box-sizing:border-box;
     box-shadow:0 40px 80px rgba(0,0,0,0.25); position:relative; overflow-x:hidden;
     animation:modalIn .2s cubic-bezier(.2,.8,.3,1); margin-bottom:40px; border-top:3px solid var(--stamp);
   }
   @keyframes modalIn{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
-  .modal-inner{padding:clamp(20px, 3.5vw, 32px) clamp(16px, 4vw, 40px) 40px;}
+  .modal-inner{ display:grid; grid-template-columns:220px 1fr; }
   .modal-close{
     position:absolute; top:18px; right:18px; width:30px; height:30px;
     display:flex; align-items:center; justify-content:center; cursor:pointer;
-    font-size:19px; color:var(--ink-soft); line-height:1; font-family:'Work Sans', sans-serif;
+    font-size:19px; color:var(--ink-soft); line-height:1; font-family:'Work Sans', sans-serif; z-index:1;
   }
   .modal-close:hover{color:var(--ink);}
-  .modal-top{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px; }
-  .modal-eyebrow{
-    font-family:'Work Sans', sans-serif; font-size:10.5px; text-transform:uppercase;
-    letter-spacing:0.09em; color:var(--ink-soft); display:flex; gap:14px; flex-wrap:wrap;
+  .modal-side{
+    background:var(--stamp-soft); border-right:1px solid var(--line);
+    padding:clamp(20px, 3.5vw, 28px) clamp(16px, 3vw, 22px);
   }
+  .modal-sidelabel{
+    font-family:'Work Sans', sans-serif; font-weight:600; font-size:10px; text-transform:uppercase;
+    letter-spacing:0.08em; color:var(--stamp); margin:18px 0 4px;
+  }
+  .modal-sidelabel:first-child{ margin-top:0; }
+  .modal-sideval{ font-family:'Work Sans',sans-serif; font-size:12.5px; color:var(--ink); line-height:1.4; }
+  .modal-main{ padding:clamp(20px, 3.5vw, 32px) clamp(16px, 4vw, 40px) 40px; min-width:0; }
   .modal h2{
     font-family:'Archivo',sans-serif; font-weight:600; font-size:clamp(20px, 4.4vw, 26px);
-    line-height:1.18; margin:0 0 6px; padding-right:20px; overflow-wrap:anywhere;
+    line-height:1.18; margin:0 0 20px; padding-right:20px; overflow-wrap:anywhere;
   }
   .modal h2.dual-name{ font-size:clamp(16px, 4vw, 21px); line-height:1.2; }
-  .modal .source-line{
-    font-family:'Work Sans',sans-serif; font-style:italic; color:var(--ink-soft); font-size:13.5px;
-    margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid var(--line);
-  }
-  .tags{display:flex; gap:6px; flex-wrap:wrap; margin:8px 0 0;}
+  .tags{display:flex; gap:6px; flex-wrap:wrap; margin:2px 0 0;}
   .tagpill{
     font-family:'Work Sans', sans-serif; font-size:9.5px; text-transform:uppercase;
     letter-spacing:0.05em; border:1px solid var(--line); padding:2px 9px; color:var(--ink-soft);
@@ -264,6 +266,8 @@
     .toolbar .tb-name-spacer{display:none;}
     .modal{border-top-width:2px;}
     .modal-close{top:10px; right:10px; width:36px; height:36px; font-size:22px;}
+    .modal-inner{ grid-template-columns:1fr; }
+    .modal-side{ border-right:none; border-bottom:1px solid var(--line); padding:16px 20px; }
   }
   /* ---------- Phase 1: tracking + scaling ---------- */
   .toolbar{
@@ -826,28 +830,34 @@
 
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal" id="modalCard">
+    <div class="modal-close" id="modalClose">&times;</div>
     <div class="modal-inner">
-      <div class="modal-close" id="modalClose">&times;</div>
-      <div class="modal-top">
-        <div class="modal-eyebrow" id="modalEyebrow"></div>
+      <div class="modal-side">
+        <div class="modal-sidelabel">Course</div><div class="modal-sideval" id="modalSideCourse"></div>
+        <div class="modal-sidelabel">Cuisine</div><div class="modal-sideval" id="modalSideCuisine"></div>
+        <div class="modal-sidelabel">Source</div><div class="modal-sideval" id="modalSideSource"></div>
+        <div class="modal-sidelabel">Serves</div><div class="modal-sideval" id="modalSideServes"></div>
+        <div class="modal-sidelabel">Prep / Cook</div><div class="modal-sideval" id="modalSideTime"></div>
+        <div class="modal-sidelabel">Diet</div><div class="tags" id="modalTags"></div>
+        <div class="modal-sidelabel">Added</div><div class="modal-sideval" id="modalSideAdded"></div>
       </div>
-      <h2 id="modalTitle"></h2>
-      <div class="source-line" id="modalSource"></div>
-      <div class="tags" id="modalTags"></div>
+      <div class="modal-main">
+        <h2 id="modalTitle"></h2>
 
-      <div id="modalAhead"></div>
-      <div id="modalMake"></div>
+        <div id="modalAhead"></div>
+        <div id="modalMake"></div>
 
-      <div class="section-title">Ingredients</div>
-      <div id="modalScale"></div>
-      <ul class="ing-list" id="modalIngredients"></ul>
+        <div class="section-title">Ingredients</div>
+        <div id="modalScale"></div>
+        <ul class="ing-list" id="modalIngredients"></ul>
 
-      <div class="section-title">Method</div>
-      <ol class="steps" id="modalSteps"></ol>
+        <div class="section-title">Method</div>
+        <ol class="steps" id="modalSteps"></ol>
 
-      <div id="modalNotesWrap"></div>
-      <div id="modalActions"></div>
-      <div id="modalCook"></div>
+        <div id="modalNotesWrap"></div>
+        <div id="modalActions"></div>
+        <div id="modalCook"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -53144,15 +53154,16 @@ function renderCookPanel(){
 function openModal(r){
   modalRecipe = r; modalFactor = 1;
   const p = parseTime(r.prepTime), c = parseTime(r.cookTime), t = r._total;
-  document.getElementById('modalEyebrow').innerHTML =
-    (r.category?`<span>${escapeHTML(r.category)}</span>`:'') + (r.cuisine?`<span>${zwsp(escapeHTML(r.cuisine))}</span>`:'') +
-    (p?`<span>Prep ${fmtTime(p)}</span>`:'') + (c?`<span>Cook ${fmtTime(c)}</span>`:'') +
-    (t?`<span>Total ${fmtTime(t)}</span>`:'');
+  document.getElementById('modalSideCourse').innerHTML = r.category ? `<span class="stamp-badge">${escapeHTML(r.category)}</span>` : '—';
+  document.getElementById('modalSideCuisine').textContent = r.cuisine ? zwsp(r.cuisine) : '—';
+  document.getElementById('modalSideSource').textContent = r.source || '—';
+  document.getElementById('modalSideServes').textContent = r.servings ? servingsLabel(r.servings) : '—';
+  document.getElementById('modalSideTime').textContent =
+    (p && c) ? `${fmtTime(p)} / ${fmtTime(c)}` : (t ? `${fmtTime(t)} total` : '—');
+  document.getElementById('modalSideAdded').textContent = fmtAddedDate(addedDateOf(r));
   const modalTitleEl = document.getElementById('modalTitle');
   modalTitleEl.innerHTML = zwsp(escapeHTML(combinedTitle(r) || r.title));
   modalTitleEl.classList.toggle('dual-name', !!r.nativeName);
-  document.getElementById('modalSource').innerHTML =
-    zwsp(escapeHTML([r.source, r.servings ? servingsLabel(r.servings) : null].filter(Boolean).join(' — ')));
 
   const tagsWrap = document.getElementById('modalTags');
   tagsWrap.innerHTML = '';
