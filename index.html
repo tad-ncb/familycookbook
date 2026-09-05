@@ -264,6 +264,7 @@
     .controls{padding:18px 20px 20px;}
     .grid{padding:8px 10px 90px; grid-template-columns:1fr; gap:1px;}
     .card{min-height:auto; padding:15px 15px 13px;}
+    .months-wrap{ grid-template-columns:1fr; }
     .ing-list{columns:1;}
     .facet-name{width:100%; margin-bottom:4px; padding-top:0;}
     .search-row input{ flex-basis:100%; max-width:none; }
@@ -501,24 +502,30 @@
   .shop-empty{ color:var(--ink-faint); font-style:italic; }
 
   /* month / history */
-  .months-wrap{ display:flex; flex-direction:column; gap:22px; }
+  /* 4 months visible at once as smaller calendars, not full-size stacked
+     ones requiring a scroll to see the older ones -- a 2x2 grid at roughly
+     half the old cell size. */
+  .months-wrap{ display:grid; grid-template-columns:repeat(2,1fr); gap:18px 24px; }
   .month-label{
-    font-family:'Archivo',sans-serif; font-weight:600; font-size:14px;
-    color:var(--ink); margin-bottom:6px;
+    font-family:'Archivo',sans-serif; font-weight:600; font-size:12.5px;
+    color:var(--ink); margin-bottom:5px;
   }
   .month{ display:grid; grid-template-columns:repeat(7,1fr); gap:1px; background:var(--line); border:1px solid var(--line); }
   .mhead{
-    background:var(--paper); text-align:center; padding:7px 2px;
-    font-family:'Work Sans', sans-serif; font-size:9.5px; text-transform:uppercase;
-    letter-spacing:0.08em; color:var(--ink-faint);
+    background:var(--paper); text-align:center; padding:3px 2px;
+    font-family:'Work Sans', sans-serif; font-size:8px; text-transform:uppercase;
+    letter-spacing:0.06em; color:var(--ink-faint);
   }
-  .mcell{ background:var(--card); min-height:96px; padding:7px 8px; }
+  .mcell{ background:var(--card); min-height:46px; padding:3px 4px; overflow:hidden; }
   .mcell.out{ background:var(--paper); }
-  .mcell.today{ box-shadow:inset 0 3px 0 var(--stamp); }
-  .mcell .mnum{ font-family:'Work Sans', sans-serif; font-size:10px; color:var(--ink-faint); }
-  .mcell .mitem{ font-size:11.5px; line-height:1.3; margin-top:4px; color:var(--ink); cursor:pointer; }
+  .mcell.today{ box-shadow:inset 0 2px 0 var(--stamp); }
+  .mcell .mnum{ font-family:'Work Sans', sans-serif; font-size:9px; color:var(--ink-faint); }
+  .mcell .mitem{
+    font-size:9px; line-height:1.25; margin-top:2px; color:var(--ink); cursor:pointer;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
   .mcell .mitem:hover{ color:var(--stamp); }
-  .mcell .mstars{ color:var(--gold); font-size:9px; }
+  .mcell .mstars{ color:var(--gold); font-size:8px; }
   .hist-stats{ display:flex; flex-wrap:wrap; gap:26px; margin-bottom:16px; }
   .hstat{ font-family:'Work Sans', sans-serif; font-size:10.5px; color:var(--ink-faint); letter-spacing:0.05em; }
   .hstat b{ display:block; font-family:'Archivo',sans-serif; font-weight:600; font-size:21px; color:var(--ink); letter-spacing:-0.01em; font-variant-numeric:tabular-nums; }
