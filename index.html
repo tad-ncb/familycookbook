@@ -688,6 +688,7 @@
     <h1 class="title" id="homeTitle" title="Back to the cookbook" style="cursor:pointer;">Deemer-Berdux Family Cookbook</h1>
     <div class="viewtabs" id="viewTabs">
       <button class="vt" data-view="plan" style="display:none">Plan the week</button>
+      <button class="vt" data-view="shopping" style="display:none">Shopping</button>
       <button class="vt" data-view="history" style="display:none">History</button>
       <button class="vt" data-view="storage" style="display:none">Storage</button>
     </div>
@@ -790,6 +791,18 @@
 <div id="storageView" style="display:none">
   <div class="planwrap">
     <div id="storagePanel"></div>
+  </div>
+</div>
+
+<div id="shoppingViewWrap" style="display:none">
+  <div class="planwrap">
+    <div class="inv-add" style="margin-bottom:18px;">
+      <input type="text" placeholder="Item" id="shopAddName">
+      <input type="text" placeholder="Qty" id="shopAddQty">
+      <input type="text" placeholder="Unit" id="shopAddUnit">
+      <button class="cook-btn" id="shopAddBtn">Add</button>
+    </div>
+    <div id="shoppingView"></div>
   </div>
 </div>
 
@@ -53532,7 +53545,9 @@ function haveInInventory(noun){
 function buildShoppingList(weekStart){
   const bySection = {};
   const seen = new Map();
-  for(let i=0;i<7;i++){
+  /* weekStart is optional -- a standalone shopping list (no meal plan involved)
+     just skips straight to the manually-added "extra" items below. */
+  for(let i=0; weekStart && i<7; i++){
     const iso = addDays(weekStart, i);
     slotsFor(iso).forEach(e=>{
       if(e.leftoverOf) return;
@@ -53583,12 +53598,14 @@ let monthCursor = todayISO().slice(0,7);
 
 function setView(v){
   view = v;
-  document.getElementById('cookbookView').style.display = v==='cookbook' ? '' : 'none';
-  document.getElementById('planView').style.display     = v==='plan'     ? '' : 'none';
-  document.getElementById('historyView').style.display  = v==='history'  ? '' : 'none';
-  document.getElementById('storageView').style.display  = v==='storage'  ? '' : 'none';
+  document.getElementById('cookbookView').style.display    = v==='cookbook' ? '' : 'none';
+  document.getElementById('planView').style.display        = v==='plan'     ? '' : 'none';
+  document.getElementById('shoppingViewWrap').style.display = v==='shopping' ? '' : 'none';
+  document.getElementById('historyView').style.display     = v==='history'  ? '' : 'none';
+  document.getElementById('storageView').style.display     = v==='storage'  ? '' : 'none';
   document.querySelectorAll('#viewTabs .vt').forEach(b=> b.classList.toggle('on', b.dataset.view===v));
   if(v==='plan') renderWeek();
+  if(v==='shopping') renderStandaloneShopping();
   if(v==='history') renderMonth();
   if(v==='storage') renderStorage();
 }
@@ -53733,20 +53750,26 @@ function renderWeekSummary(){
   </div>`;
 }
 
-function renderShop(){
-  const host = document.getElementById('shopPanel');
-  const list = buildShoppingList(weekStart);
+function renderShopInto(hostId, ws, rerender){
+  const host = document.getElementById(hostId);
+  const list = buildShoppingList(ws);
   const secs = SECTION_ORDER.filter(s=> list[s] && list[s].length);
-  if(!secs.length){ host.innerHTML = `<div class="shop"><h3>Shopping list</h3><div class="shop-empty">Plan some dinners first, or add items from Storage.</div></div>`; return; }
+  const title = ws ? `Shopping list — ${fmtRange(ws, addDays(ws,6))}` : 'Shopping list';
+  if(!secs.length){
+    host.innerHTML = `<div class="shop"><h3>${title}</h3><div class="shop-empty">${ws ? 'Plan some dinners first, or add items from Storage.' : 'Nothing on the list yet — add items from Storage.'}</div></div>`;
+    return;
+  }
   host.innerHTML = `<div class="shop">
-    <h3>Shopping list — ${fmtRange(weekStart, addDays(weekStart,6))}</h3>
+    <h3>${title}</h3>
     <div class="shop-cols">${secs.map(s=>`
       <div class="shop-sec"><h4>${s}</h4><ul>${list[s].map(it=>
         `<li>${it.have?'<span class="from">[have] </span>':''}${zwsp(escapeHTML(it.text))}${it.from.length>1?` <span class="from">×${it.from.length}</span>`:''}${it.invId?` <span class="ch-del" data-bought="${it.invId}">bought</span>`:''}</li>`
       ).join('')}</ul></div>`).join('')}</div>
   </div>`;
-  host.querySelectorAll('[data-bought]').forEach(b=> b.onclick = ()=>{ removeInvItem(b.dataset.bought); renderShop(); });
+  host.querySelectorAll('[data-bought]').forEach(b=> b.onclick = ()=>{ removeInvItem(b.dataset.bought); rerender(); });
 }
+function renderShop(){ renderShopInto('shopPanel', weekStart, renderShop); }
+function renderStandaloneShopping(){ renderShopInto('shoppingView', null, renderStandaloneShopping); }
 
 /* ---------------- storage (pantry / fridge / freezer / shopping) ---------------- */
 function renderStorage(){
@@ -53817,6 +53840,18 @@ document.getElementById('shopBtn').onclick = ()=>{
   if(p.dataset.open){ p.dataset.open=''; p.innerHTML=''; }
   else { p.dataset.open='1'; renderShop(); }
 };
+document.getElementById('shopAddBtn').onclick = ()=>{
+  const nameEl = document.getElementById('shopAddName');
+  const name = nameEl.value.trim();
+  if(!name) return;
+  addInvItem('shopping', name, document.getElementById('shopAddQty').value.trim(), document.getElementById('shopAddUnit').value.trim());
+  nameEl.value = ''; document.getElementById('shopAddQty').value=''; document.getElementById('shopAddUnit').value='';
+  nameEl.focus();
+  renderStandaloneShopping();
+};
+['shopAddName','shopAddQty','shopAddUnit'].forEach(id=>{
+  document.getElementById(id).addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('shopAddBtn').click(); });
+});
 
 /* ---------------- household settings ---------------- */
 function renderSettings(){
@@ -54510,9 +54545,9 @@ async function switchHousehold(hh){
 /* ---------------- boot ---------------- */
 function applyAuthGate(){
   const signedIn = isEditor();
-  document.querySelectorAll('#viewTabs .vt[data-view="plan"], #viewTabs .vt[data-view="history"], #viewTabs .vt[data-view="storage"]')
+  document.querySelectorAll('#viewTabs .vt[data-view="plan"], #viewTabs .vt[data-view="shopping"], #viewTabs .vt[data-view="history"], #viewTabs .vt[data-view="storage"]')
     .forEach(b=> b.style.display = signedIn ? '' : 'none');
-  if(!signedIn && (view==='plan' || view==='history' || view==='storage')) setView('cookbook');
+  if(!signedIn && (view==='plan' || view==='shopping' || view==='history' || view==='storage')) setView('cookbook');
 }
 async function authBoot(){
   paintAuth(); applyAuthGate();
