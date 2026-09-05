@@ -597,6 +597,13 @@
   .settings p.hint{ font-size:13px; color:var(--ink-soft); margin:0 0 14px; font-style:italic; }
   .house-row{ display:flex; align-items:center; gap:10px; }
   .house-row .rday{ font-family:'Work Sans', sans-serif; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; }
+  .submit-recipe{ margin-top:18px; padding-top:16px; border-top:1px solid var(--line); }
+  .submit-recipe .rday{ font-family:'Work Sans', sans-serif; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; }
+  .submit-recipe input, .submit-recipe select, .submit-recipe textarea{
+    width:100%; box-sizing:border-box; font-family:'Work Sans',sans-serif; font-size:13px;
+    padding:7px 9px; border:1px solid var(--line); border-radius:6px; background:var(--paper); color:var(--ink);
+  }
+  .submit-recipe textarea{ resize:vertical; }
   /* ---------- Phase 5: household storage ---------- */
   .inv-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:18px; margin-top:10px; }
   .inv-sec h4{ margin:0 0 8px; font-family:'Work Sans', sans-serif; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-soft); }
@@ -53941,6 +53948,32 @@ function renderSettings(){
       </div>
       <span class="hint" style="margin:0; font-size:12.5px;">used to spot meals big enough to leave leftovers</span>
     </div>
+    <div class="submit-recipe">
+      <div class="rday" style="margin-bottom:8px;">Submit a recipe</div>
+      <div class="hint" style="margin:0 0 10px;">Goes in as a draft -- nobody sees it in the cookbook until someone publishes it below.</div>
+      <input type="text" id="subTitle" placeholder="Recipe title">
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <select id="subCategory" style="flex:1;"><option value="">Course (optional)</option>${ALL_CATEGORIES.map(c=>`<option value="${escapeHTML(c)}">${escapeHTML(c)}</option>`).join('')}</select>
+        <input type="text" id="subCuisine" placeholder="Cuisine (optional)" style="flex:1;">
+      </div>
+      <input type="text" id="subServings" placeholder="Servings (optional)" style="margin-top:8px;">
+      <textarea id="subIngredients" placeholder="Ingredients, one per line" rows="4" style="margin-top:8px;"></textarea>
+      <textarea id="subInstructions" placeholder="Steps, one per line" rows="4" style="margin-top:8px;"></textarea>
+      <input type="text" id="subNotes" placeholder="Notes (optional)" style="margin-top:8px;">
+      <input type="text" id="subBy" placeholder="Your name (optional)" style="margin-top:8px;">
+      <button class="cook-btn" id="subSave" style="margin-top:10px;">Submit draft</button>
+      <span class="make-prog" id="subMsg"></span>
+    </div>
+    ${pendingSubmissions.length ? `<div class="submit-recipe">
+      <div class="rday" style="margin-bottom:8px;">Pending recipes (${pendingSubmissions.length})</div>
+      ${pendingSubmissions.map(s=>`
+        <div class="cook-hist-item">
+          <span class="ch-date">${escapeHTML(s.title)}</span>
+          ${s.submitted_by?`<span class="ch-note">from ${escapeHTML(s.submitted_by)}</span>`:''}
+          <button class="cook-btn" data-pub="${s.id}" style="padding:3px 8px; font-size:11px;">Publish</button>
+          <span class="ch-del" data-del="${s.id}">delete</span>
+        </div>`).join('')}
+    </div>` : ''}
   </div>`;
   const setHH = n =>{
     p.household = Math.max(1, Math.min(20, n)); p._t = Date.now(); persist(); renderSettings(); renderWeek();
@@ -53948,6 +53981,22 @@ function renderSettings(){
   };
   host.querySelector('#hhUp').onclick   = ()=> setHH(p.household+1);
   host.querySelector('#hhDown').onclick = ()=> setHH(p.household-1);
+  host.querySelector('#subSave').onclick = async ()=>{
+    const title = host.querySelector('#subTitle').value.trim();
+    const msg = host.querySelector('#subMsg');
+    if(!title){ msg.textContent = 'needs a title'; return; }
+    const ingredients = host.querySelector('#subIngredients').value.split('\n').map(s=>s.trim()).filter(Boolean);
+    const instructions = host.querySelector('#subInstructions').value.split('\n').map(s=>s.trim()).filter(Boolean);
+    msg.textContent = 'saving…';
+    const res = await submitFamilyRecipe({
+      title, category: host.querySelector('#subCategory').value, cuisine: host.querySelector('#subCuisine').value.trim(),
+      servings: host.querySelector('#subServings').value.trim(), ingredients, instructions,
+      notes: host.querySelector('#subNotes').value.trim(), submittedBy: host.querySelector('#subBy').value.trim(),
+    });
+    msg.textContent = res.error ? `couldn't save: ${res.error.message}` : 'submitted -- see it below once published';
+  };
+  host.querySelectorAll('[data-pub]').forEach(b=> b.onclick = ()=> publishSubmission(b.dataset.pub));
+  host.querySelectorAll('[data-del]').forEach(b=> b.onclick = ()=> deleteSubmission(b.dataset.del));
 }
 document.getElementById('setBtn').onclick = ()=>{
   const h = document.getElementById('settingsPanel');
@@ -54460,6 +54509,65 @@ async function mergeNytRecipes(rows){
   }
 }
 
+/* ---------------- family recipe submissions (CMS-lite) ----------------
+   Lets a family member add a recipe from the site itself, no GitHub/JSON
+   editing needed. Submissions land as a "draft" in the family_submissions
+   table (see create_family_submissions_table.sql) and only join the real
+   cookbook once someone in the household hits Publish on it -- at that
+   point it's mapped into a normal recipe object here and merged into
+   RECIPES the same way nyt_recipes rows already are. */
+let pendingSubmissions = [];
+function submissionToRecipe(row){
+  return {
+    id: 'sub-' + row.id,
+    title: row.title,
+    category: row.category || null,
+    cuisine: row.cuisine || null,
+    source: row.submitted_by ? `Family recipe (submitted by ${row.submitted_by})` : 'Family recipe (submitted)',
+    servings: row.servings || '',
+    ingredients: row.ingredients || [],
+    instructions: row.instructions || [],
+    notes: row.notes || '',
+    needsReview: false,
+    cookTime: null, prepTime: null, tags: [],
+    ingredientCore: [], ingredientAll: [], ingredientDietary: [],
+    addedDate: (row.published_at || row.created_at || '').slice(0,10) || todayISO(),
+  };
+}
+async function familySubmissionsBoot(){
+  if(!sb) return;
+  const res = await sb.from('family_submissions').select('*').order('created_at', {ascending:false});
+  if(res.error){ console.error('family_submissions fetch failed', res.error); return; }
+  const rows = res.data || [];
+  pendingSubmissions = rows.filter(r=>r.status==='draft');
+  const published = rows.filter(r=>r.status==='published').map(submissionToRecipe);
+  const existingIds = new Set(RECIPES.map(r=>r.id));
+  let added = false;
+  published.forEach(r=>{ if(!existingIds.has(r.id)){ RECIPES.push(r); added = true; } });
+  if(added) render();
+  renderSettings(); /* no-op if the panel's closed -- see its own dataset.open guard */
+}
+async function submitFamilyRecipe(data){
+  if(!sb) return {error:{message:'Supabase not configured'}};
+  const res = await sb.from('family_submissions').insert({
+    title: data.title, category: data.category || null, cuisine: data.cuisine || null,
+    servings: data.servings || null, ingredients: data.ingredients, instructions: data.instructions,
+    notes: data.notes || '', submitted_by: data.submittedBy || '',
+  });
+  if(!res.error) await familySubmissionsBoot();
+  return res;
+}
+async function publishSubmission(id){
+  if(!sb) return;
+  await sb.from('family_submissions').update({status:'published', published_at: new Date().toISOString()}).eq('id', id);
+  await familySubmissionsBoot();
+}
+async function deleteSubmission(id){
+  if(!sb) return;
+  await sb.from('family_submissions').delete().eq('id', id);
+  await familySubmissionsBoot();
+}
+
 async function nytBoot(){
   if(!sb) return;
   const cached = await loadNytCache();
@@ -54668,6 +54776,7 @@ async function authBoot(){
 }
 authBoot();
 nytBoot();
+familySubmissionsBoot();
 
 /* register the app-shell service worker so the page itself (not just the
    already-cached recipe data) loads with no network -- see sw.js. Registered
