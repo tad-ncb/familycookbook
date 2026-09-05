@@ -145,9 +145,6 @@
   .stamp-badge.cuisine{
     color:var(--ink-soft); border-color:var(--line); background:var(--stamp-soft);
   }
-  .stamp-badge.nyt{
-    color:#fff; background:var(--stamp); border-color:var(--stamp);
-  }
   /* time sits on its own row and wraps -- it used to be nowrap beside the
      badges, which overflowed once the total + split were both shown */
   .card-time{
@@ -53029,7 +53026,6 @@ function renderGrid(){
     card.innerHTML = `
       <div class="card-top">
         <div class="card-tags">
-          ${(r.tags||[]).includes('NYT Cooking') ? `<span class="stamp-badge nyt">NYT</span>` : ''}
           ${r.category ? `<span class="stamp-badge">${escapeHTML(r.category)}</span>` : ''}
           ${r.cuisine ? `<span class="stamp-badge cuisine">${zwsp(escapeHTML(r.cuisine))}</span>` : ''}
           ${r._ahead ? `<span class="stamp-badge ahead">${escapeHTML(r._ahead.label)}</span>` : ''}
