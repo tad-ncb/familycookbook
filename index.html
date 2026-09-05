@@ -52444,9 +52444,17 @@ function renderInline(s){
   /* zwsp() already broke every URL's slashes apart with zero-width spaces for
      wrapping (e.g. "Original recipe: https://.../ndujachicken/") -- match that
      exact broken-up shape, strip the zero-width spaces back out for a working
-     href, but keep them in the visible text so the link still wraps. */
-  out = out.replace(/https?:\/​?\/​?[^\s<]+/g, m =>
-    `<a href="${m.replace(/​/g,'')}" target="_blank" rel="noopener noreferrer">${m}</a>`);
+     href, but keep them in the visible text so the link still wraps. Markdown
+     links ("[NYT Link](url)") and bare URLs are handled in ONE pass -- doing
+     them as two separate regexes let the bare-URL rule re-match a URL that
+     was already consumed into a markdown link's href, corrupting it. */
+  const urlPat = 'https?:\\/​?\\/​?[^\\s<)]+';
+  const linkRe = new RegExp('\\[([^\\]]+)\\]\\((' + urlPat + ')\\)|(' + urlPat + ')', 'g');
+  out = out.replace(linkRe, (m, mdText, mdUrl, bareUrl) => {
+    const url = (mdUrl || bareUrl).replace(/​/g, '');
+    const text = mdText || bareUrl;
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+  });
   return out;
 }
 /* dishes with a native-language name and an English one show both, e.g.
@@ -53237,17 +53245,31 @@ function stepBadgesFor(line, stepMap, steps){
   if(!nums.size) return '';
   return [...nums].sort((a,b)=>a-b).map(n=>`<span class="step-badge">${n}</span>`).join('');
 }
+/* "Add remaining ingredients and bring to a boil" is a real, common recipe
+   phrasing -- it doesn't name any of those ingredients individually, but it
+   DOES mean "everything not already accounted for by an earlier step," so
+   anything still unmatched after checking every other step legitimately
+   belongs here rather than staying blank. */
+function findRemainingStep(steps){
+  for(let i=0; i<steps.length; i++){
+    if(/\b(?:remaining|rest of the|other)\s+ingredients?\b/i.test(steps[i])) return i+1;
+  }
+  return null;
+}
 function renderIngredients(){
   const r = modalRecipe, f = modalFactor;
   const wrap = document.getElementById('modalIngredients');
   wrap.innerHTML = '';
   const stepMap = computeIngredientStepMap(r);
+  const remainingStep = findRemainingStep(r.instructions || []);
   (r.ingredients||[]).forEach(item=>{
     const li = document.createElement('li');
     const isHeading = item.endsWith(':') && item.split(' ').length < 6;
     if(isHeading){ li.className = 'heading'; li.innerHTML = renderInline(item); wrap.appendChild(li); return; }
     const res = scaleLine(item, f);
-    li.innerHTML = `<span class="ing-text">${renderInline(res.text)}${res.unscaled && f!==1 ? ' <span class="unscaled-note">· unscaled</span>' : ''}</span><span class="ing-badge-slot">${stepBadgesFor(item, stepMap, r.instructions)}</span>`;
+    let badges = stepBadgesFor(item, stepMap, r.instructions);
+    if(!badges && remainingStep) badges = `<span class="step-badge">${remainingStep}</span>`;
+    li.innerHTML = `<span class="ing-text">${renderInline(res.text)}${res.unscaled && f!==1 ? ' <span class="unscaled-note">· unscaled</span>' : ''}</span><span class="ing-badge-slot">${badges}</span>`;
     wrap.appendChild(li);
   });
 }
