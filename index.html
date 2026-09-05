@@ -497,6 +497,11 @@
   .shop-empty{ color:var(--ink-faint); font-style:italic; }
 
   /* month / history */
+  .months-wrap{ display:flex; flex-direction:column; gap:22px; }
+  .month-label{
+    font-family:'Archivo',sans-serif; font-weight:600; font-size:14px;
+    color:var(--ink); margin-bottom:6px;
+  }
   .month{ display:grid; grid-template-columns:repeat(7,1fr); gap:1px; background:var(--line); border:1px solid var(--line); }
   .mhead{
     background:var(--paper); text-align:center; padding:7px 2px;
@@ -589,19 +594,6 @@
   .icon-btn.on{ color:#fff; background:var(--stamp); border-color:var(--stamp); }
 
   /* the workbench: computer-only data plumbing, hidden until asked for */
-  .bench{
-    max-width:var(--maxw); margin:0 auto 26px;
-    padding:16px clamp(12px,2.6vw,32px);
-  }
-  .bench-inner{
-    border:1px dashed var(--line); background:var(--card); padding:16px 18px;
-  }
-  .bench h3{
-    font-family:'Work Sans', sans-serif; font-size:10.5px; text-transform:uppercase;
-    letter-spacing:0.1em; color:var(--ink-soft); margin:0 0 6px; font-weight:500;
-  }
-  .bench p{ font-size:13px; color:var(--ink-soft); margin:0 0 12px; line-height:1.5; }
-  .bench-btns{ display:flex; flex-wrap:wrap; gap:8px; }
 
   /* --- scale bar: fixed columns so nothing shifts when values change --- */
   .scale-bar{
@@ -686,7 +678,6 @@
   .sync-dot.s-ok, .sync-dot.s-idle{ color:#5FA36B; border-color:#5FA36B33; }
   .sync-dot.s-syncing{ color:var(--stamp); border-color:var(--stamp); }
   .sync-dot.s-error{ color:var(--alert); border-color:var(--alert); }
-  .bench code{ font-family:'Work Sans', sans-serif; font-size:11.5px; color:var(--stamp); }
 </style>
 </head>
 <body>
@@ -705,7 +696,6 @@
     </div>
   </div>
 </div>
-<div id="authPanel"></div>
 
 <div id="cookbookView">
 <div class="controls">
@@ -792,7 +782,7 @@
       </div>
     </div>
     <div id="histStats"></div>
-    <div class="month" id="monthGrid"></div>
+    <div id="monthsWrap" class="months-wrap"></div>
   </div>
 </div>
 
@@ -52334,15 +52324,17 @@ const HOUSEHOLD_MAP = {
   'jcberdux@gmail.com': 'berdux'
 };
 const HOUSEHOLD_LABEL = { 'deemer-berdux': 'Nick and Tyler', 'berdux': 'Jen and Chris' };
-/* No per-person login: whichever household is "unlocked" on this device
-   (a simple shared code, not a real account) decides what plan/pantry/
-   history data loads and can be written. Declared here (not down by the
-   rest of the sync code) so it's already initialized the first time
+/* No login, no code -- everyone can see and use Plan/History/Storage right
+   away. What used to be a household "unlock" is now just which household's
+   data is currently active on this device, always visible and switchable
+   with one click, so it's never ambiguous whose plan/pantry you're looking
+   at even though there's no barrier to get there. Declared here (not down
+   by the rest of the sync code) so it's already initialized the first time
    render() runs and calls currentHousehold(). */
 const HOUSEHOLD_LOCK_KEY = 'cookbook.household';
 function loadUnlockedHousehold(){ try{ return localStorage.getItem(HOUSEHOLD_LOCK_KEY) || null; }catch(e){ return null; } }
-let unlockedHousehold = loadUnlockedHousehold();
-function currentHousehold(){ return unlockedHousehold || 'deemer-berdux'; }
+let unlockedHousehold = loadUnlockedHousehold() || 'deemer-berdux';
+function currentHousehold(){ return unlockedHousehold; }
 /* cook_log rows written before household scoping existed have no tag --
    they all belong to the original (only) household. */
 function householdOf(e){ return e.household || 'deemer-berdux'; }
@@ -53934,20 +53926,30 @@ document.getElementById('pickerCustomToggle').onclick = ()=> document.getElement
 document.getElementById('pcSave').onclick = saveCustomDish;
 
 /* ---------------- history / month ---------------- */
-function renderMonth(){
-  const [y, m] = monthCursor.split('-').map(Number);
-  document.getElementById('monRange').textContent = MONTHS[m-1] + ' ' + y;
+/* monthCursor is the most recent (rightmost) of a 4-month rolling window --
+   shows the last 4 months at once instead of paging one month at a time. */
+function monthKeyOffset(key, delta){
+  let [y,m] = key.split('-').map(Number);
+  m += delta;
+  while(m<1){ m+=12; y--; }
+  while(m>12){ m-=12; y++; }
+  return y+'-'+String(m).padStart(2,'0');
+}
+function renderOneMonthGrid(key){
+  const [y, m] = key.split('-').map(Number);
   const first = new Date(y, m-1, 1), last = new Date(y, m, 0);
   const lead = (first.getDay()+6)%7;
-  const grid = document.getElementById('monthGrid');
-  grid.innerHTML = DAY_NAMES.map(d=>`<div class="mhead">${d}</div>`).join('');
   const today = todayISO();
-
   const cells = [];
   for(let i=0;i<lead;i++) cells.push(null);
   for(let d=1; d<=last.getDate(); d++) cells.push(isoOf(new Date(y, m-1, d)));
   while(cells.length % 7) cells.push(null);
 
+  const block = document.createElement('div');
+  block.className = 'month-block';
+  block.innerHTML = `<div class="month-label">${MONTHS[m-1]} ${y}</div><div class="month"></div>`;
+  const grid = block.querySelector('.month');
+  grid.innerHTML = DAY_NAMES.map(d=>`<div class="mhead">${d}</div>`).join('');
   cells.forEach(iso=>{
     const div = document.createElement('div');
     if(!iso){ div.className='mcell out'; grid.appendChild(div); return; }
@@ -53969,13 +53971,22 @@ function renderMonth(){
     div.innerHTML = html;
     grid.appendChild(div);
   });
-  grid.querySelectorAll('[data-open]').forEach(el=> el.onclick = ()=>{ const r=recipeById(el.dataset.open); if(r) openModal(r); });
+  return block;
+}
+function renderMonth(){
+  const keys = [monthKeyOffset(monthCursor,-3), monthKeyOffset(monthCursor,-2), monthKeyOffset(monthCursor,-1), monthCursor];
+  document.getElementById('monRange').textContent = MONTHS[+keys[0].split('-')[1]-1] + ' ' + keys[0].split('-')[0]
+    + ' – ' + MONTHS[+keys[3].split('-')[1]-1] + ' ' + keys[3].split('-')[0];
+  const wrap = document.getElementById('monthsWrap');
+  wrap.innerHTML = '';
+  keys.forEach(key => wrap.appendChild(renderOneMonthGrid(key)));
+  wrap.querySelectorAll('[data-open]').forEach(el=> el.onclick = ()=>{ const r=recipeById(el.dataset.open); if(r) openModal(r); });
 
-  const inMonth = DATA.cookLog.filter(e=> !e._d && e.date && e.date.slice(0,7) === monthCursor);
-  const cuis = new Set(inMonth.map(e=>{ const r=recipeById(e.recipeId); return r?r.cuisine:null; }).filter(Boolean));
+  const inWindow = DATA.cookLog.filter(e=> !e._d && e.date && keys.includes(e.date.slice(0,7)));
+  const cuis = new Set(inWindow.map(e=>{ const r=recipeById(e.recipeId); return r?r.cuisine:null; }).filter(Boolean));
   const never = RECIPES.filter(r=> timesMade(r.id)===0).length;
   document.getElementById('histStats').innerHTML = `<div class="hist-stats">
-    <div class="hstat"><b>${inMonth.length}</b>meals this month</div>
+    <div class="hstat"><b>${inWindow.length}</b>meals in these 4 months</div>
     <div class="hstat"><b>${cuis.size}</b>cuisines</div>
     <div class="hstat"><b>${DATA.cookLog.filter(e=>!e._d).length}</b>logged all time</div>
     <div class="hstat"><b>${never}</b>never made yet</div>
@@ -54171,7 +54182,7 @@ async function remoteFetchAll(){
   if(!sb || !unlockedHousehold) return null;
   const hh = unlockedHousehold;
   const [cl, pd, iv, pf] = await Promise.all([
-    sb.from('cook_log').select('*'),
+    sb.from('cook_log').select('*').eq('household_id', hh),
     sb.from('plan_days').select('*').eq('household_id', hh),
     sb.from('inventory_items').select('*').eq('household_id', hh),
     sb.from('prefs').select('*').eq('household_id', hh).maybeSingle()
@@ -54442,64 +54453,36 @@ function syncLabel(){
   return {off:'', ok:'● synced', error:'▲ retrying…', syncing:'◍ syncing…'}[syncState] || '';
 }
 
-/* ---------------- household unlock UI ---------------- */
-/* Not real accounts -- just a shared code per household so the right
-   people can get to their own plan/pantry/history without an email
-   round-trip. Anyone who knows a code can unlock that household on their
-   device; a recipe link never carries or needs one, since recipes are
-   public either way. Change these whenever you like -- they're plain
-   strings, not stored anywhere else. */
-const HOUSEHOLD_CODES = { 'deemer-berdux': '123', 'berdux': 'abc' };
+/* ---------------- household switcher UI ---------------- */
+/* No code, no login -- anyone can use Plan/History/Storage immediately.
+   The only thing to get right is which household is active, since Nick's
+   parents (or anyone else) using the site could otherwise log a meal
+   against the wrong household without realizing it. So both households
+   are always shown, the active one always clearly marked, one click away
+   from switching -- never a hidden or ambiguous state. */
 function paintAuth(){
   const host = document.getElementById('authArea');
   if(!sb){ host.innerHTML = `<span class="icon-btn" style="cursor:default">Supabase not configured</span>`; return; }
-  if(unlockedHousehold){
-    host.innerHTML = `<span class="icon-btn sync-dot s-${syncState==='error'?'error':'ok'}" style="cursor:default">${syncLabel()}</span>
-      <button class="icon-btn" id="lockBtn">Leave ${escapeHTML(HOUSEHOLD_LABEL[unlockedHousehold]||unlockedHousehold)}</button>`;
-    document.getElementById('lockBtn').onclick = lockHousehold;
-  } else {
-    host.innerHTML = Object.keys(HOUSEHOLD_CODES).map(hh=>
-      `<button class="icon-btn" data-hh="${hh}">${escapeHTML(HOUSEHOLD_LABEL[hh]||hh)}</button>`).join('');
-    host.querySelectorAll('[data-hh]').forEach(b=> b.onclick = ()=> openHouseholdPanel(b.dataset.hh));
-  }
+  const dot = `<span class="icon-btn sync-dot s-${syncState==='error'?'error':'ok'}" style="cursor:default">${syncLabel()}</span>`;
+  const btns = Object.keys(HOUSEHOLD_LABEL).map(hh=>
+    `<button class="icon-btn${hh===unlockedHousehold?' on':''}" data-hh="${hh}">${escapeHTML(HOUSEHOLD_LABEL[hh]||hh)}</button>`).join('');
+  host.innerHTML = dot + btns;
+  host.querySelectorAll('[data-hh]').forEach(b=> b.onclick = ()=> switchHousehold(b.dataset.hh));
 }
-function openHouseholdPanel(hh){
-  const host = document.getElementById('authPanel');
-  if(host.dataset.open === hh){ host.dataset.open=''; host.innerHTML=''; return; }
-  host.dataset.open = hh;
-  host.innerHTML = `<div class="bench"><div class="bench-inner">
-      <h3>${escapeHTML(HOUSEHOLD_LABEL[hh]||hh)}</h3>
-      <p>Enter the household code to plan &amp; track meals.</p>
-      <div class="bench-btns">
-        <input type="password" id="hhCode" placeholder="code" style="flex:1 1 140px; min-width:0; font-family:'Inter',sans-serif; font-size:14px; padding:7px 9px; border:1px solid var(--line); border-radius:3px; background:var(--card); color:var(--ink);">
-        <button class="tb-btn" id="hhGo">Unlock</button>
-      </div>
-      <p id="hhMsg" style="margin-top:10px;"></p>
-    </div></div>`;
-  const go = ()=>{
-    const val = document.getElementById('hhCode').value.trim();
-    if(val === HOUSEHOLD_CODES[hh]) unlockHousehold(hh);
-    else document.getElementById('hhMsg').textContent = 'Wrong code.';
-  };
-  document.getElementById('hhGo').onclick = go;
-  document.getElementById('hhCode').addEventListener('keydown', e=>{ if(e.key==='Enter') go(); });
-}
-async function unlockHousehold(hh){
+async function switchHousehold(hh){
+  if(hh === unlockedHousehold) return;
+  /* flush any pending writes under the OLD household before switching --
+     otherwise a write queued while offline could go out tagged with
+     whichever household happens to be active by the time it flushes */
+  await flushQueue();
   unlockedHousehold = hh;
   try{ localStorage.setItem(HOUSEHOLD_LOCK_KEY, hh); }catch(e){}
-  const host = document.getElementById('authPanel');
-  host.dataset.open=''; host.innerHTML='';
   paintAuth(); applyAuthGate();
-  const remote = await remoteFetchAll();
-  if(remote){ DATA = mergeStates(remote, DATA); persist(true); render(); if(view==='plan') renderWeek(); if(view==='storage') renderStorage(); }
-  subscribeRealtime();
-  flushQueue();
-}
-function lockHousehold(){
-  unlockedHousehold = null;
-  try{ localStorage.removeItem(HOUSEHOLD_LOCK_KEY); }catch(e){}
   unsubscribeRealtime();
-  paintAuth(); applyAuthGate();
+  const remote = await remoteFetchAll();
+  DATA = remote || blankState();
+  persist(true); render(); if(view==='plan') renderWeek(); if(view==='storage') renderStorage(); if(view==='history') renderMonth();
+  subscribeRealtime();
 }
 
 /* ---------------- boot ---------------- */
