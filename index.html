@@ -162,7 +162,7 @@
   }
   .card:hover{background:var(--card-hover);}
   .card:hover .card-title{color:var(--stamp);}
-  .card.family{ box-shadow:inset 3px 0 0 var(--gold); }
+  .family-mark{ position:absolute; top:12px; right:12px; color:var(--stamp); }
   .card-top{ display:flex; flex-wrap:wrap; align-items:flex-start; margin-bottom:10px; gap:6px; }
   .stamp-badge{
     font-family:'Work Sans', sans-serif; font-weight:500; font-size:10px; text-transform:uppercase;
@@ -53074,7 +53074,7 @@ function renderToolbar(){
         <!-- "+ Plan ahead" is an independent toggle that combines with whichever
              Show state is active, not a mutually-exclusive 3rd Show option --
              sharing this row is just to save vertical space, not a grouping claim. -->
-        <button class="tb-btn" id="aheadBtn">+ Plan ahead</button>
+        <button class="tb-btn" id="aheadBtn">+ Needs Extra Prep</button>
         <button class="tb-btn clear-btn" id="clearFilters">Clear filters</button>
       </div>`;
     tb.querySelectorAll('[data-made]').forEach(b=>{
@@ -53245,8 +53245,10 @@ function renderGrid(){
   const toShow = filtered.slice(0, renderLimit);
   toShow.forEach(r=>{
     const card = document.createElement('div');
-    card.className = 'card' + (isFamilyRecipe(r) ? ' family' : '');
-    card.innerHTML = `
+    card.className = 'card';
+    const familyMark = isFamilyRecipe(r)
+      ? `<svg class="family-mark" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-label="Family recipe"><path d="M6 2h12v20l-6-4-6 4V2z"/></svg>` : '';
+    card.innerHTML = `${familyMark}
       <h3 class="card-title${r.nativeName?' dual-name':''}">${zwsp(escapeHTML(displayTitle(r)))}</h3>
       <div class="card-lines">${cardLinesHTML(r)}</div>`;
     card.onclick = ()=> openModal(r);
