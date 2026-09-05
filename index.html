@@ -52784,6 +52784,23 @@ RECIPES.forEach(r=>{
 const HIDE_NYT_KEY = 'cookbook.hideNyt';
 function loadHideNyt(){ try{ return localStorage.getItem(HIDE_NYT_KEY) === '1'; }catch(e){ return false; } }
 function saveHideNyt(v){ try{ localStorage.setItem(HIDE_NYT_KEY, v ? '1' : '0'); }catch(e){} }
+
+/* Three tiers of "how much is in here": the curated ~955 (family recipes +
+   personally-attributed cookbooks, e.g. Jet Tila, Mary Berry, Macedonia: The
+   Cookbook) are always baked into the page and load instantly with zero
+   network cost -- that split is presentation only (Author/Cookbook filter,
+   the family bookmark icon), not a loading concern. The bulk archive
+   (nyt_recipes: NYT Cooking, RecipeNLG, Gordon Ramsay, BBC Good Food, and
+   whatever else lands in that same table later, e.g. a future Epicurious
+   import) is a different matter -- tens of thousands of rows, a real fetch,
+   a real merge cost. Defaulting that OFF until asked for means the page
+   loads and searches only the curated set unless someone explicitly wants
+   more, instead of always paying for and waiting on the whole archive. */
+const ARCHIVE_KEY = 'cookbook.includeArchive';
+function loadArchiveIncluded(){ try{ return localStorage.getItem(ARCHIVE_KEY) === '1'; }catch(e){ return false; } }
+function saveArchiveIncluded(v){ try{ localStorage.setItem(ARCHIVE_KEY, v ? '1' : '0'); }catch(e){} }
+let archiveIncluded = loadArchiveIncluded();
+let archiveLoading = false;
 let state = { query:"", category:null, cuisine:null, diets:[], author:null, sort:"newest", sortDir:1, made:"all", aheadOnly:false, hideNyt: loadHideNyt(), includeIngredients:[], excludeIngredients:[] };
 const COURSE_ORDER = ["Appetizer","Salad","Soup","Bread","Side","Main","Dessert","Breakfast","Drink"];
 const STALE_DAYS = 75;   /* "had it, but not in 2-3 months" */
@@ -53120,6 +53137,7 @@ function renderToolbar(){
       <div class="tb-group">
         <label class="tb-name" for="authorSelect">Author/Cookbook</label>
         <select class="tb-select" id="authorSelect"></select>
+        <button class="tb-btn" id="archiveBtn" title="Loads and searches the full imported archive (NYT Cooking and others, 47,000+ recipes) alongside the curated cookbook -- off by default so searching stays fast">Include full archive</button>
         <button class="tb-btn" id="hideNytBtn" title="Hide NYT Cooking imports, show only the curated cookbook">Hide NYT</button>
       </div>
       <div class="tb-group">
@@ -53141,6 +53159,7 @@ function renderToolbar(){
     document.getElementById('hideNytBtn').onclick = ()=>{
       state.hideNyt = !state.hideNyt; saveHideNyt(state.hideNyt); renderToolbar(); renderGrid();
     };
+    document.getElementById('archiveBtn').onclick = ()=> toggleArchive(!archiveIncluded);
     document.getElementById('authorSelect').onchange = e=>{ state.author = e.target.value || null; renderGrid(); };
     document.getElementById('clearFilters').onclick = ()=>{
       state = {query:"", category:null, cuisine:null, diets:[], author:null, sort:"newest", sortDir:1, made:"all", aheadOnly:false, hideNyt:false, includeIngredients:[], excludeIngredients:[]};
@@ -53178,6 +53197,10 @@ function syncToolbar(){
   tb.querySelectorAll('[data-made]').forEach(b=> b.classList.toggle('on', b.dataset.made===state.made));
   document.getElementById('aheadBtn').classList.toggle('on', state.aheadOnly);
   document.getElementById('hideNytBtn').classList.toggle('on', state.hideNyt);
+  const archiveBtn = document.getElementById('archiveBtn');
+  archiveBtn.classList.toggle('on', archiveIncluded);
+  archiveBtn.textContent = archiveLoading ? 'Loading archive…' : (archiveIncluded ? 'Full archive included' : 'Include full archive');
+  archiveBtn.disabled = archiveLoading;
   /* rebuilt fresh every call (not baked in once like the other controls) --
      NYT Cooking's real count depends on the async fetch having merged into
      RECIPES, which isn't true yet the first time the toolbar is built. */
@@ -54749,7 +54772,8 @@ function rowToNytRecipe(r){
     ingredientCore: r.ingredient_core || [],
     ingredientAll: r.ingredient_all || [],
     ingredientDietary: r.ingredient_dietary || [],
-    addedDate: '2026-09-02'
+    addedDate: '2026-09-02',
+    _fromArchive: true, /* marks this row as removable when the archive toggle turns off -- see removeArchiveRecipes() */
   };
 }
 
@@ -54841,6 +54865,29 @@ async function deleteSubmission(id){
 function setNytLoading(on){
   const el = document.getElementById('nytLoadIndicator');
   if(el) el.hidden = !on;
+}
+/* splice-in-place, not RECIPES = RECIPES.filter(...) -- RECIPES is a const
+   referenced all over the app, reassigning it would leave every closure
+   that already captured the old array pointing at a now-stale copy */
+function removeArchiveRecipes(){
+  for(let i = RECIPES.length - 1; i >= 0; i--){
+    if(RECIPES[i]._fromArchive) RECIPES.splice(i, 1);
+  }
+}
+async function toggleArchive(on){
+  if(archiveLoading) return;
+  archiveIncluded = on;
+  saveArchiveIncluded(on);
+  if(on){
+    archiveLoading = true;
+    renderToolbar(); /* shows "Loading archive..." right away, before the await below */
+    await nytBoot(); /* merges and calls render() itself once done */
+    archiveLoading = false;
+  } else {
+    removeArchiveRecipes();
+    render();
+  }
+  renderToolbar();
 }
 async function nytBoot(){
   if(!sb) return;
@@ -55052,7 +55099,7 @@ async function authBoot(){
   flushQueue();
 }
 authBoot();
-nytBoot();
+if(archiveIncluded) nytBoot(); /* only pay the fetch/merge cost if this browser already opted in last time -- see toggleArchive() */
 familySubmissionsBoot();
 
 /* remove the print-condensed layout once the print dialog closes --
