@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>The Deemer-Berdux Family Cookbook</title>
+<meta name="robots" content="noindex, nofollow, noarchive">
+<!-- Reachable by direct link only -- deliberately not meant to show up in search results
+     or get crawled/archived. See also /robots.txt at the site root. -->
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Work+Sans:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
 <style>
@@ -270,8 +274,23 @@
     #ingIncludeInput, #ingExcludeInput{ width:100% !important; }
     .toolbar label.tb-name{width:100%; margin-bottom:4px;}
     .toolbar .tb-name-spacer{display:none;}
-    .modal{border-top-width:2px;}
-    .modal-close{top:10px; right:10px; width:36px; height:36px; font-size:22px;}
+    /* a recipe already behaves like its own "page" (opening it pushes a real
+       #r/<id> history entry, so the phone's back gesture just closes it and
+       lands back on the filtered grid instead of leaving the site) -- the
+       one thing missing on a small screen was that it still looked like a
+       card floating over the grid instead of a full page. Edge-to-edge with
+       a sticky close bar reads as "you're now on the recipe" the way a real
+       page navigation would, without giving up the state-preserving modal. */
+    .modal-overlay{ padding:0; align-items:stretch; }
+    .modal{
+      max-width:none; width:100vw; min-height:100vh; margin-bottom:0;
+      border-top-width:2px; border-radius:0; box-shadow:none;
+    }
+    .modal-close{
+      position:sticky; top:0; margin-left:auto; z-index:1;
+      width:44px; height:44px; font-size:22px;
+      background:var(--card); border-bottom:1px solid var(--line);
+    }
     .modal-inner{ grid-template-columns:1fr; }
     .modal-side{ border-right:none; border-bottom:1px solid var(--line); padding:16px 20px; }
   }
@@ -677,6 +696,31 @@
   .sync-dot.s-ok, .sync-dot.s-idle{ color:#5FA36B; border-color:#5FA36B33; }
   .sync-dot.s-syncing{ color:var(--stamp); border-color:var(--stamp); }
   .sync-dot.s-error{ color:var(--alert); border-color:var(--alert); }
+
+  /* "Print recipe" -- when a recipe modal is open, hide literally everything
+     else on the page and let only the modal's content through, so what
+     comes out of the printer (or a browser's Save as PDF, which uses this
+     same stylesheet) is a clean one-pager instead of the whole app chrome. */
+  @media print{
+    body *{ visibility:hidden; }
+    .modal, .modal *{ visibility:visible; }
+    .modal-overlay{ position:static; background:none; padding:0; }
+    .modal{ position:absolute; top:0; left:0; width:100%; max-width:100%; box-shadow:none; border:none; margin:0; }
+    .modal-close, .make-bar, .modal-actions, .cook-panel, #modalAhead{ display:none !important; }
+    .modal-inner{ grid-template-columns:150px 1fr; display:grid !important; }
+  }
+
+  /* Landing directly on a #r/<id> link (as anyone would from a shared text/
+     link, never from browsing) shows just that recipe, not the whole
+     toolbar+grid -- the recipient sees "here's a recipe", not "here's our
+     entire cookbook". It's a framing choice, not an access control: the link
+     to browse everything is still one tap away, just not the default view. */
+  body.share-view .masthead, body.share-view #cookbookView{ display:none; }
+  .share-footer{
+    text-align:center; padding:18px 20px 8px; font-family:'Work Sans',sans-serif;
+    font-size:11px; color:var(--ink-faint);
+  }
+  .share-footer a{ color:var(--stamp); }
 </style>
 </head>
 <body>
@@ -858,6 +902,7 @@
         <div id="modalNotesWrap"></div>
         <div id="modalActions"></div>
         <div id="modalCook"></div>
+        <div id="modalShareFooter"></div>
       </div>
     </div>
   </div>
@@ -52146,6 +52191,14 @@ const RECIPES = [
 
 </script>
 <script>
+/* Captured once, at the very first line of app logic to run -- true only when
+   the page was LOADED with a #r/<id> hash already in the URL (i.e. someone
+   followed a direct recipe link), never when a hash appears later because
+   someone clicked a card while browsing. Drives the stripped-down "shared
+   recipe" landing view -- see openModal() and the body.share-view CSS. */
+const cameFromShareLink = /^#r\//.test(location.hash||'');
+if(cameFromShareLink) document.body.classList.add('share-view');
+
 /* ============================================================
    COMMITTED BASELINE  —  merged from exports and pushed to git.
    Live edits accumulate in localStorage and overlay this.
@@ -52316,7 +52369,16 @@ function relTime(iso){
 function escapeHTML(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 /* zero-width space after slashes -> lets long titles/cuisines wrap without a visible gap */
 function zwsp(s){ return String(s).replace(/\/(?!​)/g, '/​'); }
-function renderInline(s){ return zwsp(escapeHTML(s)).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'); }
+function renderInline(s){
+  let out = zwsp(escapeHTML(s)).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  /* zwsp() already broke every URL's slashes apart with zero-width spaces for
+     wrapping (e.g. "Original recipe: https://.../ndujachicken/") -- match that
+     exact broken-up shape, strip the zero-width spaces back out for a working
+     href, but keep them in the visible text so the link still wraps. */
+  out = out.replace(/https?:\/​?\/​?[^\s<]+/g, m =>
+    `<a href="${m.replace(/​/g,'')}" target="_blank" rel="noopener noreferrer">${m}</a>`);
+  return out;
+}
 /* dishes with a native-language name and an English one show both, e.g.
    "Pasteis de Nata (Custard Tarts, Belem Style)" -- everywhere else falls
    back to the existing shortTitle/title behavior unchanged. */
@@ -53181,6 +53243,8 @@ function openModal(r){
 
   renderModalActions();
   renderCookPanel();
+  document.getElementById('modalShareFooter').innerHTML = cameFromShareLink
+    ? `<div class="share-footer">Shared from the family cookbook · <a href="${location.pathname}">Browse the full cookbook</a></div>` : '';
   wireTicks();
   paintTicks();
   if(making) requestWake();
@@ -54121,14 +54185,10 @@ function renderMakeBar(){
       <button class="icon-btn ${making?'on':''}" id="makeToggle">${making?'✓ Making mode on':'Start making mode'}</button>
       <span class="make-prog" id="makeProg"></span>
       ${making?`<button class="icon-btn" id="makeReset">reset ticks</button>`:''}
-      <span style="flex:1"></span>
-      ${wakeSupported()?`<button class="icon-btn ${wakeOn?'on':''}" id="wakeBtn" title="Stop the screen dimming">${wakeOn?'☀ screen on':'☀ keep screen on'}</button>`:''}
     </div>`;
   host.querySelector('#makeToggle').onclick = ()=> setMaking(!making);
   const rst = host.querySelector('#makeReset');
   if(rst) rst.onclick = ()=>{ ticks={ing:[],step:[]}; clearTicks(modalRecipe.id); paintTicks(); };
-  const wb = host.querySelector('#wakeBtn');
-  if(wb) wb.onclick = ()=> wakeOn ? releaseWake(true) : requestWake(true);
 }
 
 /* ---------------- screen wake lock ---------------- */
@@ -54165,17 +54225,46 @@ function openFromHash(){
 window.addEventListener('hashchange', ()=>{ if(!suppressHash) openFromHash(); });
 
 /* ---------------- modal action row ---------------- */
+/* Plain-text one-recipe digest -- used both for the native share sheet (a
+   phone's Messages/Mail/etc picker takes a title+text pair, not HTML) and as
+   the clipboard fallback on desktop where there's no share sheet to hand off
+   to. */
+function recipeAsText(r){
+  const lines = [String(r.title || '').toUpperCase()];
+  if(r.servings) lines.push(`Serves: ${r.servings}`);
+  if(r.prepTime) lines.push(`Prep: ${r.prepTime}`);
+  if(r.cookTime) lines.push(`Cook: ${r.cookTime}`);
+  lines.push('', 'INGREDIENTS');
+  (r.ingredients||[]).forEach(i=> lines.push(`- ${i}`));
+  lines.push('', 'METHOD');
+  (r.instructions||[]).forEach((s,i)=> lines.push(`${i+1}. ${s}`));
+  if(r.notes) lines.push('', 'NOTES', r.notes);
+  lines.push('', `From the family cookbook: ${location.origin}${location.pathname}${hashFor(r.id)}`);
+  return lines.join('\n');
+}
 function renderModalActions(){
   const host = document.getElementById('modalActions');
+  /* three ways to hand a recipe to someone, in order of what a phone-in-hand
+     family member reaches for first: the OS share sheet (straight into
+     Messages/Mail/whatever they pick) where the browser supports it, a
+     printable one-pager (the @media print rules below strip everything but
+     the recipe itself), and a plain link as the fallback/desktop option. */
   host.innerHTML = `<div class="modal-actions">
+      ${navigator.share ? `<button class="icon-btn" id="shareNative">Share recipe</button>` : ''}
+      <button class="icon-btn" id="printRecipe">Print recipe</button>
       <button class="icon-btn" id="copyLink">Copy link to this recipe</button>
       <span class="make-prog" id="copyMsg"></span>
     </div>`;
+  const msg = host.querySelector('#copyMsg');
+  const flash = (text) => { msg.textContent = text; setTimeout(()=> msg.textContent='', 1800); };
+  const sn = host.querySelector('#shareNative');
+  if(sn) sn.onclick = ()=>{
+    navigator.share({title: modalRecipe.title, text: recipeAsText(modalRecipe)}).catch(()=>{});
+  };
+  host.querySelector('#printRecipe').onclick = ()=> window.print();
   host.querySelector('#copyLink').onclick = ()=>{
     const url = location.origin + location.pathname + hashFor(modalRecipe.id);
-    const msg = host.querySelector('#copyMsg');
-    const done = ()=>{ msg.textContent = 'copied'; setTimeout(()=> msg.textContent='', 1800); };
-    if(navigator.clipboard) navigator.clipboard.writeText(url).then(done, ()=>{ msg.textContent = url; });
+    if(navigator.clipboard) navigator.clipboard.writeText(url).then(()=>flash('link copied'), ()=>{ msg.textContent = url; });
     else msg.textContent = url;
   };
 }
@@ -54354,12 +54443,26 @@ async function nytBoot(){
   if(!sb) return;
   const cached = await loadNytCache();
   if(cached && cached.version === NYT_CACHE_VERSION && Array.isArray(cached.rows)){
-    console.log(`nytBoot: cache hit, showing ${cached.rows.length} cached NYT recipes, skipping the network fetch`);
-    await mergeNytRecipes(cached.rows);
-    render();
-    return; /* the whole point of caching is to skip the ~20-request paginated
-               fetch on repeat visits -- only a version bump (a real data change)
-               or a missing/corrupt cache should ever trigger a full refetch */
+    /* A version bump is a manual step (see NYT_CACHE_VERSION comment) and it's
+       been forgotten more than once after an import -- so before trusting the
+       cache, also ask Supabase for just a row count (a `head:true` request
+       returns no rows, this costs about as little as a network round trip
+       can). If the live count doesn't match what's cached, something changed
+       (an import added/removed rows) even though nobody remembered to bump
+       the version, so fall through to a full refetch instead of silently
+       showing stale data. This can't catch an in-place UPDATE that doesn't
+       change the row count (e.g. fixing a title or a dietary tag) -- that
+       still needs an explicit version bump. */
+    const liveCount = (await sb.from('nyt_recipes').select('*', {count:'exact', head:true}).eq('needs_review', false)).count;
+    if(liveCount == null || liveCount === cached.rows.length){
+      console.log(`nytBoot: cache hit, showing ${cached.rows.length} cached NYT recipes, skipping the network fetch`);
+      await mergeNytRecipes(cached.rows);
+      render();
+      return; /* the whole point of caching is to skip the ~20-request paginated
+                 fetch on repeat visits -- only an actual data change should
+                 ever trigger a full refetch */
+    }
+    console.log(`nytBoot: cache stale (cached ${cached.rows.length} rows, live count ${liveCount}) -- refetching`);
   }
   console.log('nytBoot: no usable cache, fetching all NYT recipes from Supabase');
 
