@@ -74,12 +74,12 @@
   /* Search sits as just another labeled row, same shape as Course/Cuisine
      below it -- not a separate oversized hero bar -- and the input itself
      is sized to the text, half-width, like the Must-include/exclude boxes. */
-  .search-row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .search-row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; flex:1 1 0%; min-width:0; }
   .search-row input{
     background:var(--card); border:1px solid var(--line); border-radius:6px;
     font-family:'Work Sans',sans-serif;
     font-size:13px; line-height:1.3; color:var(--ink);
-    flex:0 1 70%; min-width:160px; max-width:640px;
+    flex:1 1 auto; min-width:160px; max-width:900px;
     padding:4px 8px;
   }
   .search-row input:focus{ outline:none; border-color:var(--stamp); }
@@ -156,6 +156,7 @@
     display:flex; flex-wrap:wrap; gap:2px 8px; margin-bottom:7px;
   }
   .card-time .t-total{ color:var(--ink-soft); font-weight:600; }
+  .card-time .servings-tag{ color:var(--ink-faint); }
   .card-title{
     font-family:'Archivo',sans-serif; font-weight:600; font-size:15.5px;
     line-height:1.25; margin:0 0 8px; transition:color .12s ease;
@@ -52978,11 +52979,17 @@ function importData(e){
 /* ---------------- grid ---------------- */
 function starStr(n){ const k=Math.max(0,Math.min(5,Math.round(n))); return '★★★★★'.slice(0,k) + '☆☆☆☆☆'.slice(0,5-k); }
 function cardTimeHTML(r){
-  const t = r._total; if(!t) return '';
-  const out = [`<span class="t-total">${fmtTime(t)} total</span>`];
-  const p = parseTime(r.prepTime), c = parseTime(r.cookTime);
-  if(p) out.push(`<span>${fmtTime(p)} prep</span>`);
-  if(c) out.push(`<span>${fmtTime(c)} cook</span>`);
+  const out = [];
+  const t = r._total;
+  if(t){
+    out.push(`<span class="t-total">${fmtTime(t)} total</span>`);
+    const p = parseTime(r.prepTime), c = parseTime(r.cookTime);
+    if(p) out.push(`<span>${fmtTime(p)} prep</span>`);
+    if(c) out.push(`<span>${fmtTime(c)} cook</span>`);
+  }
+  /* servings gets its own tag here rather than folded into the source line --
+     a stat about the dish belongs with total/prep/cook, not with attribution */
+  if(r.servings) out.push(`<span class="servings-tag">${escapeHTML(servingsLabel(r.servings))}</span>`);
   return out.join('');
 }
 function cardMetaHTML(r){
@@ -53041,7 +53048,7 @@ function renderGrid(){
       <div class="card-time">${cardTimeHTML(r)}</div>
       ${cardMetaHTML(r)}
       <div class="card-bottom">
-        <span class="card-source">${zwsp(escapeHTML([r.source, r.servings ? servingsLabel(r.servings) : null].filter(Boolean).join(' — ')))}</span>
+        <span class="card-source">${zwsp(escapeHTML(r.source||''))}</span>
         <span class="card-added">${fmtAddedDate(addedDateOf(r))}</span>
       </div>`;
     card.onclick = ()=> openModal(r);
