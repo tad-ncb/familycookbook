@@ -52795,11 +52795,11 @@ function saveHideNyt(v){ try{ localStorage.setItem(HIDE_NYT_KEY, v ? '1' : '0');
    import) is a different matter -- tens of thousands of rows, a real fetch,
    a real merge cost. Defaulting that OFF until asked for means the page
    loads and searches only the curated set unless someone explicitly wants
-   more, instead of always paying for and waiting on the whole archive. */
-const ARCHIVE_KEY = 'cookbook.includeArchive';
-function loadArchiveIncluded(){ try{ return localStorage.getItem(ARCHIVE_KEY) === '1'; }catch(e){ return false; } }
-function saveArchiveIncluded(v){ try{ localStorage.setItem(ARCHIVE_KEY, v ? '1' : '0'); }catch(e){} }
-let archiveIncluded = loadArchiveIncluded();
+   more, instead of always paying for and waiting on the whole archive.
+   Deliberately NOT remembered across visits (no localStorage) -- every
+   fresh load/refresh starts back at the fast curated-only view, and
+   including the archive is a per-visit opt-in, not a sticky preference. */
+let archiveIncluded = false;
 let archiveLoading = false;
 let state = { query:"", category:null, cuisine:null, diets:[], author:null, sort:"newest", sortDir:1, made:"all", aheadOnly:false, hideNyt: loadHideNyt(), includeIngredients:[], excludeIngredients:[] };
 const COURSE_ORDER = ["Appetizer","Salad","Soup","Bread","Side","Main","Dessert","Breakfast","Drink"];
@@ -53251,6 +53251,17 @@ function cardLine(label, value){
 }
 function cardLinesHTML(r){
   const lines = [];
+  const n = timesMade(r.id), last = lastMade(r.id), avg = avgRating(r.id);
+  /* a recipe you've actually cooked is more worth knowing at a glance than
+     what course/cuisine it is -- put Made first, ahead of everything else,
+     rather than buried below Type/Time. A never-made card still leads with
+     Type as before, since there's no Made line to promote. */
+  if(n > 0){
+    let made = `Made ${n}× · ${relTime(last)}`;
+    if(avg) made += ` ${starStr(avg)}`;
+    lines.push(cardLine('Made', made));
+  }
+
   const typeParts = [r.category, r.cuisine].filter(Boolean).map(x=>zwsp(escapeHTML(x)));
   /* "needs extra prep" (the old standalone Ahead line) folds into the Type line
      instead of being its own line -- an optional line that only sometimes
@@ -53261,17 +53272,12 @@ function cardLinesHTML(r){
   if(typeParts.length) lines.push(cardLine('Type', typeParts.join(', ')));
   if(r._total) lines.push(cardLine('Time', fmtTime(r._total)));
 
-  const n = timesMade(r.id), last = lastMade(r.id), avg = avgRating(r.id);
   if(n===0){
     /* "Never made" is true for most cards -- not worth the space. Show a
        quick ingredient preview instead, so the card hints at the dish
        without needing to open it. */
     const preview = ingredientPreview(r);
     if(preview.length) lines.push(cardLine('With', preview.map(escapeHTML).join(', ')));
-  } else {
-    let made = `Made ${n}× · ${relTime(last)}`;
-    if(avg) made += ` ${starStr(avg)}`;
-    lines.push(cardLine('Made', made));
   }
   if(r.source) lines.push(cardLine('Author', zwsp(escapeHTML(r.source))));
   lines.push(cardLine('Added', fmtAddedDate(addedDateOf(r))));
@@ -54877,7 +54883,6 @@ function removeArchiveRecipes(){
 async function toggleArchive(on){
   if(archiveLoading) return;
   archiveIncluded = on;
-  saveArchiveIncluded(on);
   if(on){
     archiveLoading = true;
     renderToolbar(); /* shows "Loading archive..." right away, before the await below */
@@ -55099,7 +55104,8 @@ async function authBoot(){
   flushQueue();
 }
 authBoot();
-if(archiveIncluded) nytBoot(); /* only pay the fetch/merge cost if this browser already opted in last time -- see toggleArchive() */
+/* the archive never auto-loads -- see toggleArchive(), which is the only
+   thing that ever calls nytBoot() now; every fresh load starts curated-only */
 familySubmissionsBoot();
 
 /* remove the print-condensed layout once the print dialog closes --
