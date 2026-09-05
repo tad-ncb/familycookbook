@@ -52888,12 +52888,10 @@ function importData(e){
 /* ---------------- grid ---------------- */
 function starStr(n){ const k=Math.max(0,Math.min(5,Math.round(n))); return '★★★★★'.slice(0,k) + '☆☆☆☆☆'.slice(0,5-k); }
 /* card-level time is just the total, as a single stat tag alongside course/
-   cuisine/servings -- the prep/cook breakdown is a modal-only level of detail */
+   cuisine -- servings only matters once you're actually cooking, so it's
+   modal-only now, same as the prep/cook breakdown. */
 function cardStatsHTML(r){
-  const out = [];
-  if(r._total) out.push(`<span class="card-stat">${fmtTime(r._total)}</span>`);
-  if(r.servings) out.push(`<span class="card-stat">${escapeHTML(servingsLabel(r.servings))}</span>`);
-  return out.join('');
+  return r._total ? `<span class="card-stat">${fmtTime(r._total)}</span>` : '';
 }
 function cardMetaHTML(r){
   const n = timesMade(r.id), last = lastMade(r.id), avg = avgRating(r.id);
@@ -54213,7 +54211,7 @@ async function remoteFetchAll(){
    IndexedDB's quota is far higher (typically hundreds of MB+), so this actually
    persists across visits. */
 const NYT_CACHE_KEY = 'cookbook.nytRecipes';
-const NYT_CACHE_VERSION = 13; /* bumped: v12 cache predates fixing Dairy Free/Gluten Free tagging -- coconut/almond/soy/oat milk, coconut cream, peanut/apple/cocoa butter, and corn/rice/almond/chickpea flour-pasta-tortilla were all wrongly flagged (the exception check only looked after the matched word, but the exception word almost always comes before it) */
+const NYT_CACHE_VERSION = 14; /* bumped: v13 cache predates the candidate/NYT ingredient retag, the cuisine reclassification pass (Portuguese/American-regional split), and the instructions-derived time backfill for ~22k candidate recipes */
 const NYT_DB_NAME = 'cookbookCache', NYT_DB_STORE = 'nytRecipes';
 
 function openNytDB(){
