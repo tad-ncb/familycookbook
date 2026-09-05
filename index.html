@@ -7,6 +7,13 @@
 <meta name="robots" content="noindex, nofollow, noarchive">
 <!-- Reachable by direct link only -- deliberately not meant to show up in search results
      or get crawled/archived. See also /robots.txt at the site root. -->
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#14161c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cookbook">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Work+Sans:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
@@ -54661,6 +54668,15 @@ async function authBoot(){
 }
 authBoot();
 nytBoot();
+
+/* register the app-shell service worker so the page itself (not just the
+   already-cached recipe data) loads with no network -- see sw.js. Registered
+   last, after boot, so a slow/failed registration never delays first paint. */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(e=> console.error('sw registration failed', e));
+  });
+}
 
 </script>
 </body>
