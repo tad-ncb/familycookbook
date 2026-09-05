@@ -239,6 +239,13 @@
     padding:5px 0 5px 20px; position:relative; font-size:var(--recipe-font);
     line-height:1.35; border-bottom:1px solid var(--hair); break-inside:avoid; overflow-wrap:anywhere;
   }
+  /* the step badge gets its own reserved column, right-aligned, present or
+     not -- appending it inline after the text only when a match exists made
+     lines without one look like something was missing/cut off rather than
+     just "no step reference for this one" */
+  .ing-list li:not(.heading){ display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+  .ing-text{ flex:1; }
+  .ing-badge-slot{ flex:none; min-width:16px; text-align:right; }
   .ing-list li.heading{
     font-weight:600; font-family:'Work Sans', sans-serif; font-size:10.5px;
     text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft);
@@ -52930,19 +52937,7 @@ function matchesFiltersExcept(r, exclude){
 }
 function getFiltered(){
   let list = RECIPES.filter(r=>matchesFiltersExcept(r, null));
-  /* family recipes are the actual point of a *family* cookbook -- give them
-     first billing. Every other sorter falls back to byTitle() as its final
-     tiebreak, so folding the family check in here makes it float family
-     recipes to the top under EVERY sort (grouped-then-alphabetical for the
-     default "az" sort, since byTitle IS the primary comparator there; just a
-     tiebreak for sorts like "most cooked"/"rating" that have their own
-     primary ordering, so it doesn't fight what the user actually asked to
-     sort by). */
-  const byTitle = (a,b)=>{
-    const fa = isFamilyRecipe(a), fb = isFamilyRecipe(b);
-    if(fa !== fb) return fa ? -1 : 1;
-    return a.title.localeCompare(b.title);
-  };
+  const byTitle = (a,b)=>a.title.localeCompare(b.title);
   const sorters = {
     az: byTitle,
     recent: (a,b)=>{ const A=lastMade(a.id), B=lastMade(b.id);
@@ -52958,7 +52953,18 @@ function getFiltered(){
   };
   const base = sorters[state.sort] || byTitle;
   const dir = state.sortDir || 1;
-  return list.sort(dir === -1 ? (a,b)=> -base(a,b) : base);
+  /* family recipes are the actual point of a *family* cookbook -- they win
+     the sort outright, not just as a tiebreak. A tiebreak only kicks in when
+     the chosen sort's own criterion ties, which "Newest Added" essentially
+     never does (an import's fixed addedDate reliably beats an older family
+     recipe's) -- so a family recipe could still lose to whatever was most
+     recently imported. Partitioning first, independent of sort direction,
+     means no sort mode can ever put a non-family recipe above one. */
+  return list.sort((a,b)=>{
+    const fa = isFamilyRecipe(a), fb = isFamilyRecipe(b);
+    if(fa !== fb) return fa ? -1 : 1;
+    return dir === -1 ? -base(a,b) : base(a,b);
+  });
 }
 
 /* ---------------- toolbar ---------------- */
@@ -53207,7 +53213,7 @@ function renderIngredients(){
     const isHeading = item.endsWith(':') && item.split(' ').length < 6;
     if(isHeading){ li.className = 'heading'; li.innerHTML = renderInline(item); wrap.appendChild(li); return; }
     const res = scaleLine(item, f);
-    li.innerHTML = renderInline(res.text) + (res.unscaled && f!==1 ? ' <span class="unscaled-note">· unscaled</span>' : '') + stepBadgesFor(item, stepMap);
+    li.innerHTML = `<span class="ing-text">${renderInline(res.text)}${res.unscaled && f!==1 ? ' <span class="unscaled-note">· unscaled</span>' : ''}</span><span class="ing-badge-slot">${stepBadgesFor(item, stepMap)}</span>`;
     wrap.appendChild(li);
   });
 }
