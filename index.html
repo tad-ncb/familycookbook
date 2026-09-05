@@ -63,14 +63,14 @@
   ::selection{background:var(--stamp); color:#fff;}
 
   .masthead{ border-bottom:1px solid var(--line); }
-  .masthead-inner{ max-width:var(--maxw); margin:0 auto; padding:clamp(14px,2vw,22px) clamp(12px,2.6vw,32px); text-align:center; }
+  .masthead-inner{ max-width:var(--maxw); margin:0 auto; padding:clamp(10px,1.6vw,16px) clamp(12px,2.6vw,32px) clamp(6px,1vw,10px); text-align:center; }
   h1.title{
     font-family:'Archivo',sans-serif; font-weight:600;
-    font-size:clamp(22px, 2.8vw, 28px); line-height:1.15;
+    font-size:clamp(18px, 2.1vw, 22px); line-height:1.15;
     letter-spacing:-0.008em; margin:0; color:var(--ink);
   }
 
-  .controls{ max-width:var(--maxw); margin:0 auto; padding:clamp(12px,2vw,20px) clamp(12px,2.6vw,32px) clamp(10px,1.6vw,16px); }
+  .controls{ max-width:var(--maxw); margin:0 auto; padding:clamp(6px,1vw,10px) clamp(12px,2.6vw,32px) clamp(10px,1.6vw,16px); }
   /* Search sits as just another labeled row, same shape as Course/Cuisine
      below it -- not a separate oversized hero bar -- and the input itself
      is sized to the text, half-width, like the Must-include/exclude boxes. */
@@ -86,7 +86,7 @@
   .search-row input::placeholder{color:var(--ink-faint);}
   .result-count{
     font-family:'Work Sans', sans-serif; font-size:12px; font-variant-numeric:tabular-nums;
-    color:var(--ink-soft); white-space:nowrap;
+    color:var(--ink-soft); white-space:nowrap; flex-shrink:0;
   }
 
   .facet-rows{ margin-top:4px; display:flex; flex-direction:column; gap:0; }
@@ -154,13 +154,14 @@
   }
   .card-time .t-total{ color:var(--ink-soft); font-weight:600; }
   .card-title{
-    font-family:'Archivo',sans-serif; font-weight:600; font-size:16.5px;
+    font-family:'Archivo',sans-serif; font-weight:600; font-size:15.5px;
     line-height:1.25; margin:0 0 8px; transition:color .12s ease;
     overflow-wrap:anywhere;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
   }
   /* dishes shown as "Native Name (English Name)" run longer than a normal
      title, so they get a smaller size to fit without dominating the card. */
-  .card-title.dual-name{ font-size:14.5px; line-height:1.28; }
+  .card-title.dual-name{ font-size:13.5px; line-height:1.28; }
   .card-bottom{
     margin-top:auto; padding-top:12px; border-top:1px solid var(--line);
     display:flex; flex-wrap:wrap; justify-content:space-between; align-items:baseline; gap:3px 10px;
@@ -170,13 +171,9 @@
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
     flex:1 1 auto; min-width:0;
   }
-  .card-servings{
-    font-family:'Work Sans', sans-serif; font-size:10px; color:var(--ink-faint);
-    white-space:nowrap; flex:0 0 auto;
-  }
   .card-added{
-    font-family:'Work Sans', sans-serif; font-size:9px; color:var(--ink-faint);
-    margin-top:4px; white-space:nowrap;
+    font-family:'Work Sans',sans-serif; font-style:italic; font-size:12px; color:var(--ink-soft);
+    white-space:nowrap; flex:0 0 auto;
   }
 
   .modal-overlay{
@@ -273,9 +270,10 @@
   }
   /* ---------- Phase 1: tracking + scaling ---------- */
   .toolbar{
-    max-width:var(--maxw); margin:0 auto; padding:0 clamp(12px,2.6vw,32px) 18px;
+    max-width:var(--maxw); margin:0 auto; padding:0 clamp(12px,2.6vw,32px);
     display:flex; flex-wrap:wrap; align-items:center; gap:0 18px;
   }
+  .toolbar:last-of-type{ padding-bottom:14px; }
   .toolbar .tb-group{
     display:flex; align-items:center; gap:8px; flex-basis:100%;
     padding:7px 0; border-bottom:1px solid var(--line);
@@ -308,7 +306,7 @@
     color:var(--ink-faint); letter-spacing:0.04em; line-height:1.5;
   }
   .made-badge{ color:var(--stamp); }
-  .made-badge.never{ color:var(--ink-faint); }
+  .ing-preview{ font-style:italic; color:var(--ink-faint); }
   .stars{ color:var(--gold); letter-spacing:0.5px; }
   .ahead-pill{
     font-family:'Work Sans', sans-serif; font-size:9px; text-transform:uppercase;
@@ -589,8 +587,8 @@
   /* ---------- Phase 3: theme, making mode, mobile chrome ---------- */
   .util-row{
     max-width:var(--maxw); margin:0 auto;
-    padding:0 clamp(12px,2.6vw,32px) 26px;
-    display:flex; align-items:center; gap:10px; justify-content:center;
+    padding:0 clamp(12px,2.6vw,32px) 8px;
+    display:flex; align-items:center; gap:10px; justify-content:flex-end;
   }
   .icon-btn{
     background:transparent; border:1px solid var(--line); border-radius:3px;
@@ -742,14 +740,16 @@
       <span class="facet-name">Diet</span>
       <div id="dietChips" style="display:flex; flex-wrap:wrap; flex:1 1 0%; min-width:0; gap:5px 6px;"></div>
     </div>
-    <div class="facet-row">
+    <div class="facet-row" style="border-bottom:none; padding-bottom:0;">
       <span class="facet-name">Include</span>
       <div style="display:flex; flex-wrap:wrap; align-items:center; gap:6px;">
         <input id="ingIncludeInput" type="text" list="ingIncludeOptions" placeholder="e.g. chicken" style="font-family:'Work Sans',sans-serif; font-size:13px; line-height:1.3; padding:4px 8px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink); width:200px;">
         <datalist id="ingIncludeOptions"></datalist>
         <div id="ingIncludeChips" style="display:flex; flex-wrap:wrap; gap:4px;"></div>
       </div>
-      <span class="facet-name" style="margin-left:16px;">Exclude</span>
+    </div>
+    <div class="facet-row">
+      <span class="facet-name">Exclude</span>
       <div style="display:flex; flex-wrap:wrap; align-items:center; gap:6px;">
         <input id="ingExcludeInput" type="text" list="ingExcludeOptions" placeholder="e.g. cinnamon, celery" style="font-family:'Work Sans',sans-serif; font-size:13px; line-height:1.3; padding:4px 8px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink); width:200px;">
         <datalist id="ingExcludeOptions"></datalist>
@@ -3788,7 +3788,7 @@ const RECIPES = [
     "id": "greek-orzo-salad",
     "title": "Greek Orzo Salad",
     "category": "Salad",
-    "cuisine": "Greek/Mediterranean",
+    "cuisine": "Mediterranean",
     "source": "Cookbook",
     "servings": "6",
     "tags": [
@@ -10560,7 +10560,7 @@ const RECIPES = [
     "id": "roasted-eggplant-spread",
     "title": "Roasted Eggplant Spread",
     "category": "Appetizer",
-    "cuisine": "Greek/Mediterranean",
+    "cuisine": "Mediterranean",
     "source": "Ina Garten, \"The Barefoot Contessa Cookbook\"",
     "servings": "6 to 8",
     "ingredients": [
@@ -14074,7 +14074,7 @@ const RECIPES = [
     "id": "greek-meatloaf-feta-roasted-peppers-oregano",
     "title": "Greek Meatloaf with Feta, Roasted Peppers, and Oregano",
     "category": "Main",
-    "cuisine": "Greek/Mediterranean",
+    "cuisine": "Mediterranean",
     "source": "Cookbook photo",
     "servings": "8-10",
     "ingredients": [
@@ -15119,7 +15119,7 @@ const RECIPES = [
     "id": "crustless-spanakopita-bake",
     "title": "Crustless Spanakopita Bake",
     "category": "Breakfast",
-    "cuisine": "Greek/Mediterranean",
+    "cuisine": "Mediterranean",
     "source": "Cookbook photo",
     "servings": "One 9-inch pie (about 8 servings)",
     "ingredients": [
@@ -18068,7 +18068,7 @@ const RECIPES = [
     "id": "chocolate-hazelnut-torte",
     "title": "Chocolate Hazelnut Torte",
     "category": "Dessert",
-    "cuisine": "European",
+    "cuisine": "German",
     "source": "Cookbook photo",
     "servings": "10",
     "ingredients": [
@@ -18835,7 +18835,7 @@ const RECIPES = [
     "id": "apple-strudel",
     "title": "Apple Strudel",
     "category": "Dessert",
-    "cuisine": "European",
+    "cuisine": "German",
     "source": "Cookbook photo",
     "servings": "8",
     "ingredients": [
@@ -19736,7 +19736,7 @@ const RECIPES = [
     "id": "pitas",
     "title": "Pitas",
     "category": "Bread",
-    "cuisine": "Greek/Mediterranean",
+    "cuisine": "Mediterranean",
     "source": "Paul Hollywood, \"Bake\"",
     "servings": "Makes 4",
     "ingredients": [
@@ -21674,7 +21674,7 @@ const RECIPES = [
     "id": "fig-honey-almond-cake",
     "title": "Fig, Honey & Almond Cake",
     "category": "Dessert",
-    "cuisine": "Greek/Mediterranean",
+    "cuisine": "Mediterranean",
     "source": "Cookbook photo",
     "servings": "12-14",
     "ingredients": [
@@ -22090,7 +22090,7 @@ const RECIPES = [
     "addedDate": "2026-08-24",
     "title": "Kourabiethes",
     "category": "Dessert",
-    "cuisine": "Greek/Mediterranean",
+    "cuisine": "Mediterranean",
     "source": "Cookbook photo",
     "servings": "Makes 40",
     "ingredients": [
@@ -24093,7 +24093,7 @@ const RECIPES = [
     "addedDate": "2026-08-24",
     "title": "Carbonnade of Beef",
     "category": "Main",
-    "cuisine": "European",
+    "cuisine": "French",
     "source": "Cookbook photo",
     "servings": "6",
     "ingredients": [
@@ -24827,7 +24827,7 @@ const RECIPES = [
     "addedDate": "2026-08-24",
     "title": "Moussaka",
     "category": "Main",
-    "cuisine": "Greek/Mediterranean",
+    "cuisine": "Mediterranean",
     "source": "Cookbook photo",
     "servings": "8",
     "ingredients": [
@@ -25096,7 +25096,7 @@ const RECIPES = [
     "addedDate": "2026-08-24",
     "title": "Stuffed Red Peppers",
     "category": "Main",
-    "cuisine": "Greek/Mediterranean",
+    "cuisine": "Mediterranean",
     "source": "Cookbook photo",
     "servings": "4",
     "ingredients": [
@@ -25169,7 +25169,7 @@ const RECIPES = [
     "addedDate": "2026-08-24",
     "title": "Cheese-Topped Baked Eggplants",
     "category": "Main",
-    "cuisine": "Greek/Mediterranean",
+    "cuisine": "Mediterranean",
     "source": "Cookbook photo",
     "servings": "4",
     "ingredients": [
@@ -25361,7 +25361,7 @@ const RECIPES = [
     "title": "Spiced Eggplants with Phyllo Crust",
     "shortTitle": "Spiced Eggplants",
     "category": "Main",
-    "cuisine": "Greek/Mediterranean",
+    "cuisine": "Mediterranean",
     "source": "Cookbook photo",
     "servings": "6",
     "ingredients": [
@@ -25736,7 +25736,7 @@ const RECIPES = [
     "title": "Halloumi and Vegetable Kebabs",
     "shortTitle": "Halloumi Kebabs",
     "category": "Main",
-    "cuisine": "Greek/Mediterranean",
+    "cuisine": "Mediterranean",
     "source": "Cookbook photo",
     "servings": "4",
     "ingredients": [
@@ -26748,7 +26748,7 @@ const RECIPES = [
     "addedDate": "2026-08-24",
     "title": "Swiss Rösti",
     "category": "Side",
-    "cuisine": "European",
+    "cuisine": "German",
     "source": "Mary Berry, \"Mary Berry's Complete Cookbook\"",
     "servings": "8",
     "ingredients": [
@@ -27145,7 +27145,7 @@ const RECIPES = [
     "addedDate": "2026-08-24",
     "title": "Greek Salad",
     "category": "Salad",
-    "cuisine": "Greek/Mediterranean",
+    "cuisine": "Mediterranean",
     "source": "Cookbook photo",
     "servings": "4-6",
     "ingredients": [
@@ -27814,7 +27814,7 @@ const RECIPES = [
     "title": "Raisin and Almond Apple Strudel",
     "shortTitle": "Raisin & Almond Apple Strudel",
     "category": "Dessert",
-    "cuisine": "European",
+    "cuisine": "German",
     "source": "Cookbook photo",
     "servings": "8",
     "ingredients": [
@@ -27878,7 +27878,7 @@ const RECIPES = [
     "addedDate": "2026-08-30",
     "title": "Baklava",
     "category": "Dessert",
-    "cuisine": "Greek/Mediterranean",
+    "cuisine": "Mediterranean",
     "source": "Cookbook photo",
     "servings": "Makes 20 squares",
     "ingredients": [
@@ -32753,7 +32753,7 @@ const RECIPES = [
     "title": "Olive Oil and Honey Cookies",
     "nativeName": "Melomakarona",
     "category": "Dessert",
-    "cuisine": "Greek/Mediterranean",
+    "cuisine": "Mediterranean",
     "source": "Cookbook photo",
     "servings": "About 48 cookies",
     "ingredients": [
@@ -33686,7 +33686,7 @@ const RECIPES = [
     "addedDate": "2026-09-01",
     "title": "Mediterranean Mama Dressing",
     "category": "Side",
-    "cuisine": "Greek/Mediterranean",
+    "cuisine": "Mediterranean",
     "source": "Life-Changing Salads",
     "servings": "About 1/2 cup",
     "ingredients": [
@@ -36670,7 +36670,7 @@ const RECIPES = [
     "title": "Crispy Greek Pies with Dandelion and Feta",
     "shortTitle": "Crispy Greek Pies with Dandelion & Feta",
     "category": "Appetizer",
-    "cuisine": "Greek/Mediterranean",
+    "cuisine": "Mediterranean",
     "source": "Cookbook photo",
     "servings": "About 12 pies",
     "ingredients": [
@@ -44506,7 +44506,7 @@ const RECIPES = [
     "addedDate": "2026-09-01",
     "title": "Mediterranean-Inspired Meal Prep Salad",
     "category": "Salad",
-    "cuisine": "Greek/Mediterranean",
+    "cuisine": "Mediterranean",
     "source": "Cookbook photo",
     "servings": "4",
     "ingredients": [
@@ -48780,7 +48780,7 @@ const RECIPES = [
     "addedDate": "2026-09-01",
     "title": "Chocolate Baklava",
     "category": "Dessert",
-    "cuisine": "Greek/Mediterranean",
+    "cuisine": "Mediterranean",
     "source": "allrecipes.com",
     "ingredients": [
       "1 pound pecans, finely chopped",
@@ -48843,7 +48843,7 @@ const RECIPES = [
     "addedDate": "2026-09-01",
     "title": "Baklava",
     "category": "Dessert",
-    "cuisine": "Greek/Mediterranean",
+    "cuisine": "Mediterranean",
     "source": "allrecipes.com",
     "ingredients": [
       "1 cup unsalted butter",
@@ -48897,7 +48897,7 @@ const RECIPES = [
     "addedDate": "2026-09-01",
     "title": "Baklava I",
     "category": "Dessert",
-    "cuisine": "Greek/Mediterranean",
+    "cuisine": "Mediterranean",
     "source": "allrecipes.com",
     "ingredients": [
       "1 pound walnuts",
@@ -48948,7 +48948,7 @@ const RECIPES = [
     "addedDate": "2026-09-01",
     "title": "Christmas Baklava",
     "category": "Dessert",
-    "cuisine": "Greek/Mediterranean",
+    "cuisine": "Mediterranean",
     "source": "allrecipes.com",
     "ingredients": [
       "1 pound chopped pecans",
@@ -52985,9 +52985,15 @@ function cardTimeHTML(r){
 function cardMetaHTML(r){
   const n = timesMade(r.id), last = lastMade(r.id), avg = avgRating(r.id);
   const bits = [];
-  bits.push(n===0
-    ? `<span class="made-badge never">Never made</span>`
-    : `<span class="made-badge">Made ${n}×</span><span>${relTime(last)}</span>`);
+  if(n===0){
+    /* "Never made" is true for most cards -- not worth the space. Show a
+       quick ingredient preview instead, so the card hints at the dish
+       without needing to open it. */
+    const preview = (r.ingredientCore||[]).slice(0,3).join(', ');
+    if(preview) bits.push(`<span class="ing-preview">${escapeHTML(preview)}</span>`);
+  } else {
+    bits.push(`<span class="made-badge">Made ${n}×</span><span>${relTime(last)}</span>`);
+  }
   if(avg) bits.push(`<span class="stars">${starStr(avg)}</span>`);
   if(r._ahead) bits.push(`<span class="ahead-pill">${r._ahead.label}</span>`);
   return `<div class="card-meta">${bits.join('')}</div>`;
@@ -53019,10 +53025,9 @@ function renderGrid(){
       <div class="card-time">${cardTimeHTML(r)}</div>
       ${cardMetaHTML(r)}
       <div class="card-bottom">
-        <span class="card-source">${zwsp(escapeHTML(r.source||''))}</span>
-        <span class="card-servings">${r.servings ? zwsp(escapeHTML(servingsLabel(r.servings))) : ''}</span>
-      </div>
-      <div class="card-added">Added ${fmtAddedDate(addedDateOf(r))}</div>`;
+        <span class="card-source">${zwsp(escapeHTML([r.source, r.servings ? servingsLabel(r.servings) : null].filter(Boolean).join(' — ')))}</span>
+        <span class="card-added">${fmtAddedDate(addedDateOf(r))}</span>
+      </div>`;
     card.onclick = ()=> openModal(r);
     grid.appendChild(card);
   });
@@ -53305,9 +53310,8 @@ function recipeById(id){ return RECIPES.find(r=>r.id===id) || null; }
    backfilled date; anything added after 2026-08-23 carries a real one. */
 function addedDateOf(r){ return r.addedDate || '2026-08-23'; }
 function fmtAddedDate(iso){
-  const MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const d = new Date(iso+'T00:00:00');
-  return MO[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear();
+  return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(-2);
 }
 function slotServings(entry, r){
   if(entry && entry.servings) return entry.servings;
