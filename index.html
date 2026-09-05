@@ -52645,6 +52645,35 @@ const AUTHOR_GROUPS = [
   ['vegetariantimes.com', 'Vegetarian Times'],
   ['chowhound.com', 'Chowhound'],
   ['recipeland.com', 'RecipeLand'],
+  ['Gordon Ramsay', 'Gordon Ramsay'],
+  /* BBC Good Food import stores source as "BBC Good Food (Author Name)" per row --
+     specific-author entries must come before the generic catch-all below since
+     AUTHOR_GROUPS.find() takes the first prefix match; only authors who are
+     independently famous (Mary Berry, Paul Hollywood, Gordon Ramsay -- already
+     matched above/below) or who have >=20 recipes in this import get their own
+     bucket, everyone else falls through to the generic "BBC Good Food" entry */
+  ['BBC Good Food (Gordon Ramsay)', 'Gordon Ramsay'],
+  ['BBC Good Food (Mary Berry)', 'Mary Berry'],
+  ['BBC Good Food (Paul Hollywood)', 'Paul Hollywood'],
+  ['BBC Good Food (Barney Desmazery)', 'Barney Desmazery'],
+  ['BBC Good Food (Cassie Best)', 'Cassie Best'],
+  ['BBC Good Food (Sarah Cook)', 'Sarah Cook'],
+  ['BBC Good Food (Miriam Nice)', 'Miriam Nice'],
+  ['BBC Good Food (Sara Buenfeld)', 'Sara Buenfeld'],
+  ['BBC Good Food (Sophie Godwin)', 'Sophie Godwin'],
+  ['BBC Good Food (Mary Cadogan)', 'Mary Cadogan'],
+  ['BBC Good Food (Jane Hornby)', 'Jane Hornby'],
+  ['BBC Good Food (James Martin)', 'James Martin'],
+  ['BBC Good Food (Lulu Grimes)', 'Lulu Grimes'],
+  ['BBC Good Food (Elena Silcock)', 'Elena Silcock'],
+  ['BBC Good Food (Jennifer Joyce)', 'Jennifer Joyce'],
+  ['BBC Good Food (John Torode)', 'John Torode'],
+  ['BBC Good Food (Tom Kerridge)', 'Tom Kerridge'],
+  ['BBC Good Food (Chelsie Collins)', 'Chelsie Collins'],
+  ['BBC Good Food (Angela Nilsen)', 'Angela Nilsen'],
+  ['BBC Good Food (Rosie Birkett)', 'Rosie Birkett'],
+  ['BBC Good Food (Emma Lewis)', 'Emma Lewis'],
+  ['BBC Good Food', 'BBC Good Food'],
 ];
 const UNKNOWN_AUTHOR = 'Individual/Unknown';
 const NYT_AUTHOR = 'NYT Cooking';
@@ -52915,9 +52944,14 @@ function cardLine(label, value){
 function cardLinesHTML(r){
   const lines = [];
   const typeParts = [r.category, r.cuisine].filter(Boolean).map(x=>zwsp(escapeHTML(x)));
+  /* "needs extra prep" (the old standalone Ahead line) folds into the Type line
+     instead of being its own line -- an optional line that only sometimes
+     appears pushes every line below it into a different spot from card to
+     card, so anything that can be blank rides along on a line that's already
+     shown instead of getting a line of its own. */
+  if(r._ahead) typeParts.push('Needs Extra Prep');
   if(typeParts.length) lines.push(cardLine('Type', typeParts.join(', ')));
   if(r._total) lines.push(cardLine('Time', fmtTime(r._total)));
-  if(r._ahead) lines.push(cardLine('Ahead', escapeHTML(r._ahead.label)));
 
   const n = timesMade(r.id), last = lastMade(r.id), avg = avgRating(r.id);
   if(n===0){
