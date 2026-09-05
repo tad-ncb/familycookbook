@@ -54726,7 +54726,7 @@ async function remoteFetchAll(){
    IndexedDB's quota is far higher (typically hundreds of MB+), so this actually
    persists across visits. */
 const NYT_CACHE_KEY = 'cookbook.nytRecipes';
-const NYT_CACHE_VERSION = 16; /* bumped: v15 cache predates the 1,624-recipe BBC Good Food import */
+const NYT_CACHE_VERSION = 17; /* bumped: v16 cache predates the unit-conversion pass (46,631 rows) and the 13,223-recipe Epicurious import */
 const NYT_DB_NAME = 'cookbookCache', NYT_DB_STORE = 'nytRecipes';
 
 function openNytDB(){
