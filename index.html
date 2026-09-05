@@ -714,10 +714,19 @@
      comes out of the printer (or a browser's Save as PDF, which uses this
      same stylesheet) is a clean one-pager instead of the whole app chrome. */
   @media print{
-    body *{ visibility:hidden; }
-    .modal, .modal *{ visibility:visible; }
-    .modal-overlay{ position:static; background:none; padding:0; }
-    .modal{ position:absolute; top:0; left:0; width:100%; max-width:100%; box-shadow:none; border:none; margin:0; }
+    /* visibility:hidden (the old approach here) keeps every hidden element's
+       box in the page flow -- the document stayed as tall as the whole site
+       (grid, toolbar, everything), so the browser paginated that entire
+       height and the actual recipe, position:absolute'd to the top, only
+       ever showed up on page 1 of what became a dozen mostly-blank pages.
+       display:none actually removes those siblings from layout, so the
+       printed page is only as tall as the recipe itself. */
+    body > *{ display:none !important; }
+    /* #modalOverlay specifically -- #pickerOverlay shares the same class and
+       is also a direct body child, forcing it visible too would print
+       whatever it last held even while closed */
+    body > #modalOverlay{ display:block !important; position:static !important; background:none !important; padding:0 !important; }
+    .modal{ position:static !important; width:100%; max-width:100%; box-shadow:none; border:none; margin:0; }
     .modal-close, .action-row-top, .make-sub, .share-menu, .cook-panel, #modalAhead{ display:none !important; }
     .modal-inner{ grid-template-columns:150px 1fr; display:grid !important; }
   }
