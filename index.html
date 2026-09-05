@@ -52633,11 +52633,20 @@ const AUTHOR_GROUPS = [
 ];
 const UNKNOWN_AUTHOR = 'Individual/Unknown';
 const NYT_AUTHOR = 'NYT Cooking';
+const FAMILY_AUTHOR = 'Family Recipe';
 function authorOf(r){
   if((r.tags||[]).includes('NYT Cooking')) return NYT_AUTHOR;
   const src = r.source || '';
   const hit = AUTHOR_GROUPS.find(([prefix]) => src.startsWith(prefix));
-  return hit ? hit[1] : UNKNOWN_AUTHOR;
+  if(hit) return hit[1];
+  /* a genuinely family-sourced recipe ("Family recipe", "Handwritten family
+     recipe card", "Family recipe card (grandmother's original)", etc.) is a
+     different provenance than an anonymous "Cookbook photo" -- worth its own
+     filterable bucket rather than both landing in Individual/Unknown. Checked
+     as a substring, not a prefix, since "family" shows up mid-string in most
+     of these phrasings. */
+  if(/family/i.test(src)) return FAMILY_AUTHOR;
+  return UNKNOWN_AUTHOR;
 }
 function countForAuthor(a){ return RECIPES.filter(r=>authorOf(r)===a).length; }
 /* computed fresh every call, NOT a one-time const -- NYT Cooking's real count
@@ -52650,6 +52659,7 @@ function computeAllAuthors(){
   const named = AUTHOR_GROUPS.map(g=>g[1]).filter((v,i,a)=>a.indexOf(v)===i).filter(a=>present.has(a));
   const rest = [];
   if(present.has(NYT_AUTHOR)) rest.push(NYT_AUTHOR);
+  if(present.has(FAMILY_AUTHOR)) rest.push(FAMILY_AUTHOR);
   if(present.has(UNKNOWN_AUTHOR)) rest.push(UNKNOWN_AUTHOR);
   return named.concat(rest).sort((a,b)=> countForAuthor(b) - countForAuthor(a));
 }
