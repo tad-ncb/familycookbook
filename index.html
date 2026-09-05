@@ -737,57 +737,47 @@
      else on the page and let only the modal's content through, so what
      comes out of the printer (or a browser's Save as PDF, which uses this
      same stylesheet) is a clean one-pager instead of the whole app chrome. */
+  /* Shared by @media print (belt) and a body.printing class toggled right
+     before window.print() (suspenders) -- some export/PDF paths render the
+     print stylesheet unreliably (confirmed: a real screenshot from an actual
+     print came out at full on-screen sizing, single-column, none of this
+     applied), so the class version guarantees the condensed layout is
+     already painted on screen the instant Print is clicked, regardless of
+     whether the browser's print pass honors @media print in that context.
+     See #printRecipe's click handler and the `afterprint` listener below. */
   @media print{
-    /* visibility:hidden (the old approach here) keeps every hidden element's
-       box in the page flow -- the document stayed as tall as the whole site
-       (grid, toolbar, everything), so the browser paginated that entire
-       height and the actual recipe, position:absolute'd to the top, only
-       ever showed up on page 1 of what became a dozen mostly-blank pages.
-       display:none actually removes those siblings from layout, so the
-       printed page is only as tall as the recipe itself. */
     body > *{ display:none !important; }
-    /* #modalOverlay specifically -- #pickerOverlay shares the same class and
-       is also a direct body child, forcing it visible too would print
-       whatever it last held even while closed */
     body > #modalOverlay{ display:block !important; position:static !important; background:none !important; padding:0 !important; }
-    .modal{ position:static !important; width:100%; max-width:100%; box-shadow:none; border:none; margin:0; }
-    .modal-close, #modalActionsTop, .cook-panel, #modalAhead{ display:none !important; }
-    .modal-inner{ grid-template-columns:130px 1fr; display:grid !important; }
-
-    /* Getting the page count down further than that isn't a matter of
-       shrinking things uniformly -- it's the same sizes and spacing this
-       page uses for a comfortable ON-SCREEN read, which is a lot more room
-       than a printed page needs. Every size/gap below is a print-only
-       override, tightened specifically for paper. */
-    @page{ margin:0.4in; }
-    body, .modal-main, .modal-side{ font-size:10.5px !important; }
-    .modal-main{ padding:0 !important; }
-    .modal-main h2{ font-size:16px !important; margin:0 0 8px !important; }
-    .modal-sidelabel{ font-size:8px !important; margin-top:6px !important; }
-    .modal-sidelabel:first-child{ margin-top:0 !important; }
-    .modal-sideval, .modal-side .tags{ font-size:9.5px !important; }
-    .section-title{ font-size:9px !important; margin:10px 0 4px !important; }
-    .section-title:first-of-type{ margin-top:0 !important; }
-    #modalScale{ display:none !important; } /* scaling controls are a screen-only interaction */
-    .ing-list{ columns:3 !important; column-gap:14px !important; }
-    .ing-list li{ font-size:9.5px !important; line-height:1.25 !important; padding:2px 0 2px 12px !important; }
-    .ing-list li.heading{ font-size:8px !important; margin-top:6px !important; }
-    .ing-list li:not(.heading)::before{ top:8px !important; width:3px !important; height:3px !important; }
-    /* the ingredient/step badges only had their font-size shrunk before, not
-       the circle itself -- a full-size on-screen circle squeezed into a
-       narrower step indent, and squeezed vertically against a short
-       one-line step's much shorter row height, is exactly what made them
-       overlap each other and the text in print. */
-    .step-badge{ width:13px !important; height:13px !important; font-size:7.5px !important; border-width:1px !important; margin-left:3px !important; }
-    .ing-badge-slot{ min-width:13px !important; }
-    .steps{ columns:2 !important; column-gap:18px !important; }
-    .steps li{ font-size:9.5px !important; line-height:1.3 !important; padding:0 0 11px 16px !important; break-inside:avoid; }
-    .steps li::before{ width:13px !important; height:13px !important; font-size:7px !important; border-width:1px !important; }
-    .stamp-badge{ font-size:8px !important; padding:1px 5px !important; border-width:1px !important; }
-    .modal-side .tagpill{ font-size:8px !important; padding:1px 5px !important; }
-    .notes-box{ font-size:9px !important; padding:8px 10px !important; margin-top:10px !important; }
-    .notes-box .notes-label{ font-size:8px !important; }
   }
+  body.printing > *{ display:none !important; }
+  body.printing > #modalOverlay{ display:block !important; position:static !important; background:none !important; padding:0 !important; }
+
+  @media print{ @page{ margin:0.4in; } }
+  body.printing .modal{ position:static !important; width:100%; max-width:100%; box-shadow:none; border:none; margin:0; }
+  body.printing .modal-close, body.printing #modalActionsTop, body.printing .cook-panel, body.printing #modalAhead{ display:none !important; }
+  body.printing .modal-inner{ grid-template-columns:130px 1fr; display:grid !important; }
+  body.printing, body.printing .modal-main, body.printing .modal-side{ font-size:10.5px !important; }
+  body.printing .modal-main{ padding:0 !important; }
+  body.printing .modal-main h2{ font-size:16px !important; margin:0 0 8px !important; }
+  body.printing .modal-sidelabel{ font-size:8px !important; margin-top:6px !important; }
+  body.printing .modal-sidelabel:first-child{ margin-top:0 !important; }
+  body.printing .modal-sideval, body.printing .modal-side .tags{ font-size:9.5px !important; }
+  body.printing .section-title{ font-size:9px !important; margin:10px 0 4px !important; }
+  body.printing .section-title:first-of-type{ margin-top:0 !important; }
+  body.printing #modalScale{ display:none !important; }
+  body.printing .ing-list{ columns:3 !important; column-gap:14px !important; }
+  body.printing .ing-list li{ font-size:9.5px !important; line-height:1.25 !important; padding:2px 0 2px 12px !important; }
+  body.printing .ing-list li.heading{ font-size:8px !important; margin-top:6px !important; }
+  body.printing .ing-list li:not(.heading)::before{ top:8px !important; width:3px !important; height:3px !important; }
+  body.printing .step-badge{ width:13px !important; height:13px !important; font-size:7.5px !important; border-width:1px !important; margin-left:3px !important; }
+  body.printing .ing-badge-slot{ min-width:13px !important; }
+  body.printing .steps{ columns:2 !important; column-gap:18px !important; }
+  body.printing .steps li{ font-size:9.5px !important; line-height:1.3 !important; padding:0 0 11px 16px !important; break-inside:avoid; }
+  body.printing .steps li::before{ width:13px !important; height:13px !important; font-size:7px !important; border-width:1px !important; }
+  body.printing .stamp-badge{ font-size:8px !important; padding:1px 5px !important; border-width:1px !important; }
+  body.printing .modal-side .tagpill{ font-size:8px !important; padding:1px 5px !important; }
+  body.printing .notes-box{ font-size:9px !important; padding:8px 10px !important; margin-top:10px !important; }
+  body.printing .notes-box .notes-label{ font-size:8px !important; }
 
   /* Landing directly on a #r/<id> link (as anyone would from a shared text/
      link, never from browsing) shows just that recipe, not the whole
@@ -18121,7 +18111,7 @@ const RECIPES = [
     "title": "Cherry Cake",
     "category": "Dessert",
     "cuisine": "British",
-    "source": "Cookbook photo",
+    "source": "Paul Hollywood, \"Bake\"",
     "servings": "6-8",
     "ingredients": [
       "1 1/3 cups (165 g) all-purpose flour",
@@ -18180,7 +18170,7 @@ const RECIPES = [
     "title": "Chocolate Hazelnut Torte",
     "category": "Dessert",
     "cuisine": "German",
-    "source": "Cookbook photo",
+    "source": "Paul Hollywood, \"Bake\"",
     "servings": "10",
     "ingredients": [
       "1 cup plus 1 Tbsp (210 g) superfine sugar, divided",
@@ -18245,7 +18235,7 @@ const RECIPES = [
     "title": "Lemon Drizzle Cake",
     "category": "Dessert",
     "cuisine": "British",
-    "source": "Cookbook photo",
+    "source": "Paul Hollywood, \"Bake\"",
     "servings": "8-10",
     "ingredients": [
       "1 stick plus 4 Tbsp (175 g) butter, softened, plus extra to grease the pan",
@@ -18305,7 +18295,7 @@ const RECIPES = [
     "title": "Chocolate Fudge Cake",
     "category": "Dessert",
     "cuisine": "American",
-    "source": "Cookbook photo",
+    "source": "Paul Hollywood, \"Bake\"",
     "servings": "10",
     "ingredients": [
       "1 stick plus 4 Tbsp (175 g) margarine, softened, plus extra to grease the pans",
@@ -18376,7 +18366,7 @@ const RECIPES = [
     "title": "Blueberry Muffins",
     "category": "Breakfast",
     "cuisine": "American",
-    "source": "Cookbook photo",
+    "source": "Paul Hollywood, \"Bake\"",
     "servings": "Makes 12",
     "ingredients": [
       "4 1/4 cups (550 g) all-purpose flour",
@@ -18436,7 +18426,7 @@ const RECIPES = [
     "title": "Chocolate Brownies",
     "category": "Dessert",
     "cuisine": "American",
-    "source": "Cookbook photo",
+    "source": "Paul Hollywood, \"Bake\"",
     "servings": "Makes 12-15",
     "ingredients": [
       "8 oz (225 g) semisweet chocolate (35-45% cocoa solids), broken into small pieces",
@@ -18496,7 +18486,7 @@ const RECIPES = [
     "shortTitle": "Pistachio Raspberry Blondies",
     "category": "Dessert",
     "cuisine": "American",
-    "source": "Cookbook photo",
+    "source": "Paul Hollywood, \"Bake\"",
     "servings": "Makes 12",
     "ingredients": [
       "2 sticks plus 1 Tbsp (250 g) unsalted butter, plus extra to grease the pan",
@@ -18557,7 +18547,7 @@ const RECIPES = [
     "title": "Double Chocolate Chip Cookies",
     "category": "Dessert",
     "cuisine": "American",
-    "source": "Cookbook photo",
+    "source": "Paul Hollywood, \"Bake\"",
     "servings": "Makes 16",
     "ingredients": [
       "1 stick plus 2 Tbsp (150 g) butter, softened",
@@ -18615,7 +18605,7 @@ const RECIPES = [
     "title": "Peanut Butter Cookies",
     "category": "Dessert",
     "cuisine": "American",
-    "source": "Cookbook photo",
+    "source": "Paul Hollywood, \"Bake\"",
     "servings": "Makes 16",
     "ingredients": [
       "1 stick plus 3 Tbsp (160 g) butter, softened",
@@ -18672,7 +18662,7 @@ const RECIPES = [
     "title": "Ginger Snaps",
     "category": "Dessert",
     "cuisine": "American",
-    "source": "Cookbook photo",
+    "source": "Paul Hollywood, \"Bake\"",
     "servings": "Makes 18",
     "ingredients": [
       "1 3/4 cups (225 g) all-purpose flour",
@@ -18720,7 +18710,7 @@ const RECIPES = [
     "title": "Oatmeal Crackers",
     "category": "Bread",
     "cuisine": "American",
-    "source": "Cookbook photo",
+    "source": "Paul Hollywood, \"Bake\"",
     "servings": "Makes 10",
     "ingredients": [
       "5 Tbsp (75 g) unsalted butter",
@@ -18768,7 +18758,7 @@ const RECIPES = [
     "title": "Shortbread",
     "category": "Dessert",
     "cuisine": "British",
-    "source": "Cookbook photo",
+    "source": "Paul Hollywood, \"Bake\"",
     "servings": "Makes about 16",
     "ingredients": [
       "2 sticks (230 g) unsalted butter, softened",
@@ -18817,7 +18807,7 @@ const RECIPES = [
     "title": "Chocolate Macarons",
     "category": "Dessert",
     "cuisine": "French",
-    "source": "Cookbook photo",
+    "source": "Paul Hollywood, \"Bake\"",
     "servings": "Makes 32",
     "ingredients": [
       "For the macaron paste:",
@@ -18880,7 +18870,7 @@ const RECIPES = [
     "title": "Cauliflower and Broccoli Cheese",
     "category": "Side",
     "cuisine": "British",
-    "source": "Cookbook photo",
+    "source": "Paul Hollywood, \"Bake\"",
     "servings": "4",
     "ingredients": [
       "1 head of cauliflower, about 1 lb",
@@ -18946,7 +18936,7 @@ const RECIPES = [
     "title": "Apple Strudel",
     "category": "Dessert",
     "cuisine": "German",
-    "source": "Cookbook photo",
+    "source": "Paul Hollywood, \"Bake\"",
     "servings": "8",
     "ingredients": [
       "4 sheets phyllo pastry, 10x18 inches",
@@ -54563,7 +54553,10 @@ function renderModalActionsTop(){
   if(sn) sn.onclick = ()=>{
     navigator.share({title: modalRecipe.title, text: recipeAsText(modalRecipe)}).catch(()=>{});
   };
-  host.querySelector('#printRecipe').onclick = ()=> window.print();
+  host.querySelector('#printRecipe').onclick = ()=>{
+    document.body.classList.add('printing');
+    window.print();
+  };
 }
 
 /* ---------------- screen wake lock ---------------- */
@@ -55061,6 +55054,11 @@ async function authBoot(){
 authBoot();
 nytBoot();
 familySubmissionsBoot();
+
+/* remove the print-condensed layout once the print dialog closes --
+   afterprint fires whether the user actually printed or cancelled, either
+   way the page should go back to its normal on-screen appearance */
+window.addEventListener('afterprint', ()=> document.body.classList.remove('printing'));
 
 /* register the app-shell service worker so the page itself (not just the
    already-cached recipe data) loads with no network -- see sw.js. Registered
