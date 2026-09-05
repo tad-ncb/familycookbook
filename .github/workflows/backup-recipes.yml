@@ -1,0 +1,68 @@
+name: Backup Supabase recipes
+
+# Databases can go away (a plan lapses, an account gets closed, a table gets
+# fat-fingered) -- git history doesn't. The curated 837 recipes already live
+# in index.html and are safe. The bulk import (NYT/RecipeNLG/Gordon
+# Ramsay/BBC Good Food, tens of thousands of rows) lives ONLY in Supabase,
+# with no copy anywhere else -- this pulls a full snapshot into the repo on
+# a schedule so that data survives even if Supabase doesn't.
+on:
+  schedule:
+    - cron: '0 6 * * 0'  # every Sunday, 06:00 UTC
+  workflow_dispatch: {}   # lets you trigger it manually from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch all recipes from Supabase
+        env:
+          # the anon key is meant to be public (access control is Postgres
+          # row-level security, not secrecy of this key) -- same key already
+          # shipped client-side in index.html, so there's nothing extra to
+          # keep secret by putting it in this workflow file too.
+          SUPABASE_URL: https://kubvqmptumftqtfqrifs.supabase.co
+          SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt1YnZxbXB0dW1mdHF0ZnFyaWZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1MDc0NzcsImV4cCI6MjEwMzA4MzQ3N30.uWvku48avh5aUIp6V7lwGoNz-nk6RT1SiHaKODyWI2Q
+        run: |
+          mkdir -p backups
+          python3 - <<'PYEOF'
+          import os, json, urllib.request
+
+          base = os.environ['SUPABASE_URL'] + '/rest/v1/nyt_recipes'
+          key = os.environ['SUPABASE_ANON_KEY']
+          headers = {'apikey': key, 'Authorization': f'Bearer {key}'}
+          page_size = 1000
+          all_rows, start = [], 0
+          while True:
+              req = urllib.request.Request(
+                  f'{base}?select=*&order=id&limit={page_size}&offset={start}',
+                  headers=headers)
+              with urllib.request.urlopen(req) as resp:
+                  data = json.loads(resp.read())
+              all_rows.extend(data)
+              print(f'fetched {len(data)} rows at offset {start}')
+              if len(data) < page_size:
+                  break
+              start += page_size
+
+          with open('backups/nyt_recipes.json', 'w') as f:
+              json.dump(all_rows, f, indent=1, ensure_ascii=False)
+          print(f'TOTAL: {len(all_rows)} rows written to backups/nyt_recipes.json')
+          PYEOF
+
+      - name: Commit snapshot if it changed
+        run: |
+          git config user.name "cookbook-backup-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add backups/nyt_recipes.json
+          if git diff --cached --quiet; then
+            echo "No changes since last backup."
+            exit 0
+          fi
+          git commit -m "Weekly backup: nyt_recipes snapshot ($(date -u +%Y-%m-%d))"
+          git push
