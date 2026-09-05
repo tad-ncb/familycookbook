@@ -54229,7 +54229,7 @@ async function remoteFetchAll(){
    IndexedDB's quota is far higher (typically hundreds of MB+), so this actually
    persists across visits. */
 const NYT_CACHE_KEY = 'cookbook.nytRecipes';
-const NYT_CACHE_VERSION = 8; /* bumped: v7 cache predates adding .order('id') to the paginated fetch -- without a stable sort, pages could repeat/skip rows once the table grew to ~46k, producing visible duplicate cards */
+const NYT_CACHE_VERSION = 9; /* bumped: v8 cache predates deleting 451 junk-prefix-titled recipes (leading quote/paren/hyphen/digit, or "A "/"The ") */
 const NYT_DB_NAME = 'cookbookCache', NYT_DB_STORE = 'nytRecipes';
 
 function openNytDB(){
