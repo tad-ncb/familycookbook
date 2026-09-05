@@ -149,6 +149,7 @@
   }
   .card:hover{background:var(--card-hover);}
   .card:hover .card-title{color:var(--stamp);}
+  .card.family{ box-shadow:inset 3px 0 0 var(--gold); }
   .card-top{ display:flex; flex-wrap:wrap; align-items:flex-start; margin-bottom:10px; gap:6px; }
   .stamp-badge{
     font-family:'Work Sans', sans-serif; font-weight:500; font-size:10px; text-transform:uppercase;
@@ -52744,6 +52745,7 @@ const AUTHOR_GROUPS = [
 const UNKNOWN_AUTHOR = 'Individual/Unknown';
 const NYT_AUTHOR = 'NYT Cooking';
 const FAMILY_AUTHOR = 'Family Recipe';
+function isFamilyRecipe(r){ return authorOf(r) === FAMILY_AUTHOR; }
 function authorOf(r){
   if((r.tags||[]).includes('NYT Cooking')) return NYT_AUTHOR;
   const src = r.source || '';
@@ -52873,7 +52875,19 @@ function matchesFiltersExcept(r, exclude){
 }
 function getFiltered(){
   let list = RECIPES.filter(r=>matchesFiltersExcept(r, null));
-  const byTitle = (a,b)=>a.title.localeCompare(b.title);
+  /* family recipes are the actual point of a *family* cookbook -- give them
+     first billing. Every other sorter falls back to byTitle() as its final
+     tiebreak, so folding the family check in here makes it float family
+     recipes to the top under EVERY sort (grouped-then-alphabetical for the
+     default "az" sort, since byTitle IS the primary comparator there; just a
+     tiebreak for sorts like "most cooked"/"rating" that have their own
+     primary ordering, so it doesn't fight what the user actually asked to
+     sort by). */
+  const byTitle = (a,b)=>{
+    const fa = isFamilyRecipe(a), fb = isFamilyRecipe(b);
+    if(fa !== fb) return fa ? -1 : 1;
+    return a.title.localeCompare(b.title);
+  };
   const sorters = {
     az: byTitle,
     recent: (a,b)=>{ const A=lastMade(a.id), B=lastMade(b.id);
@@ -53081,7 +53095,7 @@ function renderGrid(){
   const toShow = filtered.slice(0, renderLimit);
   toShow.forEach(r=>{
     const card = document.createElement('div');
-    card.className = 'card';
+    card.className = 'card' + (isFamilyRecipe(r) ? ' family' : '');
     card.innerHTML = `
       <h3 class="card-title${r.nativeName?' dual-name':''}">${zwsp(escapeHTML(displayTitle(r)))}</h3>
       <div class="card-lines">${cardLinesHTML(r)}</div>`;
