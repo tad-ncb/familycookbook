@@ -53201,12 +53201,39 @@ function computeIngredientStepMap(r){
   });
   return map;
 }
-function stepBadgesFor(line, stepMap){
+/* words too generic or too much about quantity/packaging to mean anything
+   as a step-match signal on their own */
+const STEP_MATCH_STOPWORDS = new Set([
+  'with','into','from','about','until','over','under','through','before','after',
+  'cups','cup','tablespoons','tablespoon','teaspoons','teaspoon','ounces','ounce',
+  'pounds','pound','grams','gram','liters','liter','cloves','clove','cans','jars',
+  'package','packages','sticks','stick','pieces','piece','inch','inches','pinch',
+  'large','small','medium','fresh','chopped','sliced','diced','minced','ground',
+]);
+function lineTokens(line){
+  return line.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/)
+    .filter(w=> w.length >= 4 && !STEP_MATCH_STOPWORDS.has(w));
+}
+function stepBadgesFor(line, stepMap, steps){
   const nums = new Set();
   Object.keys(stepMap).forEach(term=>{
     const re = new RegExp('\\b' + term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + 's?\\b', 'i');
     if(re.test(line)) nums.add(stepMap[term]);
   });
+  /* ingredientCore is a NORMALIZED vocabulary built for dietary tagging --
+     "margarine" tags under the parent group "butter", "spaghetti sauce"
+     normalizes to "tomato sauce", plain staples like "water" get excluded
+     from it entirely. None of those literally appear in the ingredient's
+     own line, so the check above finds nothing for them even though the
+     step obviously does mention the actual words on the line. Only run
+     this fallback when that happened -- it's a broader, slightly riskier
+     match, so it should never override a clean ingredientCore hit. */
+  if(!nums.size && steps && steps.length){
+    const toks = lineTokens(line);
+    for(let i=0; i<steps.length; i++){
+      if(toks.some(t=> new RegExp('\\b' + t + 's?\\b', 'i').test(steps[i]))){ nums.add(i+1); break; }
+    }
+  }
   if(!nums.size) return '';
   return [...nums].sort((a,b)=>a-b).map(n=>`<span class="step-badge">${n}</span>`).join('');
 }
@@ -53220,7 +53247,7 @@ function renderIngredients(){
     const isHeading = item.endsWith(':') && item.split(' ').length < 6;
     if(isHeading){ li.className = 'heading'; li.innerHTML = renderInline(item); wrap.appendChild(li); return; }
     const res = scaleLine(item, f);
-    li.innerHTML = `<span class="ing-text">${renderInline(res.text)}${res.unscaled && f!==1 ? ' <span class="unscaled-note">· unscaled</span>' : ''}</span><span class="ing-badge-slot">${stepBadgesFor(item, stepMap)}</span>`;
+    li.innerHTML = `<span class="ing-text">${renderInline(res.text)}${res.unscaled && f!==1 ? ' <span class="unscaled-note">· unscaled</span>' : ''}</span><span class="ing-badge-slot">${stepBadgesFor(item, stepMap, r.instructions)}</span>`;
     wrap.appendChild(li);
   });
 }
