@@ -256,6 +256,7 @@
     font-family:'Archivo',sans-serif; font-weight:600; font-size:14px; color:var(--stamp);
   }
   .steps li strong{ font-weight:700; color:var(--ink); }
+  .steps li strong.ing-hit{ color:var(--gold); }
   .notes-box{
     margin-top:20px; background:var(--stamp-soft); padding:13px 18px;
     border-radius:2px; font-size:13px; line-height:1.42; color:#1c2c3d;
@@ -52384,6 +52385,26 @@ function relTime(iso){
 function escapeHTML(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 /* zero-width space after slashes -> lets long titles/cuisines wrap without a visible gap */
 function zwsp(s){ return String(s).replace(/\/(?!​)/g, '/​'); }
+/* bolds a step's own ingredient mentions (e.g. "whisk in the flour" -> the
+   word "flour" bolded) using the recipe's already-extracted ingredientCore
+   list, so a step reads as self-contained instead of sending you back up to
+   the ingredient list to remember what "the flour" meant. Runs on the
+   escaped-but-not-yet-linkified text, since escaping only touches
+   <>&"' and word-boundary matching on plain words is unaffected by that. */
+function highlightIngredientMentions(escapedText, core){
+  if(!core || !core.length) return escapedText;
+  const terms = [...core].filter(Boolean).sort((a,b)=>b.length-a.length)
+    .map(t=> t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  if(!terms.length) return escapedText;
+  const re = new RegExp(`\\b(${terms.join('|')})(e?s)?\\b`, 'gi');
+  return escapedText.replace(re, (m, word, plural)=> `<strong class="ing-hit">${m}</strong>`);
+}
+function renderStepInline(s, core){
+  let out = zwsp(highlightIngredientMentions(escapeHTML(s), core)).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  out = out.replace(/https?:\/​?\/​?[^\s<]+/g, m =>
+    `<a href="${m.replace(/​/g,'')}" target="_blank" rel="noopener noreferrer">${m}</a>`);
+  return out;
+}
 function renderInline(s){
   let out = zwsp(escapeHTML(s)).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   /* zwsp() already broke every URL's slashes apart with zero-width spaces for
@@ -53264,7 +53285,7 @@ function openModal(r){
 
   const stepsWrap = document.getElementById('modalSteps');
   stepsWrap.innerHTML = '';
-  (r.instructions||[]).forEach(step=>{ const li=document.createElement('li'); li.innerHTML=renderInline(step); stepsWrap.appendChild(li); });
+  (r.instructions||[]).forEach(step=>{ const li=document.createElement('li'); li.innerHTML=renderStepInline(step, r.ingredientCore); stepsWrap.appendChild(li); });
 
   document.getElementById('modalNotesWrap').innerHTML = r.notes
     ? `<div class="notes-box"><span class="notes-label">Notes &amp; Variations</span>${renderInline(r.notes)}</div>` : '';
