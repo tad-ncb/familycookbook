@@ -441,7 +441,7 @@
     border:1px solid var(--line); border-radius:3px; padding:7px 14px; cursor:pointer;
   }
   .viewtabs .vt:hover{ color:var(--stamp); border-color:var(--stamp); }
-  .viewtabs .vt.on{ color:#fff; background:var(--ink); border-color:var(--ink); }
+  .viewtabs .vt.on{ color:#fff; background:var(--stamp); border-color:var(--stamp); }
 
   .planwrap{ max-width:var(--maxw); margin:0 auto; padding:22px clamp(12px,2.6vw,32px) 100px; }
   .plan-head{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:16px; }
@@ -53074,7 +53074,7 @@ function renderToolbar(){
         <!-- "+ Plan ahead" is an independent toggle that combines with whichever
              Show state is active, not a mutually-exclusive 3rd Show option --
              sharing this row is just to save vertical space, not a grouping claim. -->
-        <button class="tb-btn" id="aheadBtn">+ Needs Extra Prep</button>
+        <button class="tb-btn" id="aheadBtn">Needs Extra Prep</button>
         <button class="tb-btn clear-btn" id="clearFilters">Clear filters</button>
       </div>`;
     tb.querySelectorAll('[data-made]').forEach(b=>{
