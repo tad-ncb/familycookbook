@@ -168,6 +168,11 @@
     font-weight:600; text-transform:uppercase; font-size:9.5px; letter-spacing:.06em;
     color:var(--ink-faint); margin-right:6px;
   }
+  /* title stays pinned to the top of the card; the label lines push to the
+     bottom via the auto margin, so cards of different heights still align
+     their fact-lines at the same baseline instead of trailing wherever the
+     title's own line-count happens to end. */
+  .card-lines{ margin-top:auto; }
 
   .modal-overlay{
     position:fixed; inset:0; background:var(--scrim); display:none;
@@ -52301,7 +52306,21 @@ function renderInline(s){ return zwsp(escapeHTML(s)).replace(/\*\*(.+?)\*\*/g, '
    "Pasteis de Nata (Custard Tarts, Belem Style)" -- everywhere else falls
    back to the existing shortTitle/title behavior unchanged. */
 function combinedTitle(r){ return r.nativeName ? (r.nativeName + ' (' + r.title + ')') : null; }
-function displayTitle(r){ return combinedTitle(r) || r.shortTitle || r.title; }
+/* small words (articles/conjunctions/short prepositions) read better lowercase
+   mid-title -- "Chicken with Roquefort", not "Chicken With Roquefort" -- but
+   never touch the first word, and never touch a word that isn't in simple
+   Capitalized form (leaves ALL-CAPS acronyms like "BBQ" alone). */
+const TITLE_MINOR_WORDS = new Set(['a','an','and','as','at','but','by','for','from','if','in',
+  'into','near','nor','of','off','on','onto','or','over','per','so','than','the','to','up','via','vs','with','yet']);
+function smartTitleCase(title){
+  if(!title) return title;
+  return title.split(' ').map((w,i)=>{
+    if(i===0) return w;
+    const lower = w.toLowerCase();
+    return (TITLE_MINOR_WORDS.has(lower) && /^[A-Z][a-z']*$/.test(w)) ? lower : w;
+  }).join(' ');
+}
+function displayTitle(r){ return smartTitleCase(combinedTitle(r) || r.shortTitle || r.title); }
 
 /* ---------------- time parsing ---------------- */
 function roundUp5(n){ return Math.ceil(n/5)*5; }
@@ -52877,9 +52896,8 @@ function starStr(n){ const k=Math.max(0,Math.min(5,Math.round(n))); return '★�
    modal-only now, same as the prep/cook breakdown. */
 /* Inline Labels layout: Type/Time/With(or Made)/Author/Added all render as
    one small caps label + plain text per line, directly under the title --
-   no badges, no separate footer. The only thing that keeps its own badge
-   is Plan Ahead/Overnight, since that's an actionable flag worth visually
-   standing out from routine facts, not just another line of text. */
+   no badges, no separate footer, all the same visual weight (including
+   Plan Ahead/Overnight, which used to be its own standalone badge). */
 function cardLine(label, value){
   return `<p class="card-line"><span class="card-line-label">${label}</span>${value}</p>`;
 }
@@ -52888,6 +52906,7 @@ function cardLinesHTML(r){
   const typeParts = [r.category, r.cuisine].filter(Boolean).map(x=>zwsp(escapeHTML(x)));
   if(typeParts.length) lines.push(cardLine('Type', typeParts.join(', ')));
   if(r._total) lines.push(cardLine('Time', fmtTime(r._total)));
+  if(r._ahead) lines.push(cardLine('Ahead', escapeHTML(r._ahead.label)));
 
   const n = timesMade(r.id), last = lastMade(r.id), avg = avgRating(r.id);
   if(n===0){
@@ -52953,9 +52972,8 @@ function renderGrid(){
     const card = document.createElement('div');
     card.className = 'card';
     card.innerHTML = `
-      ${r._ahead ? `<div class="card-top"><span class="stamp-badge ahead">${escapeHTML(r._ahead.label)}</span></div>` : ''}
       <h3 class="card-title${r.nativeName?' dual-name':''}">${zwsp(escapeHTML(displayTitle(r)))}</h3>
-      ${cardLinesHTML(r)}`;
+      <div class="card-lines">${cardLinesHTML(r)}</div>`;
     card.onclick = ()=> openModal(r);
     grid.appendChild(card);
   });
@@ -53082,7 +53100,7 @@ function openModal(r){
     (p && c) ? `${fmtTime(p)} / ${fmtTime(c)}` : (t ? `${fmtTime(t)} total` : '—');
   document.getElementById('modalSideAdded').textContent = fmtAddedDate(addedDateOf(r));
   const modalTitleEl = document.getElementById('modalTitle');
-  modalTitleEl.innerHTML = zwsp(escapeHTML(combinedTitle(r) || r.title));
+  modalTitleEl.innerHTML = zwsp(escapeHTML(displayTitle(r)));
   modalTitleEl.classList.toggle('dual-name', !!r.nativeName);
 
   const tagsWrap = document.getElementById('modalTags');
