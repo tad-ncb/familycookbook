@@ -142,22 +142,10 @@
   .card:hover{background:var(--card-hover);}
   .card:hover .card-title{color:var(--stamp);}
   .card-top{ display:flex; flex-wrap:wrap; align-items:flex-start; margin-bottom:10px; gap:6px; }
-  .card-tags{ display:flex; flex-wrap:wrap; gap:6px; min-width:0; }
   .stamp-badge{
     font-family:'Work Sans', sans-serif; font-weight:500; font-size:10px; text-transform:uppercase;
     letter-spacing:0.04em; color:var(--stamp); border:1px solid var(--stamp);
     padding:3px 8px; border-radius:5px; white-space:nowrap;
-  }
-  .stamp-badge.cuisine{
-    color:var(--ink-soft); border-color:var(--line); background:var(--stamp-soft);
-  }
-  /* time/servings ride in the same row as the course/cuisine badges -- a
-     lighter-weight "fact" style (filled, no border color) distinguishes
-     stats from taxonomy without needing a separate row */
-  .card-stat{
-    font-family:'Work Sans', sans-serif; font-size:10px; color:var(--ink-soft);
-    background:var(--card-hover); border:1px solid var(--hair); padding:2px 7px;
-    border-radius:4px; font-variant-numeric:tabular-nums; white-space:nowrap;
   }
   .card-title{
     font-family:'Archivo',sans-serif; font-weight:600; font-size:15.5px;
@@ -168,16 +156,18 @@
   /* dishes shown as "Native Name (English Name)" run longer than a normal
      title, so they get a smaller size to fit without dominating the card. */
   .card-title.dual-name{ font-size:13.5px; line-height:1.28; }
-  .card-bottom{
-    margin-top:auto; padding-top:12px; border-top:1px solid var(--line);
-    display:flex; flex-wrap:wrap; justify-content:space-between; align-items:baseline; gap:3px 10px;
+  /* Inline Labels: Type/Time/With(or Made)/Author/Added each get a small
+     caps label baked into the line instead of separate badges/footer --
+     one continuous run of text per fact, all the same visual weight. */
+  .card-line{
+    font-family:'Work Sans',sans-serif; font-size:11.5px; color:var(--ink-soft);
+    line-height:1.5; margin:0 0 3px; overflow-wrap:anywhere;
   }
-  .card-source{
-    font-family:'Work Sans',sans-serif; font-style:italic; font-size:12px; color:var(--ink-soft);
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-    flex:1 1 auto; min-width:0;
+  .card-line:last-child{ margin-bottom:0; }
+  .card-line-label{
+    font-weight:600; text-transform:uppercase; font-size:9.5px; letter-spacing:.06em;
+    color:var(--ink-faint); margin-right:6px;
   }
-  .card-added{ flex:0 0 auto; }
 
   .modal-overlay{
     position:fixed; inset:0; background:var(--scrim); display:none;
@@ -308,18 +298,6 @@
   button.tb-btn:hover{ border-color:var(--stamp); }
   button.tb-btn.on{ color:var(--paper); background:var(--stamp); border-color:var(--stamp); }
 
-  .card-meta{
-    display:flex; align-items:center; gap:5px 8px; flex-wrap:wrap;
-    margin:0 0 10px; font-family:'Work Sans', sans-serif; font-size:9.5px;
-    color:var(--ink-faint); letter-spacing:0.04em; line-height:1.5;
-  }
-  .made-badge{ color:var(--stamp); }
-  .ing-preview{ display:flex; flex-wrap:wrap; gap:4px; }
-  .ing-pill{
-    font-family:'Work Sans', sans-serif; font-size:10.5px; color:var(--ink-soft);
-    background:var(--stamp-soft); padding:2px 7px; border-radius:4px;
-  }
-  .stars{ color:var(--gold); letter-spacing:0.5px; }
   .ahead-pill{
     font-family:'Work Sans', sans-serif; font-size:9px; text-transform:uppercase;
     letter-spacing:0.07em; color:var(--alert); background:var(--alert-soft);
@@ -52897,23 +52875,35 @@ function starStr(n){ const k=Math.max(0,Math.min(5,Math.round(n))); return '★�
 /* card-level time is just the total, as a single stat tag alongside course/
    cuisine -- servings only matters once you're actually cooking, so it's
    modal-only now, same as the prep/cook breakdown. */
-function cardStatsHTML(r){
-  return r._total ? `<span class="card-stat">${fmtTime(r._total)}</span>` : '';
+/* Inline Labels layout: Type/Time/With(or Made)/Author/Added all render as
+   one small caps label + plain text per line, directly under the title --
+   no badges, no separate footer. The only thing that keeps its own badge
+   is Plan Ahead/Overnight, since that's an actionable flag worth visually
+   standing out from routine facts, not just another line of text. */
+function cardLine(label, value){
+  return `<p class="card-line"><span class="card-line-label">${label}</span>${value}</p>`;
 }
-function cardMetaHTML(r){
+function cardLinesHTML(r){
+  const lines = [];
+  const typeParts = [r.category, r.cuisine].filter(Boolean).map(x=>zwsp(escapeHTML(x)));
+  if(typeParts.length) lines.push(cardLine('Type', typeParts.join(', ')));
+  if(r._total) lines.push(cardLine('Time', fmtTime(r._total)));
+
   const n = timesMade(r.id), last = lastMade(r.id), avg = avgRating(r.id);
-  const bits = [];
   if(n===0){
     /* "Never made" is true for most cards -- not worth the space. Show a
        quick ingredient preview instead, so the card hints at the dish
        without needing to open it. */
     const preview = ingredientPreview(r);
-    if(preview.length) bits.push(`<div class="ing-preview">${preview.map(ing=>`<span class="ing-pill">${escapeHTML(ing)}</span>`).join('')}</div>`);
+    if(preview.length) lines.push(cardLine('With', preview.map(escapeHTML).join(', ')));
   } else {
-    bits.push(`<span class="made-badge">Made ${n}×</span><span>${relTime(last)}</span>`);
+    let made = `Made ${n}× · ${relTime(last)}`;
+    if(avg) made += ` ${starStr(avg)}`;
+    lines.push(cardLine('Made', made));
   }
-  if(avg) bits.push(`<span class="stars">${starStr(avg)}</span>`);
-  return `<div class="card-meta">${bits.join('')}</div>`;
+  if(r.source) lines.push(cardLine('Author', zwsp(escapeHTML(r.source))));
+  lines.push(cardLine('Added', fmtAddedDate(addedDateOf(r))));
+  return lines.join('');
 }
 /* pantry staples that are almost always present and say nothing distinctive
    about the dish -- rank them last so the preview leads with what actually
@@ -52963,20 +52953,9 @@ function renderGrid(){
     const card = document.createElement('div');
     card.className = 'card';
     card.innerHTML = `
-      <div class="card-top">
-        <div class="card-tags">
-          ${r.category ? `<span class="stamp-badge">${escapeHTML(r.category)}</span>` : ''}
-          ${r.cuisine ? `<span class="stamp-badge cuisine">${zwsp(escapeHTML(r.cuisine))}</span>` : ''}
-          ${cardStatsHTML(r)}
-          ${r._ahead ? `<span class="stamp-badge ahead">${escapeHTML(r._ahead.label)}</span>` : ''}
-        </div>
-      </div>
+      ${r._ahead ? `<div class="card-top"><span class="stamp-badge ahead">${escapeHTML(r._ahead.label)}</span></div>` : ''}
       <h3 class="card-title${r.nativeName?' dual-name':''}">${zwsp(escapeHTML(displayTitle(r)))}</h3>
-      ${cardMetaHTML(r)}
-      <div class="card-bottom">
-        <span class="card-source">${zwsp(escapeHTML(r.source||''))}</span>
-        <span class="card-added card-stat">${fmtAddedDate(addedDateOf(r))}</span>
-      </div>`;
+      ${cardLinesHTML(r)}`;
     card.onclick = ()=> openModal(r);
     grid.appendChild(card);
   });
