@@ -773,9 +773,18 @@
     .ing-list li{ font-size:9.5px !important; line-height:1.25 !important; padding:2px 0 2px 12px !important; }
     .ing-list li.heading{ font-size:8px !important; margin-top:6px !important; }
     .ing-list li:not(.heading)::before{ top:8px !important; width:3px !important; height:3px !important; }
+    /* the ingredient/step badges only had their font-size shrunk before, not
+       the circle itself -- a full-size on-screen circle squeezed into a
+       narrower step indent, and squeezed vertically against a short
+       one-line step's much shorter row height, is exactly what made them
+       overlap each other and the text in print. */
+    .step-badge{ width:11px !important; height:11px !important; font-size:6.5px !important; border-width:1px !important; margin-left:3px !important; }
+    .ing-badge-slot{ min-width:11px !important; }
     .steps{ columns:2 !important; column-gap:18px !important; }
-    .steps li{ font-size:9.5px !important; line-height:1.25 !important; padding:0 0 8px 18px !important; break-inside:avoid; }
-    .steps li::before{ font-size:10px !important; }
+    .steps li{ font-size:9.5px !important; line-height:1.3 !important; padding:0 0 11px 16px !important; break-inside:avoid; }
+    .steps li::before{ width:13px !important; height:13px !important; font-size:7px !important; border-width:1px !important; }
+    .stamp-badge{ font-size:8px !important; padding:1px 5px !important; border-width:1px !important; }
+    .modal-side .tagpill{ font-size:8px !important; padding:1px 5px !important; }
     .notes-box{ font-size:9px !important; padding:8px 10px !important; margin-top:10px !important; }
     .notes-box .notes-label{ font-size:8px !important; }
   }
@@ -786,6 +795,18 @@
      entire cookbook". It's a framing choice, not an access control: the link
      to browse everything is still one tap away, just not the default view. */
   body.share-view .masthead, body.share-view #cookbookView{ display:none; }
+  /* full-viewport on every screen size in share mode, not just mobile --
+     there's nothing behind it to frame (masthead/grid are hidden above), so
+     a card floating on empty white space looks like a mistake instead of
+     the page itself. This is exactly the mobile treatment already used at
+     max-width:640px, just not limited to that width here. */
+  body.share-view .modal-overlay{ padding:0; align-items:stretch; }
+  body.share-view .modal{ max-width:none; width:100vw; min-height:100vh; margin-bottom:0; border-radius:0; box-shadow:none; }
+  body.share-view .modal-close{
+    position:sticky; top:0; margin-left:auto; z-index:1;
+    width:44px; height:44px; font-size:22px;
+    background:var(--card); border-bottom:1px solid var(--line);
+  }
   .share-footer{
     text-align:center; padding:18px 20px 8px; font-family:'Work Sans',sans-serif;
     font-size:11px; color:var(--ink-faint);
@@ -53467,6 +53488,10 @@ function openModal(r){
   document.getElementById('modalOverlay').scrollTop = 0;
 }
 function closeModal(){
+  /* on a genuine shared-recipe landing there's no toolbar/grid behind this
+     to reveal -- closing would just drop the visitor onto a blank page, so
+     send them to the real cookbook instead of "closing" into nothing. */
+  if(cameFromShareLink){ location.href = location.pathname; return; }
   document.getElementById('modalOverlay').classList.remove('open');
   document.body.style.overflow = '';
   modalRecipe = null;
@@ -54442,9 +54467,12 @@ function setMaking(on){
 function renderModalActionsTop(){
   const host = document.getElementById('modalActionsTop');
   /* two rows: the mode-toggle actions (Start Making / Mark Cooked) on top,
-     the three ways to hand the recipe to someone else (share sheet, print,
-     link) below -- kept as three direct buttons rather than tucked behind
-     one "Share" button, so all three stay one tap away instead of two. */
+     then Share/Print below. Share via... already puts the recipe (link
+     included, see recipeAsText) into whatever app the OS share sheet picks,
+     so a separate Copy Link button next to it was redundant -- except on a
+     browser with no share-sheet support at all (Firefox desktop, notably),
+     where this is now the only way to hand off a link short of Print; if
+     that turns out to matter, Copy Link is one line to bring back. */
   host.innerHTML = `<div class="action-row-top">
       <button class="icon-btn ${making?'on':''}" id="makeToggle">${making?'Making mode on':'Start making'}</button>
       <button class="icon-btn" id="markCookedTop">Mark cooked</button>
@@ -54453,9 +54481,7 @@ function renderModalActionsTop(){
     <div class="action-row-top">
       ${navigator.share ? `<button class="icon-btn" id="shareNative">Share via&hellip;</button>` : ''}
       <button class="icon-btn" id="printRecipe">Print</button>
-      <button class="icon-btn" id="copyLink">Copy link</button>
-    </div>
-    <span class="make-prog" id="copyMsg"></span>`;
+    </div>`;
 
   host.querySelector('#makeToggle').onclick = ()=> setMaking(!making);
   const rst = host.querySelector('#makeReset');
@@ -54466,18 +54492,11 @@ function renderModalActionsTop(){
     if(f) f.classList.toggle('open');
   };
 
-  const msg = host.querySelector('#copyMsg');
-  const flash = (text) => { msg.textContent = text; setTimeout(()=> msg.textContent='', 1800); };
   const sn = host.querySelector('#shareNative');
   if(sn) sn.onclick = ()=>{
     navigator.share({title: modalRecipe.title, text: recipeAsText(modalRecipe)}).catch(()=>{});
   };
   host.querySelector('#printRecipe').onclick = ()=> window.print();
-  host.querySelector('#copyLink').onclick = ()=>{
-    const url = location.origin + location.pathname + hashFor(modalRecipe.id);
-    if(navigator.clipboard) navigator.clipboard.writeText(url).then(()=>flash('link copied'), ()=>{ msg.textContent = url; });
-    else msg.textContent = url;
-  };
 }
 
 /* ---------------- screen wake lock ---------------- */
