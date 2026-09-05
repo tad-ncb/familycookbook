@@ -145,6 +145,9 @@
   .stamp-badge.nyt{
     color:#fff; background:var(--stamp); border-color:var(--stamp);
   }
+  .stamp-badge.ahead{
+    color:var(--alert); background:var(--alert-soft); border-color:var(--alert);
+  }
   /* time sits on its own row and wraps -- it used to be nowrap beside the
      badges, which overflowed once the total + split were both shown */
   .card-time{
@@ -52989,14 +52992,26 @@ function cardMetaHTML(r){
     /* "Never made" is true for most cards -- not worth the space. Show a
        quick ingredient preview instead, so the card hints at the dish
        without needing to open it. */
-    const preview = (r.ingredientCore||[]).slice(0,3).join(', ');
+    const preview = ingredientPreview(r);
     if(preview) bits.push(`<span class="ing-preview">${escapeHTML(preview)}</span>`);
   } else {
     bits.push(`<span class="made-badge">Made ${n}×</span><span>${relTime(last)}</span>`);
   }
   if(avg) bits.push(`<span class="stars">${starStr(avg)}</span>`);
-  if(r._ahead) bits.push(`<span class="ahead-pill">${r._ahead.label}</span>`);
   return `<div class="card-meta">${bits.join('')}</div>`;
+}
+/* pantry staples that are almost always present and say nothing distinctive
+   about the dish -- rank them last so the preview leads with what actually
+   matters (the protein, the standout vegetable/spice), not "garlic, salt". */
+const BORING_INGREDIENTS = new Set([
+  'salt','kosher salt','sea salt','black pepper','pepper','white pepper','garlic',
+  'onion','olive oil','vegetable oil','oil','canola oil','butter','sugar','flour',
+  'water','baking soda','baking powder','cornstarch','all-purpose flour',
+]);
+function ingredientPreview(r){
+  const core = r.ingredientCore || [];
+  const ranked = [...core].sort((a,b) => (BORING_INGREDIENTS.has(a)?1:0) - (BORING_INGREDIENTS.has(b)?1:0));
+  return ranked.slice(0,5).join(', ');
 }
 function renderGrid(){
   const grid = document.getElementById('grid');
@@ -53019,6 +53034,7 @@ function renderGrid(){
           ${(r.tags||[]).includes('NYT Cooking') ? `<span class="stamp-badge nyt">NYT</span>` : ''}
           ${r.category ? `<span class="stamp-badge">${escapeHTML(r.category)}</span>` : ''}
           ${r.cuisine ? `<span class="stamp-badge cuisine">${zwsp(escapeHTML(r.cuisine))}</span>` : ''}
+          ${r._ahead ? `<span class="stamp-badge ahead">${escapeHTML(r._ahead.label)}</span>` : ''}
         </div>
       </div>
       <h3 class="card-title${r.nativeName?' dual-name':''}">${zwsp(escapeHTML(displayTitle(r)))}</h3>
@@ -54233,7 +54249,7 @@ async function remoteFetchAll(){
    IndexedDB's quota is far higher (typically hundreds of MB+), so this actually
    persists across visits. */
 const NYT_CACHE_KEY = 'cookbook.nytRecipes';
-const NYT_CACHE_VERSION = 10; /* bumped: v9 cache predates recategorizing 19 European recipes to German/French, deleting 3 more junk-prefixed titles ([, &, ~, A+), and renaming Greek/Mediterranean -> Mediterranean */
+const NYT_CACHE_VERSION = 11; /* bumped: v10 cache predates stripping 1,496 unneeded possessive-name prefixes (Mom's/Grandma's/random-person's) from recipe titles */
 const NYT_DB_NAME = 'cookbookCache', NYT_DB_STORE = 'nytRecipes';
 
 function openNytDB(){
