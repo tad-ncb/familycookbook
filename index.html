@@ -106,6 +106,12 @@
     font-family:'Work Sans', sans-serif; font-size:12px; font-variant-numeric:tabular-nums;
     color:var(--ink-soft); white-space:nowrap; flex-shrink:0;
   }
+  .load-pill{
+    font-family:'Work Sans', sans-serif; font-size:10.5px; color:var(--stamp);
+    border:1px solid var(--stamp); border-radius:10px; padding:2px 9px;
+    white-space:nowrap; flex-shrink:0; animation:loadPulse 1.4s ease-in-out infinite;
+  }
+  @keyframes loadPulse{ 0%,100%{opacity:0.55;} 50%{opacity:1;} }
 
   .facet-rows{ margin-top:4px; display:flex; flex-direction:column; gap:0; }
   .facet-row{ display:flex; align-items:baseline; flex-wrap:wrap; gap:5px 6px; padding:7px 0; border-bottom:1px solid var(--line); }
@@ -814,6 +820,7 @@
       <div class="search-row">
         <input id="searchInput" type="text" placeholder="What are we making?">
         <span class="result-count" id="resultCount"></span>
+        <span class="load-pill" id="nytLoadIndicator" hidden>Loading full library&hellip;</span>
       </div>
     </div>
     <div class="facet-row">
@@ -54650,8 +54657,13 @@ async function deleteSubmission(id){
   await familySubmissionsBoot();
 }
 
+function setNytLoading(on){
+  const el = document.getElementById('nytLoadIndicator');
+  if(el) el.hidden = !on;
+}
 async function nytBoot(){
   if(!sb) return;
+  setNytLoading(true);
   const cached = await loadNytCache();
   if(cached && cached.version === NYT_CACHE_VERSION && Array.isArray(cached.rows)){
     /* A version bump is a manual step (see NYT_CACHE_VERSION comment) and it's
@@ -54669,6 +54681,7 @@ async function nytBoot(){
       console.log(`nytBoot: cache hit, showing ${cached.rows.length} cached NYT recipes, skipping the network fetch`);
       await mergeNytRecipes(cached.rows);
       render();
+      setNytLoading(false);
       return; /* the whole point of caching is to skip the ~20-request paginated
                  fetch on repeat visits -- only an actual data change should
                  ever trigger a full refetch */
@@ -54729,6 +54742,7 @@ async function nytBoot(){
   if(RECIPES.length !== before) render(); /* only re-render if the fetch actually added anything new vs. the cache */
   if(hadError) console.error(`nytBoot: stopped early after fetching ${allData.length} NYT recipes -- see errors above`);
   else console.log(`nytBoot: fetch complete, ${allData.length} rows fetched, RECIPES now has ${RECIPES.length} total`);
+  setNytLoading(false);
 }
 
 /* ---------------- offline write queue ---------------- */
