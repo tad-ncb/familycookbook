@@ -657,16 +657,17 @@
   }
 
   /* --- making mode --- */
-  .make-bar{
-    display:flex; align-items:center; flex-wrap:wrap; gap:8px 14px;
-    margin:18px 0 4px; padding:10px 13px;
-    border:1px solid var(--line); border-radius:3px; background:var(--paper);
-  }
-  .make-bar.on{ border-color:var(--stamp); background:var(--stamp-soft); }
+  /* the three top-of-card actions (Start Making / Share / Mark as Cooked) --
+     one uniform row, same button style/size for all three */
+  .action-row-top{ display:flex; gap:8px; margin-bottom:2px; }
+  .action-row-top .icon-btn{ flex:1; text-align:center; padding:8px 6px; }
+  .make-sub{ display:flex; align-items:center; gap:10px; margin-bottom:8px; }
   .make-prog{
     font-family:'Work Sans', sans-serif; font-size:10.5px; color:var(--ink-soft);
     font-variant-numeric:tabular-nums;
   }
+  .share-menu{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:8px; }
+  .share-menu[hidden]{ display:none; }
 
   /* checkable ingredients + steps while cooking */
   .making .ing-list li:not(.heading), .making .steps li{ cursor:pointer; }
@@ -689,10 +690,6 @@
     background:var(--stamp); border-color:var(--stamp);
   }
 
-  .modal-actions{
-    display:flex; flex-wrap:wrap; gap:8px; align-items:center;
-    margin:16px 0 0; padding-top:14px; border-top:1px solid var(--line);
-  }
 
   @media (max-width:760px){
     .grid{ grid-template-columns:1fr; }
@@ -705,7 +702,7 @@
     .scale-bar{ gap:8px 12px; }
     .sb-block{ flex:0 0 auto; }
     .ing-list{ columns:1; }
-    .make-bar{ gap:8px 10px; }
+    .action-row-top{ gap:6px; }
   }
   .sync-dot{ font-size:10.5px; letter-spacing:0.04em; }
   .sync-dot.s-ok, .sync-dot.s-idle{ color:#5FA36B; border-color:#5FA36B33; }
@@ -721,7 +718,7 @@
     .modal, .modal *{ visibility:visible; }
     .modal-overlay{ position:static; background:none; padding:0; }
     .modal{ position:absolute; top:0; left:0; width:100%; max-width:100%; box-shadow:none; border:none; margin:0; }
-    .modal-close, .make-bar, .modal-actions, .cook-panel, #modalAhead{ display:none !important; }
+    .modal-close, .action-row-top, .make-sub, .share-menu, .cook-panel, #modalAhead{ display:none !important; }
     .modal-inner{ grid-template-columns:150px 1fr; display:grid !important; }
   }
 
@@ -893,6 +890,7 @@
     <div class="modal-close" id="modalClose">&times;</div>
     <div class="modal-inner">
       <div class="modal-side">
+        <div id="modalActionsTop"></div>
         <div class="modal-sidelabel">Course</div><div class="modal-sideval" id="modalSideCourse"></div>
         <div class="modal-sidelabel">Cuisine</div><div class="modal-sideval" id="modalSideCuisine"></div>
         <div class="modal-sidelabel">Source</div><div class="modal-sideval" id="modalSideSource"></div>
@@ -900,12 +898,12 @@
         <div class="modal-sidelabel">Prep / Cook</div><div class="modal-sideval" id="modalSideTime"></div>
         <div class="modal-sidelabel">Diet</div><div class="tags" id="modalTags"></div>
         <div class="modal-sidelabel">Added</div><div class="modal-sideval" id="modalSideAdded"></div>
+        <div id="modalCook"></div>
       </div>
       <div class="modal-main">
         <h2 id="modalTitle"></h2>
 
         <div id="modalAhead"></div>
-        <div id="modalMake"></div>
 
         <div class="section-title">Ingredients</div>
         <div id="modalScale"></div>
@@ -915,8 +913,6 @@
         <ol class="steps" id="modalSteps"></ol>
 
         <div id="modalNotesWrap"></div>
-        <div id="modalActions"></div>
-        <div id="modalCook"></div>
         <div id="modalShareFooter"></div>
       </div>
     </div>
@@ -53191,7 +53187,6 @@ function renderCookPanel(){
   host.innerHTML = `
     <div class="cook-panel">
       <div class="cook-row">
-        <button class="cook-btn" id="markCooked">Mark as cooked</button>
         <span style="color:var(--ink-soft); font-size:13px;">${summary}</span>
       </div>
       <div class="cook-form" id="cookForm">
@@ -53217,7 +53212,6 @@ function renderCookPanel(){
     sp.onclick = ()=>{ rating = +sp.dataset.v;
       pick.querySelectorAll('span').forEach(x=> x.classList.toggle('lit', +x.dataset.v <= rating)); };
   });
-  host.querySelector('#markCooked').onclick = ()=> host.querySelector('#cookForm').classList.toggle('open');
   host.querySelector('#cookSave').onclick = ()=>{
     addCook(r.id, host.querySelector('#cookDate').value || todayISO(), rating,
       host.querySelector('#cookNote').value.trim(), host.querySelector('#cookLeftover').value.trim());
@@ -53260,7 +53254,6 @@ function openModal(r){
   ticks = loadTicks(r.id);
   making = (ticks.ing.length + ticks.step.length) > 0;
   document.getElementById('modalCard').classList.toggle('making', making);
-  renderMakeBar();
 
   const stepsWrap = document.getElementById('modalSteps');
   stepsWrap.innerHTML = '';
@@ -53269,8 +53262,8 @@ function openModal(r){
   document.getElementById('modalNotesWrap').innerHTML = r.notes
     ? `<div class="notes-box"><span class="notes-label">Notes &amp; Variations</span>${renderInline(r.notes)}</div>` : '';
 
-  renderModalActions();
   renderCookPanel();
+  renderModalActionsTop();
   document.getElementById('modalShareFooter').innerHTML = cameFromShareLink
     ? `<div class="share-footer">Shared from the family cookbook · <a href="${location.pathname}">Browse the full cookbook</a></div>` : '';
   wireTicks();
@@ -54245,38 +54238,72 @@ function wireTicks(){
 function setMaking(on){
   making = on;
   document.getElementById('modalCard').classList.toggle('making', on);
-  renderMakeBar();
+  renderModalActionsTop();
   paintTicks();
   if(on) requestWake(); else releaseWake();
 }
-function renderMakeBar(){
-  const host = document.getElementById('modalMake');
-  host.innerHTML = `<div class="make-bar ${making?'on':''}">
-      <button class="icon-btn ${making?'on':''}" id="makeToggle">${making?'✓ Making mode on':'Start making mode'}</button>
-      <span class="make-prog" id="makeProg"></span>
-      ${making?`<button class="icon-btn" id="makeReset">reset ticks</button>`:''}
-    </div>`;
+/* The three top-of-card actions (Start Making, Share, Mark as Cooked) render
+   as one uniform row -- all the same button style/size, per Tyler's call
+   after seeing the layout options. Share stays one button, not three: it
+   opens a small menu with the native share sheet / print / copy-link options
+   that used to be their own separate buttons in the main column. Mark as
+   Cooked just toggles the #cookForm that renderCookPanel() renders down in
+   the left column's cook-log section -- the button and the form it opens
+   don't need to be next to each other in the DOM. */
+function renderModalActionsTop(){
+  const host = document.getElementById('modalActionsTop');
+  host.innerHTML = `<div class="action-row-top">
+      <button class="icon-btn ${making?'on':''}" id="makeToggle">${making?'Making mode on':'Start making'}</button>
+      <button class="icon-btn" id="shareBtn">Share recipe</button>
+      <button class="icon-btn" id="markCookedTop">Mark as cooked</button>
+    </div>
+    ${making ? `<div class="make-sub"><span class="make-prog" id="makeProg"></span><button class="icon-btn" id="makeReset">reset ticks</button></div>` : ''}
+    <div class="share-menu" id="shareMenu" hidden></div>`;
+
   host.querySelector('#makeToggle').onclick = ()=> setMaking(!making);
   const rst = host.querySelector('#makeReset');
   if(rst) rst.onclick = ()=>{ ticks={ing:[],step:[]}; clearTicks(modalRecipe.id); paintTicks(); };
+
+  host.querySelector('#markCookedTop').onclick = ()=>{
+    const f = document.getElementById('cookForm');
+    if(f) f.classList.toggle('open');
+  };
+
+  const shareMenu = host.querySelector('#shareMenu');
+  shareMenu.innerHTML = `
+      ${navigator.share ? `<button class="icon-btn" id="shareNative">Share via&hellip;</button>` : ''}
+      <button class="icon-btn" id="printRecipe">Print recipe</button>
+      <button class="icon-btn" id="copyLink">Copy link</button>
+      <span class="make-prog" id="copyMsg"></span>`;
+  const msg = shareMenu.querySelector('#copyMsg');
+  const flash = (text) => { msg.textContent = text; setTimeout(()=> msg.textContent='', 1800); };
+  const sn = shareMenu.querySelector('#shareNative');
+  if(sn) sn.onclick = ()=>{
+    navigator.share({title: modalRecipe.title, text: recipeAsText(modalRecipe)}).catch(()=>{});
+  };
+  shareMenu.querySelector('#printRecipe').onclick = ()=> window.print();
+  shareMenu.querySelector('#copyLink').onclick = ()=>{
+    const url = location.origin + location.pathname + hashFor(modalRecipe.id);
+    if(navigator.clipboard) navigator.clipboard.writeText(url).then(()=>flash('link copied'), ()=>{ msg.textContent = url; });
+    else msg.textContent = url;
+  };
+  host.querySelector('#shareBtn').onclick = ()=>{ shareMenu.hidden = !shareMenu.hidden; };
 }
 
 /* ---------------- screen wake lock ---------------- */
 let wakeLock = null, wakeOn = false;
 function wakeSupported(){ return 'wakeLock' in navigator; }
-async function requestWake(explicit){
+async function requestWake(){
   if(!wakeSupported()) return;
   try{
     wakeLock = await navigator.wakeLock.request('screen');
     wakeOn = true;
     wakeLock.addEventListener('release', ()=>{ wakeOn = false; });
-    if(explicit) renderMakeBar();
   }catch(e){ wakeOn = false; }
 }
-function releaseWake(explicit){
+function releaseWake(){
   try{ if(wakeLock) wakeLock.release(); }catch(e){}
   wakeLock = null; wakeOn = false;
-  if(explicit) renderMakeBar();
 }
 /* browsers drop the lock when the tab is backgrounded -- take it again on return */
 document.addEventListener('visibilitychange', ()=>{
@@ -54311,32 +54338,6 @@ function recipeAsText(r){
   if(r.notes) lines.push('', 'NOTES', r.notes);
   lines.push('', `From the family cookbook: ${location.origin}${location.pathname}${hashFor(r.id)}`);
   return lines.join('\n');
-}
-function renderModalActions(){
-  const host = document.getElementById('modalActions');
-  /* three ways to hand a recipe to someone, in order of what a phone-in-hand
-     family member reaches for first: the OS share sheet (straight into
-     Messages/Mail/whatever they pick) where the browser supports it, a
-     printable one-pager (the @media print rules below strip everything but
-     the recipe itself), and a plain link as the fallback/desktop option. */
-  host.innerHTML = `<div class="modal-actions">
-      ${navigator.share ? `<button class="icon-btn" id="shareNative">Share recipe</button>` : ''}
-      <button class="icon-btn" id="printRecipe">Print recipe</button>
-      <button class="icon-btn" id="copyLink">Copy link to this recipe</button>
-      <span class="make-prog" id="copyMsg"></span>
-    </div>`;
-  const msg = host.querySelector('#copyMsg');
-  const flash = (text) => { msg.textContent = text; setTimeout(()=> msg.textContent='', 1800); };
-  const sn = host.querySelector('#shareNative');
-  if(sn) sn.onclick = ()=>{
-    navigator.share({title: modalRecipe.title, text: recipeAsText(modalRecipe)}).catch(()=>{});
-  };
-  host.querySelector('#printRecipe').onclick = ()=> window.print();
-  host.querySelector('#copyLink').onclick = ()=>{
-    const url = location.origin + location.pathname + hashFor(modalRecipe.id);
-    if(navigator.clipboard) navigator.clipboard.writeText(url).then(()=>flash('link copied'), ()=>{ msg.textContent = url; });
-    else msg.textContent = url;
-  };
 }
 
 setTimeout(openFromHash, 0);
