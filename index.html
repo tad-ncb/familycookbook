@@ -148,9 +148,6 @@
   .stamp-badge.nyt{
     color:#fff; background:var(--stamp); border-color:var(--stamp);
   }
-  .stamp-badge.ahead{
-    color:var(--alert); background:var(--alert-soft); border-color:var(--alert);
-  }
   /* time sits on its own row and wraps -- it used to be nowrap beside the
      badges, which overflowed once the total + split were both shown */
   .card-time{
@@ -391,7 +388,7 @@
     .toolbar{ padding:0 14px 14px; }
   }
   /* ---------- Phase 2: planner + history ---------- */
-  .viewtabs{ display:flex; justify-content:center; gap:4px; margin-top:18px; }
+  .viewtabs{ display:flex; align-items:center; gap:4px; }
   .viewtabs .vt{
     font-family:'Work Sans', sans-serif; font-size:10.5px; text-transform:uppercase;
     letter-spacing:0.09em; color:var(--ink-soft); background:transparent;
@@ -687,6 +684,7 @@
   <div class="masthead-inner">
     <h1 class="title" id="homeTitle" title="Back to the cookbook" style="cursor:pointer;">Deemer-Berdux Family Cookbook</h1>
     <div class="viewtabs" id="viewTabs">
+      <button class="vt" data-view="cookbook">Cookbook</button>
       <button class="vt" data-view="plan" style="display:none">Plan the week</button>
       <button class="vt" data-view="shopping" style="display:none">Shopping</button>
       <button class="vt" data-view="history" style="display:none">History</button>
@@ -52327,7 +52325,15 @@ function persist(fromSync){
 function uid(){ return 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 
 /* ---------------- households ---------------- */
-/* Two households share the cookbook but keep separate pantry/plan/history.
+/* Single-household for now (2026-09-04) -- multi-household support (a
+   household switcher UI, per-household code unlock, cross-household "made
+   by them too" comparisons in the cook panel) was built and worked, but
+   added more complexity than the second household ("berdux" / Jen and
+   Chris) currently needs. Kept here, inert, rather than deleted, since the
+   data model (household_id columns, HOUSEHOLD_LABEL, timesMadeByHousehold,
+   the otherHh comparison in renderCookPanel) all still work unmodified --
+   turning multi-household back on is just restoring the switcher UI that
+   called switchHousehold(hh), not rebuilding any of this.
    Membership mirrors the household_members allowlist in Supabase -- update
    both places together when adding someone. */
 const HOUSEHOLD_MAP = {
@@ -52339,16 +52345,10 @@ const HOUSEHOLD_MAP = {
 };
 const HOUSEHOLD_LABEL = { 'deemer-berdux': 'Nick and Tyler', 'berdux': 'Jen and Chris' };
 /* No login, no code -- everyone can see and use Plan/History/Storage right
-   away. What used to be a household "unlock" is now just which household's
-   data is currently active on this device, always visible and switchable
-   with one click, so it's never ambiguous whose plan/pantry you're looking
-   at even though there's no barrier to get there. Declared here (not down
-   by the rest of the sync code) so it's already initialized the first time
-   render() runs and calls currentHousehold(). */
-const HOUSEHOLD_LOCK_KEY = 'cookbook.household';
-function loadUnlockedHousehold(){ try{ return localStorage.getItem(HOUSEHOLD_LOCK_KEY) || null; }catch(e){ return null; } }
-let unlockedHousehold = loadUnlockedHousehold() || 'deemer-berdux';
-function currentHousehold(){ return unlockedHousehold; }
+   away, and it all still saves across sessions/devices via Supabase (see
+   remoteFetchAll/subscribeRealtime/flushQueue below) -- there's just only
+   ever one household now, so there's nothing to switch between. */
+function currentHousehold(){ return 'deemer-berdux'; }
 /* cook_log rows written before household scoping existed have no tag --
    they all belong to the original (only) household. */
 function householdOf(e){ return e.household || 'deemer-berdux'; }
@@ -54217,8 +54217,6 @@ const sb = (SUPABASE_URL.startsWith('http'))
 
 let realtimeChannel = null;
 
-function isEditor(){ return !!unlockedHousehold; }
-
 /* ---------------- row <-> local shape mapping ---------------- */
 /* NOTE: prefs.household is the existing integer "household size" field (used for
    leftover heuristics); the multi-tenant household GROUP id lives in a separate
@@ -54236,8 +54234,8 @@ function rowToPlan(r){
 function rowToInv(r){ return {id:r.id, kind:r.kind, name:r.name, qty:r.qty, unit:r.unit, _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
 
 async function remoteFetchAll(){
-  if(!sb || !unlockedHousehold) return null;
-  const hh = unlockedHousehold;
+  if(!sb) return null;
+  const hh = currentHousehold();
   const [cl, pd, iv, pf] = await Promise.all([
     sb.from('cook_log').select('*').eq('household_id', hh),
     sb.from('plan_days').select('*').eq('household_id', hh),
@@ -54449,7 +54447,7 @@ async function runOp(op){
 
 let flushing = false;
 async function flushQueue(){
-  if(!sb || !unlockedHousehold || flushing) return;
+  if(!sb || flushing) return;
   flushing = true;
   let q = loadQueue();
   while(q.length){
@@ -54475,7 +54473,7 @@ function pushWrite(op){
 
 /* ---------------- realtime ---------------- */
 function subscribeRealtime(){
-  if(!sb || !unlockedHousehold || realtimeChannel) return;
+  if(!sb || realtimeChannel) return;
   realtimeChannel = sb.channel('household-sync')
     .on('postgres_changes', {event:'*', schema:'public', table:'cook_log'}, onRemoteChange)
     .on('postgres_changes', {event:'*', schema:'public', table:'plan_days'}, onRemoteChange)
@@ -54510,48 +54508,24 @@ function syncLabel(){
   return {off:'', ok:'● synced', error:'▲ retrying…', syncing:'◍ syncing…'}[syncState] || '';
 }
 
-/* ---------------- household switcher UI ---------------- */
-/* No code, no login -- anyone can use Plan/History/Storage immediately.
-   The only thing to get right is which household is active, since Nick's
-   parents (or anyone else) using the site could otherwise log a meal
-   against the wrong household without realizing it. So both households
-   are always shown, the active one always clearly marked, one click away
-   from switching -- never a hidden or ambiguous state. */
+/* ---------------- sync status ---------------- */
+/* No code, no login, no switcher -- just one household, and everything
+   (Plan/History/Storage/Shopping) is available immediately. This is just a
+   quiet sync indicator now, not an auth control. */
 function paintAuth(){
   const host = document.getElementById('authArea');
   if(!sb){ host.innerHTML = `<span class="icon-btn" style="cursor:default">Supabase not configured</span>`; return; }
-  const dot = `<span class="icon-btn sync-dot s-${syncState==='error'?'error':'ok'}" style="cursor:default">${syncLabel()}</span>`;
-  const btns = Object.keys(HOUSEHOLD_LABEL).map(hh=>
-    `<button class="icon-btn${hh===unlockedHousehold?' on':''}" data-hh="${hh}">${escapeHTML(HOUSEHOLD_LABEL[hh]||hh)}</button>`).join('');
-  host.innerHTML = dot + btns;
-  host.querySelectorAll('[data-hh]').forEach(b=> b.onclick = ()=> switchHousehold(b.dataset.hh));
-}
-async function switchHousehold(hh){
-  if(hh === unlockedHousehold) return;
-  /* flush any pending writes under the OLD household before switching --
-     otherwise a write queued while offline could go out tagged with
-     whichever household happens to be active by the time it flushes */
-  await flushQueue();
-  unlockedHousehold = hh;
-  try{ localStorage.setItem(HOUSEHOLD_LOCK_KEY, hh); }catch(e){}
-  paintAuth(); applyAuthGate();
-  unsubscribeRealtime();
-  const remote = await remoteFetchAll();
-  DATA = remote || blankState();
-  persist(true); render(); if(view==='plan') renderWeek(); if(view==='storage') renderStorage(); if(view==='history') renderMonth();
-  subscribeRealtime();
+  host.innerHTML = `<span class="icon-btn sync-dot s-${syncState==='error'?'error':'ok'}" style="cursor:default">${syncLabel()}</span>`;
 }
 
 /* ---------------- boot ---------------- */
 function applyAuthGate(){
-  const signedIn = isEditor();
   document.querySelectorAll('#viewTabs .vt[data-view="plan"], #viewTabs .vt[data-view="shopping"], #viewTabs .vt[data-view="history"], #viewTabs .vt[data-view="storage"]')
-    .forEach(b=> b.style.display = signedIn ? '' : 'none');
-  if(!signedIn && (view==='plan' || view==='shopping' || view==='history' || view==='storage')) setView('cookbook');
+    .forEach(b=> b.style.display = '');
 }
 async function authBoot(){
   paintAuth(); applyAuthGate();
-  if(!sb || !unlockedHousehold) return;
+  if(!sb) return;
   const remote = await remoteFetchAll();
   if(remote){ DATA = mergeStates(remote, DATA); persist(true); render(); }
   subscribeRealtime();
