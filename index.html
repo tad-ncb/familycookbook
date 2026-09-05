@@ -526,6 +526,7 @@
     border:1px solid var(--line); border-radius:3px; background:var(--card); color:var(--ink);
   }
   .picker-search label{ display:flex; align-items:center; gap:5px; cursor:pointer; }
+  .picker-course-chips{ display:flex; flex-wrap:wrap; gap:5px 6px; margin:0 0 14px; }
   .picker-custom{ margin:0 0 14px; }
   .pc-toggle{ cursor:pointer; font-size:13px; color:var(--ink-soft); text-decoration:underline; text-underline-offset:2px; }
   .pc-form{ display:none; flex-direction:column; gap:8px; margin-top:10px; }
@@ -799,8 +800,8 @@
       <h2 id="pickerTitle">Choose a dinner</h2>
       <div class="picker-search">
         <input id="pickerInput" type="text" placeholder="Search recipes…">
-        <label class="tb-name"><input type="checkbox" id="pickerAll"> include every course</label>
       </div>
+      <div id="pickerCourseChips" class="picker-course-chips"></div>
       <div id="pickerSuggest"></div>
       <div class="picker-custom" id="pickerCustom">
         <div class="pc-toggle" id="pickerCustomToggle">+ not in the cookbook — add a custom dish</div>
@@ -53848,11 +53849,12 @@ document.getElementById('setBtn').onclick = ()=>{
 };
 
 /* ---------------- picker ---------------- */
-let pickerIso = null, pickerMeal = 'dinner', pickerSwapId = null;
+let pickerIso = null, pickerMeal = 'dinner', pickerSwapId = null, pickerCourse = null;
 function openPicker(iso, mealType, swapId){
   pickerIso = iso;
   pickerMeal = mealType || 'dinner';
   pickerSwapId = swapId || null;
+  pickerCourse = null;
   const label = pickerMeal === 'lunch' ? 'Lunch' : 'Dinner';
   document.getElementById('pickerTitle').textContent =
     label + ' for ' + DAY_NAMES[(dateOf(iso).getDay()+6)%7] + ' ' + fmtDayLabel(iso);
@@ -53892,13 +53894,24 @@ function saveCustomDish(){
 }
 function renderPicker(){
   const q = document.getElementById('pickerInput').value.trim().toLowerCase();
-  const all = document.getElementById('pickerAll').checked;
   const ctx = weekContext(weekStart, pickerIso);
-  const ranked = candidatesFor(pickerIso, ctx, all);
 
+  const chipsHost = document.getElementById('pickerCourseChips');
+  chipsHost.innerHTML = ALL_CATEGORIES.map(cat=>
+    `<span class="facet-link${pickerCourse===cat?' active':''}" data-course="${escapeHTML(cat)}">${escapeHTML(cat)}</span>`).join('');
+  chipsHost.querySelectorAll('[data-course]').forEach(el=> el.onclick = ()=>{
+    pickerCourse = pickerCourse === el.dataset.course ? null : el.dataset.course;
+    renderPicker();
+  });
+
+  /* "Suggested for tonight" is always dinner-scoped and algorithmically ranked --
+     a distinct feature from the browsable list below, which a course pick or a
+     typed search should search across the FULL catalog, not just dinner dishes
+     (typing "brownie" or clicking Dessert should just work, not require first
+     finding a hidden "include every course" checkbox). */
   const sug = document.getElementById('pickerSuggest');
-  if(!q){
-    const top = ranked.slice(0,3);
+  if(!q && !pickerCourse){
+    const top = candidatesFor(pickerIso, ctx, false).slice(0,3);
     sug.innerHTML = top.length ? `<div class="picker-sug"><h4>Suggested for this night</h4>${top.map(c=>
       `<div class="prow" data-pick="${c.r.id}">
          <span class="pt">${zwsp(escapeHTML(displayTitle(c.r)))}</span>
@@ -53907,12 +53920,22 @@ function renderPicker(){
        </div>`).join('')}</div>` : '';
   } else sug.innerHTML = '';
 
-  const rows = (q ? ranked.filter(c=> matchesQuery(c.r, q)) : ranked).slice(0, 120);
-  document.getElementById('pickerList').innerHTML = rows.map(c=>{
-    const n = timesMade(c.r.id), last = lastMade(c.r.id);
-    return `<div class="prow" data-pick="${c.r.id}">
-      <span class="pt">${zwsp(escapeHTML(displayTitle(c.r)))}</span>
-      <span class="pm">${n?`made ${n}× · ${relTime(last)}`:'never made'} · ${c.r._plan?fmtDur(c.r._plan):''} · ${zwsp(escapeHTML(c.r.cuisine))}</span>
+  let pool;
+  if(q || pickerCourse){
+    pool = RECIPES.filter(r=> !ctx.used.has(r.id));
+    if(pickerCourse) pool = pool.filter(r=> r.category === pickerCourse);
+    if(q) pool = pool.filter(r=> matchesQuery(r, q));
+    pool.sort((a,b)=> displayTitle(a).localeCompare(displayTitle(b)));
+  } else {
+    pool = candidatesFor(pickerIso, ctx, false).map(c=>c.r);
+  }
+
+  const rows = pool.slice(0, 120);
+  document.getElementById('pickerList').innerHTML = rows.map(r=>{
+    const n = timesMade(r.id), last = lastMade(r.id);
+    return `<div class="prow" data-pick="${r.id}">
+      <span class="pt">${zwsp(escapeHTML(displayTitle(r)))}</span>
+      <span class="pm">${n?`made ${n}× · ${relTime(last)}`:'never made'} · ${r._plan?fmtDur(r._plan):''} · ${zwsp(escapeHTML(r.cuisine))}</span>
     </div>`;
   }).join('') || `<div class="cook-empty">Nothing matches that.</div>`;
 
@@ -53921,7 +53944,6 @@ function renderPicker(){
 document.getElementById('pickerClose').onclick = closePicker;
 document.getElementById('pickerOverlay').onclick = e=>{ if(e.target.id==='pickerOverlay') closePicker(); };
 document.getElementById('pickerInput').addEventListener('input', renderPicker);
-document.getElementById('pickerAll').addEventListener('change', renderPicker);
 document.getElementById('pickerCustomToggle').onclick = ()=> document.getElementById('pickerCustomForm').classList.toggle('open');
 document.getElementById('pcSave').onclick = saveCustomDish;
 
