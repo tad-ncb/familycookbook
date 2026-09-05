@@ -54233,7 +54233,7 @@ async function remoteFetchAll(){
    IndexedDB's quota is far higher (typically hundreds of MB+), so this actually
    persists across visits. */
 const NYT_CACHE_KEY = 'cookbook.nytRecipes';
-const NYT_CACHE_VERSION = 9; /* bumped: v8 cache predates deleting 451 junk-prefix-titled recipes (leading quote/paren/hyphen/digit, or "A "/"The ") */
+const NYT_CACHE_VERSION = 10; /* bumped: v9 cache predates recategorizing 19 European recipes to German/French, deleting 3 more junk-prefixed titles ([, &, ~, A+), and renaming Greek/Mediterranean -> Mediterranean */
 const NYT_DB_NAME = 'cookbookCache', NYT_DB_STORE = 'nytRecipes';
 
 function openNytDB(){
