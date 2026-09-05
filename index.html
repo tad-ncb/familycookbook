@@ -253,7 +253,9 @@
   .steps li{ counter-increment:step; padding:0 0 13px 34px; position:relative; font-size:var(--step-font); line-height:1.45; overflow-wrap:anywhere; }
   .steps li::before{
     content:counter(step); position:absolute; left:0; top:0;
-    font-family:'Archivo',sans-serif; font-weight:600; font-size:14px; color:var(--stamp);
+    width:22px; height:22px; border-radius:50%; border:1.5px solid var(--stamp);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Archivo',sans-serif; font-weight:600; font-size:12px; color:var(--stamp);
   }
   .steps li strong{ font-weight:700; color:var(--ink); }
   .notes-box{
@@ -372,6 +374,15 @@
   .mult-btn:hover{ color:var(--stamp); border-color:var(--stamp); }
   .mult-btn.on{ color:#fff; background:var(--stamp); border-color:var(--stamp); }
   .unscaled-note{ color:var(--ink-faint); font-size:11px; font-style:italic; white-space:nowrap; }
+  /* which step this ingredient is first needed in -- outlined only (not
+     filled), small, so it reads as a quiet cross-reference rather than
+     something competing for attention in the ingredient list */
+  .step-badge{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:16px; height:16px; border-radius:50%; border:1px solid var(--ink-faint);
+    color:var(--ink-faint); font-family:'Archivo',sans-serif; font-weight:600; font-size:9px;
+    margin-left:5px; vertical-align:middle;
+  }
 
   /* cooked panel */
   .cook-panel{ border-top:1px solid var(--line); margin-top:26px; padding-top:18px; }
@@ -657,17 +668,17 @@
   }
 
   /* --- making mode --- */
-  /* the three top-of-card actions (Start Making / Share / Mark as Cooked) --
-     one uniform row, same button style/size for all three */
-  .action-row-top{ display:flex; gap:8px; margin-bottom:2px; }
+  /* two action rows: mode-toggle actions (Start Making / Mark Cooked) on
+     top, the three ways to hand the recipe off (share sheet / print / link)
+     below -- same button style/size within each row */
+  .action-row-top{ display:flex; gap:8px; margin-bottom:8px; }
+  .action-row-top:last-of-type{ margin-bottom:2px; }
   .action-row-top .icon-btn{ flex:1; text-align:center; padding:8px 6px; }
   .make-sub{ display:flex; align-items:center; gap:10px; margin-bottom:8px; }
   .make-prog{
     font-family:'Work Sans', sans-serif; font-size:10.5px; color:var(--ink-soft);
     font-variant-numeric:tabular-nums;
   }
-  .share-menu{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:8px; }
-  .share-menu[hidden]{ display:none; }
 
   /* checkable ingredients + steps while cooking */
   .making .ing-list li:not(.heading), .making .steps li{ cursor:pointer; }
@@ -727,8 +738,33 @@
        whatever it last held even while closed */
     body > #modalOverlay{ display:block !important; position:static !important; background:none !important; padding:0 !important; }
     .modal{ position:static !important; width:100%; max-width:100%; box-shadow:none; border:none; margin:0; }
-    .modal-close, .action-row-top, .make-sub, .share-menu, .cook-panel, #modalAhead{ display:none !important; }
-    .modal-inner{ grid-template-columns:150px 1fr; display:grid !important; }
+    .modal-close, #modalActionsTop, .cook-panel, #modalAhead{ display:none !important; }
+    .modal-inner{ grid-template-columns:130px 1fr; display:grid !important; }
+
+    /* Getting the page count down further than that isn't a matter of
+       shrinking things uniformly -- it's the same sizes and spacing this
+       page uses for a comfortable ON-SCREEN read, which is a lot more room
+       than a printed page needs. Every size/gap below is a print-only
+       override, tightened specifically for paper. */
+    @page{ margin:0.4in; }
+    body, .modal-main, .modal-side{ font-size:10.5px !important; }
+    .modal-main{ padding:0 !important; }
+    .modal-main h2{ font-size:16px !important; margin:0 0 8px !important; }
+    .modal-sidelabel{ font-size:8px !important; margin-top:6px !important; }
+    .modal-sidelabel:first-child{ margin-top:0 !important; }
+    .modal-sideval, .modal-side .tags{ font-size:9.5px !important; }
+    .section-title{ font-size:9px !important; margin:10px 0 4px !important; }
+    .section-title:first-of-type{ margin-top:0 !important; }
+    #modalScale{ display:none !important; } /* scaling controls are a screen-only interaction */
+    .ing-list{ columns:3 !important; column-gap:14px !important; }
+    .ing-list li{ font-size:9.5px !important; line-height:1.25 !important; padding:2px 0 2px 12px !important; }
+    .ing-list li.heading{ font-size:8px !important; margin-top:6px !important; }
+    .ing-list li:not(.heading)::before{ top:8px !important; width:3px !important; height:3px !important; }
+    .steps{ columns:2 !important; column-gap:18px !important; }
+    .steps li{ font-size:9.5px !important; line-height:1.25 !important; padding:0 0 8px 18px !important; break-inside:avoid; }
+    .steps li::before{ font-size:10px !important; }
+    .notes-box{ font-size:9px !important; padding:8px 10px !important; margin-top:10px !important; }
+    .notes-box .notes-label{ font-size:8px !important; }
   }
 
   /* Landing directly on a #r/<id> link (as anyone would from a shared text/
@@ -53133,16 +53169,45 @@ function render(){ renderChips(); renderToolbar(); renderGrid(); }
 /* ---------------- modal ---------------- */
 let modalRecipe = null, modalFactor = 1;
 
+/* Maps each of a recipe's already-tagged core ingredients to the FIRST step
+   that mentions it -- deliberately first-only (not every occurrence), since
+   the point is "which step do I need to have this ready for," not a
+   frequency count. Bounded to one badge value per term no matter how many
+   times a common ingredient like "salt" gets mentioned throughout the
+   method, which is what keeps this from repeating the earlier over-tagging
+   problem where every mention got bolded. */
+function computeIngredientStepMap(r){
+  const map = {};
+  const core = r.ingredientCore || [];
+  const steps = r.instructions || [];
+  core.forEach(term=>{
+    const re = new RegExp('\\b' + term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + 's?\\b', 'i');
+    for(let i=0; i<steps.length; i++){
+      if(re.test(steps[i])){ map[term] = i+1; break; }
+    }
+  });
+  return map;
+}
+function stepBadgesFor(line, stepMap){
+  const nums = new Set();
+  Object.keys(stepMap).forEach(term=>{
+    const re = new RegExp('\\b' + term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + 's?\\b', 'i');
+    if(re.test(line)) nums.add(stepMap[term]);
+  });
+  if(!nums.size) return '';
+  return [...nums].sort((a,b)=>a-b).map(n=>`<span class="step-badge">${n}</span>`).join('');
+}
 function renderIngredients(){
   const r = modalRecipe, f = modalFactor;
   const wrap = document.getElementById('modalIngredients');
   wrap.innerHTML = '';
+  const stepMap = computeIngredientStepMap(r);
   (r.ingredients||[]).forEach(item=>{
     const li = document.createElement('li');
     const isHeading = item.endsWith(':') && item.split(' ').length < 6;
     if(isHeading){ li.className = 'heading'; li.innerHTML = renderInline(item); wrap.appendChild(li); return; }
     const res = scaleLine(item, f);
-    li.innerHTML = renderInline(res.text) + (res.unscaled && f!==1 ? ' <span class="unscaled-note">· unscaled</span>' : '');
+    li.innerHTML = renderInline(res.text) + (res.unscaled && f!==1 ? ' <span class="unscaled-note">· unscaled</span>' : '') + stepBadgesFor(item, stepMap);
     wrap.appendChild(li);
   });
 }
@@ -54261,13 +54326,21 @@ function setMaking(on){
    don't need to be next to each other in the DOM. */
 function renderModalActionsTop(){
   const host = document.getElementById('modalActionsTop');
+  /* two rows: the mode-toggle actions (Start Making / Mark Cooked) on top,
+     the three ways to hand the recipe to someone else (share sheet, print,
+     link) below -- kept as three direct buttons rather than tucked behind
+     one "Share" button, so all three stay one tap away instead of two. */
   host.innerHTML = `<div class="action-row-top">
       <button class="icon-btn ${making?'on':''}" id="makeToggle">${making?'Making mode on':'Start making'}</button>
-      <button class="icon-btn" id="shareBtn">Share recipe</button>
-      <button class="icon-btn" id="markCookedTop">Mark as cooked</button>
+      <button class="icon-btn" id="markCookedTop">Mark cooked</button>
     </div>
     ${making ? `<div class="make-sub"><span class="make-prog" id="makeProg"></span><button class="icon-btn" id="makeReset">reset ticks</button></div>` : ''}
-    <div class="share-menu" id="shareMenu" hidden></div>`;
+    <div class="action-row-top">
+      ${navigator.share ? `<button class="icon-btn" id="shareNative">Share via&hellip;</button>` : ''}
+      <button class="icon-btn" id="printRecipe">Print</button>
+      <button class="icon-btn" id="copyLink">Copy link</button>
+    </div>
+    <span class="make-prog" id="copyMsg"></span>`;
 
   host.querySelector('#makeToggle').onclick = ()=> setMaking(!making);
   const rst = host.querySelector('#makeReset');
@@ -54278,25 +54351,18 @@ function renderModalActionsTop(){
     if(f) f.classList.toggle('open');
   };
 
-  const shareMenu = host.querySelector('#shareMenu');
-  shareMenu.innerHTML = `
-      ${navigator.share ? `<button class="icon-btn" id="shareNative">Share via&hellip;</button>` : ''}
-      <button class="icon-btn" id="printRecipe">Print recipe</button>
-      <button class="icon-btn" id="copyLink">Copy link</button>
-      <span class="make-prog" id="copyMsg"></span>`;
-  const msg = shareMenu.querySelector('#copyMsg');
+  const msg = host.querySelector('#copyMsg');
   const flash = (text) => { msg.textContent = text; setTimeout(()=> msg.textContent='', 1800); };
-  const sn = shareMenu.querySelector('#shareNative');
+  const sn = host.querySelector('#shareNative');
   if(sn) sn.onclick = ()=>{
     navigator.share({title: modalRecipe.title, text: recipeAsText(modalRecipe)}).catch(()=>{});
   };
-  shareMenu.querySelector('#printRecipe').onclick = ()=> window.print();
-  shareMenu.querySelector('#copyLink').onclick = ()=>{
+  host.querySelector('#printRecipe').onclick = ()=> window.print();
+  host.querySelector('#copyLink').onclick = ()=>{
     const url = location.origin + location.pathname + hashFor(modalRecipe.id);
     if(navigator.clipboard) navigator.clipboard.writeText(url).then(()=>flash('link copied'), ()=>{ msg.textContent = url; });
     else msg.textContent = url;
   };
-  host.querySelector('#shareBtn').onclick = ()=>{ shareMenu.hidden = !shareMenu.hidden; };
 }
 
 /* ---------------- screen wake lock ---------------- */
