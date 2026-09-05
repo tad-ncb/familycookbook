@@ -564,20 +564,7 @@
     letter-spacing:0.1em; color:var(--ink-soft); margin:0 0 4px; font-weight:500;
   }
   .settings p.hint{ font-size:13px; color:var(--ink-soft); margin:0 0 14px; font-style:italic; }
-  .ritual-row{
-    display:flex; align-items:center; gap:10px; padding:6px 0;
-    border-bottom:1px dotted var(--line);
-  }
-  .ritual-row .rday{
-    font-family:'Work Sans', sans-serif; font-size:10px; text-transform:uppercase;
-    letter-spacing:0.08em; color:var(--ink); width:42px; flex:0 0 auto;
-  }
-  .ritual-row select{
-    flex:1 1 auto; min-width:0; font-family:'Work Sans',sans-serif; font-size:13px;
-    padding:5px 7px; border:1px solid var(--line); border-radius:3px;
-    background:var(--card); color:var(--ink);
-  }
-  .house-row{ display:flex; align-items:center; gap:10px; margin-top:16px; padding-top:14px; border-top:1px solid var(--line); }
+  .house-row{ display:flex; align-items:center; gap:10px; }
   .house-row .rday{ font-family:'Work Sans', sans-serif; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; }
   /* ---------- Phase 5: household storage ---------- */
   .inv-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:18px; margin-top:10px; }
@@ -783,7 +770,7 @@
         <button class="tb-btn on" id="suggestWeek">Suggest the week</button>
         <button class="tb-btn" id="clearWeek">Clear</button>
         <button class="tb-btn" id="shopBtn">Shopping &amp; prep</button>
-        <button class="tb-btn" id="setBtn">Rituals</button>
+        <button class="tb-btn" id="setBtn">Household</button>
       </div>
     </div>
     <div id="settingsPanel"></div>
@@ -53486,23 +53473,10 @@ function candidatesFor(iso, ctx, includeAll){
     return sc === -Infinity ? null : {r, score: sc.score, why: sc.why};
   }).filter(Boolean).sort((a,b)=> b.score - a.score);
 }
-function ritualFor(iso){
-  const dayIdx = (dateOf(iso).getDay()+6)%7;
-  return prefs().rituals.find(x=> x.day === dayIdx) || null;
-}
 function suggestWeek(weekStart){
-  /* fill only empty dinner slots; rituals win their day. Lunch and any
-     dinners added manually are left alone. */
+  /* fill only empty dinner slots. Lunch and any dinners added manually are left alone. */
   const order = [];
   for(let i=0;i<7;i++) order.push(addDays(weekStart, i));
-  order.forEach(iso=>{
-    if(dinnerSlotsFor(iso).length) return;
-    const rit = ritualFor(iso);
-    if(rit && recipeById(rit.recipeId)){
-      const ctx = weekContext(weekStart, iso);
-      if(!ctx.used.has(rit.recipeId)){ addSlot(iso, 'dinner', {recipeId: rit.recipeId, ritual:true}); return; }
-    }
-  });
   order.forEach(iso=>{
     if(dinnerSlotsFor(iso).length) return;
     const ctx = weekContext(weekStart, iso);
@@ -53662,7 +53636,6 @@ function slotRowHTML(s, iso){
   if(r._plan) meta.push(`<span>${fmtDur(r._plan)}</span>`);
   if(serv) meta.push(`<span>serves ${serv}</span>`);
   meta.push(`<span>${zwsp(escapeHTML(r.cuisine))}</span>`);
-  if(s.ritual) meta.push(`<span class="lo-pill">ritual</span>`);
   if(serv && serv >= prefs().household * 2) meta.push(`<span class="lo-pill">makes leftovers</span>`);
   if(r._ahead) meta.push(`<span class="ahead-pill">${r._ahead.label}</span>`);
   if(cooked) meta.push(`<span class="cooked-flag">✓ cooked</span>`);
@@ -53852,22 +53825,12 @@ document.getElementById('shopBtn').onclick = ()=>{
   else { p.dataset.open='1'; renderShop(); }
 };
 
-/* ---------------- rituals + household ---------------- */
+/* ---------------- household settings ---------------- */
 function renderSettings(){
   const host = document.getElementById('settingsPanel');
   if(!host.dataset.open){ host.innerHTML=''; return; }
   const p = prefs();
-  const pool = RECIPES.filter(isDinnerish).sort((a,b)=> displayTitle(a).localeCompare(displayTitle(b)));
-  const opts = id => `<option value="">— none —</option>` + pool.map(r=>
-      `<option value="${r.id}" ${r.id===id?'selected':''}>${escapeHTML(displayTitle(r))}</option>`).join('');
   host.innerHTML = `<div class="settings">
-    <h3>Weekly rituals</h3>
-    <p class="hint">Pin a dish to a weekday — pizza Friday, say — and "Suggest the week" will slot it there first.</p>
-    ${DAY_NAMES.map((d,i)=>{
-      const rit = p.rituals.find(x=>x.day===i);
-      return `<div class="ritual-row"><span class="rday">${d}</span>
-        <select data-ritual="${i}">${opts(rit?rit.recipeId:'')}</select></div>`;
-    }).join('')}
     <div class="house-row">
       <span class="rday">Household</span>
       <div class="step">
@@ -53878,13 +53841,6 @@ function renderSettings(){
       <span class="hint" style="margin:0; font-size:12.5px;">used to spot meals big enough to leave leftovers</span>
     </div>
   </div>`;
-  host.querySelectorAll('[data-ritual]').forEach(sel=> sel.onchange = ()=>{
-    const day = +sel.dataset.ritual;
-    p.rituals = p.rituals.filter(x=> x.day !== day);
-    if(sel.value) p.rituals.push({day, recipeId: sel.value});
-    p._t = Date.now(); persist();
-    if(typeof pushWrite === 'function') pushWrite({table:'prefs', row:p});
-  });
   const setHH = n =>{
     p.household = Math.max(1, Math.min(20, n)); p._t = Date.now(); persist(); renderSettings(); renderWeek();
     if(typeof pushWrite === 'function') pushWrite({table:'prefs', row:p});
