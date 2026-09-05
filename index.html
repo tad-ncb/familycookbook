@@ -127,6 +127,12 @@
     grid-column:1/-1; text-align:center; padding:90px 20px; color:var(--ink-soft);
     font-family:'Work Sans',sans-serif; font-style:italic; font-size:18px; background:var(--paper);
   }
+  #loadMoreWrap{ max-width:var(--maxw); margin:0 auto; padding:0 24px; text-align:center; }
+  .load-more-btn{
+    font-family:'Work Sans',sans-serif; font-size:13px; color:var(--ink); background:var(--card);
+    border:1px solid var(--line); border-radius:6px; padding:10px 20px; margin:18px 0; cursor:pointer;
+  }
+  .load-more-btn:hover{ border-color:var(--stamp); color:var(--stamp); }
 
   .card{
     background:var(--card); padding:18px 18px 16px; cursor:pointer;
@@ -743,6 +749,7 @@
 <div class="toolbar" id="sortToolbar"></div>
 
 <main class="grid" id="grid"></main>
+<div id="loadMoreWrap"></div>
 
 <footer id="footerCount"></footer>
 </div><!-- /cookbookView -->
@@ -53012,9 +53019,26 @@ function ingredientPreview(r){
   const ranked = [...core].sort((a,b) => (BORING_INGREDIENTS.has(a)?1:0) - (BORING_INGREDIENTS.has(b)?1:0));
   return ranked.slice(0,5);
 }
+/* rendering every matching recipe as a full DOM card doesn't scale once the
+   catalog is ~45k+ -- with no filter active that's tens of thousands of card
+   elements rebuilt on every keystroke/chip click, which is what actually made
+   the site feel frozen (not the network fetch). Cap what's rendered per page
+   and reveal more on demand instead; renderLimit resets to one page whenever
+   the filters themselves changed since the last render (tracked via a cheap
+   signature), so "load more" doesn't also silently reset when you just typed
+   another search-box keystroke. */
+const RENDER_PAGE = 100;
+let renderLimit = RENDER_PAGE;
+let lastFilterSig = null;
+function filterSignature(){
+  return JSON.stringify([state.query, state.category, state.cuisine, state.diets, state.author,
+    state.made, state.aheadOnly, state.hideNyt, state.includeIngredients, state.excludeIngredients]);
+}
 function renderGrid(){
   const grid = document.getElementById('grid');
   const filtered = getFiltered();
+  const sig = filterSignature();
+  if(sig !== lastFilterSig){ renderLimit = RENDER_PAGE; lastFilterSig = sig; }
   grid.innerHTML = '';
   document.getElementById('resultCount').textContent = `${filtered.length} / ${RECIPES.length}`;
   const made = DATA.cookLog.filter(e=>!e._d).length;
@@ -53022,9 +53046,11 @@ function renderGrid(){
     `${RECIPES.length} recipes catalogued, and counting.` + (made ? `  ${made} meals logged.` : '');
   if(filtered.length===0){
     grid.innerHTML = `<div class="empty-state">Nothing on file matches that yet &mdash; try another search or clear a filter.</div>`;
+    document.getElementById('loadMoreWrap').innerHTML = '';
     return;
   }
-  filtered.forEach(r=>{
+  const toShow = filtered.slice(0, renderLimit);
+  toShow.forEach(r=>{
     const card = document.createElement('div');
     card.className = 'card';
     card.innerHTML = `
@@ -53045,6 +53071,12 @@ function renderGrid(){
     card.onclick = ()=> openModal(r);
     grid.appendChild(card);
   });
+  const moreWrap = document.getElementById('loadMoreWrap');
+  const remaining = filtered.length - toShow.length;
+  moreWrap.innerHTML = remaining > 0
+    ? `<button class="load-more-btn" id="loadMoreBtn">Show ${Math.min(RENDER_PAGE, remaining)} more (${remaining} left)</button>`
+    : '';
+  if(remaining > 0) document.getElementById('loadMoreBtn').onclick = ()=>{ renderLimit += RENDER_PAGE; renderGrid(); };
 }
 function render(){ renderChips(); renderToolbar(); renderGrid(); }
 
@@ -54337,21 +54369,30 @@ function rowToNytRecipe(r){
   };
 }
 
-function mergeNytRecipes(rows){
-  /* RECIPES is a const -- mutate in place with push() rather than reassigning,
-     since dozens of functions elsewhere close over the RECIPES identifier directly. */
+/* Computing _ahead/_servings/_total/_plan for ~45k rows in one synchronous
+   pass blocks the main thread for a few solid seconds -- long enough that
+   clicks made during that window just queue up and appear to do nothing.
+   Chunk it and yield back to the browser between batches so the page stays
+   responsive (and cached repeat-visit loads, which skip this entirely, are
+   unaffected). Returns a promise so callers that need the merge finished
+   before rendering can still await it. */
+async function mergeNytRecipes(rows){
   const existingIds = new Set(RECIPES.map(r=>r.id));
-  rows.forEach(r=>{
-    if(existingIds.has(r.id)) return;
-    /* the one-time _ahead/_servings/_total/_plan derived-index pass already ran
-       over RECIPES at load, before these rows existed -- redo it per-row here or
-       cards/scale-bar/plan-ahead logic would silently see undefined for all of them. */
-    r._ahead    = detectAhead(r);
-    r._servings = parseServings(r.servings);
-    r._total    = totalTime(r);
-    r._plan     = planMinutes(r);
-    RECIPES.push(r);
-  });
+  const CHUNK = 2000;
+  for(let i=0; i<rows.length; i+=CHUNK){
+    rows.slice(i, i+CHUNK).forEach(r=>{
+      if(existingIds.has(r.id)) return;
+      /* the one-time _ahead/_servings/_total/_plan derived-index pass already ran
+         over RECIPES at load, before these rows existed -- redo it per-row here or
+         cards/scale-bar/plan-ahead logic would silently see undefined for all of them. */
+      r._ahead    = detectAhead(r);
+      r._servings = parseServings(r.servings);
+      r._total    = totalTime(r);
+      r._plan     = planMinutes(r);
+      RECIPES.push(r);
+    });
+    if(i+CHUNK < rows.length) await new Promise(res=>setTimeout(res,0));
+  }
 }
 
 async function nytBoot(){
@@ -54359,7 +54400,7 @@ async function nytBoot(){
   const cached = await loadNytCache();
   if(cached && cached.version === NYT_CACHE_VERSION && Array.isArray(cached.rows)){
     console.log(`nytBoot: cache hit, showing ${cached.rows.length} cached NYT recipes, skipping the network fetch`);
-    mergeNytRecipes(cached.rows);
+    await mergeNytRecipes(cached.rows);
     render();
     return; /* the whole point of caching is to skip the ~20-request paginated
                fetch on repeat visits -- only a version bump (a real data change)
@@ -54367,32 +54408,46 @@ async function nytBoot(){
   }
   console.log('nytBoot: no usable cache, fetching all NYT recipes from Supabase');
 
-  /* PostgREST caps a single response at 1000 rows by default -- page through
-     with .range() until a page comes back short, or only the first 1000 of the
-     19,163 NYT recipes would ever load. ~20 sequential requests means a single
-     transient failure (rate limit, cold-start timeout, network blip) is likely
-     over a full fetch -- retry each page a few times, and if a page still fails,
-     keep whatever pages DID succeed instead of throwing all of it away. */
-  const PAGE_SIZE = 1000;
-  let allData = [], from = 0, hadError = false;
-  while(true){
-    let data = null, error = null;
+  /* PostgREST caps a single response at 1000 rows by default, and the table is
+     now ~46k rows -- that's ~46 pages. Fetching them one at a time, waiting for
+     each round trip before starting the next, made a cold (uncached) load take
+     noticeably long. Since .order('id') already makes every page's range
+     well-defined regardless of fetch order, request a bounded number of pages
+     concurrently instead of strictly sequentially -- each page still retries
+     on its own if it fails, and whatever pages DID succeed are kept even if
+     one keeps failing, same as before. */
+  const PAGE_SIZE = 1000, CONCURRENCY = 6;
+  const countRes = await sb.from('nyt_recipes').select('*', {count:'exact', head:true}).eq('needs_review', false);
+  const total = countRes.count;
+  let allData = [], hadError = false;
+  async function fetchPage(from){
     for(let attempt = 1; attempt <= 3; attempt++){
-      /* .order('id') is required for stable pagination -- without it Postgres doesn't
-         guarantee row order across repeated paged queries, so rows can repeat on
-         multiple pages (and others get skipped) once the table is big enough that
-         the query planner's chosen scan order isn't naturally stable */
       const res = await sb.from('nyt_recipes').select('*').eq('needs_review', false)
         .order('id').range(from, from + PAGE_SIZE - 1);
-      data = res.data; error = res.error;
-      if(!error) break;
-      console.error(`nyt_recipes fetch error (page starting at ${from}, attempt ${attempt})`, error);
+      if(!res.error) return res.data;
+      console.error(`nyt_recipes fetch error (page starting at ${from}, attempt ${attempt})`, res.error);
       if(attempt < 3) await new Promise(r => setTimeout(r, 500 * attempt));
     }
-    if(error){ hadError = true; break; } /* keep whatever pages already succeeded, stop here */
-    allData = allData.concat(data);
-    if(data.length < PAGE_SIZE) break;
-    from += PAGE_SIZE;
+    hadError = true;
+    return null;
+  }
+  if(total == null){
+    /* count query itself failed -- fall back to the old strictly-sequential
+       walk, since we can't plan a page list without knowing when to stop */
+    let from = 0;
+    while(true){
+      const data = await fetchPage(from);
+      if(!data) break;
+      allData = allData.concat(data);
+      if(data.length < PAGE_SIZE) break;
+      from += PAGE_SIZE;
+    }
+  } else {
+    const starts = []; for(let from=0; from<total; from+=PAGE_SIZE) starts.push(from);
+    for(let i=0; i<starts.length; i+=CONCURRENCY){
+      const batch = await Promise.all(starts.slice(i, i+CONCURRENCY).map(fetchPage));
+      batch.forEach(data => { if(data) allData = allData.concat(data); });
+    }
   }
   const rows = allData.map(rowToNytRecipe);
   /* only cache on a fully clean fetch -- a partial result cached would silently
@@ -54401,7 +54456,7 @@ async function nytBoot(){
     await saveNytCache({version: NYT_CACHE_VERSION, rows});
   }
   const before = RECIPES.length;
-  mergeNytRecipes(rows);
+  await mergeNytRecipes(rows);
   if(RECIPES.length !== before) render(); /* only re-render if the fetch actually added anything new vs. the cache */
   if(hadError) console.error(`nytBoot: stopped early after fetching ${allData.length} NYT recipes -- see errors above`);
   else console.log(`nytBoot: fetch complete, ${allData.length} rows fetched, RECIPES now has ${RECIPES.length} total`);
