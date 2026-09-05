@@ -850,7 +850,7 @@ const RECIPES = [
     "id": "beef-stroganoff",
     "title": "Easy Beef Stroganoff",
     "category": "Main",
-    "cuisine": "Russian/Eastern European",
+    "cuisine": "Eastern European",
     "source": "Hunt's recipe card (1994) + family tweaks",
     "servings": "6",
     "ingredients": [
@@ -3451,7 +3451,7 @@ const RECIPES = [
     "id": "easy-chicken-stroganoff",
     "title": "Easy Chicken Stroganoff",
     "category": "Main",
-    "cuisine": "Russian/Eastern European",
+    "cuisine": "Eastern European",
     "source": "Handwritten family recipe card",
     "servings": "4",
     "ingredients": [
@@ -23138,7 +23138,7 @@ const RECIPES = [
     "addedDate": "2026-08-24",
     "title": "Jerk Chicken",
     "category": "Main",
-    "cuisine": "Caribbean/Latin American",
+    "cuisine": "Caribbean/Latin",
     "source": "Cookbook photo",
     "servings": "4",
     "ingredients": [
@@ -26883,7 +26883,7 @@ const RECIPES = [
     "addedDate": "2026-08-24",
     "title": "Spiced Yams",
     "category": "Side",
-    "cuisine": "Caribbean/Latin American",
+    "cuisine": "Caribbean/Latin",
     "source": "Cookbook photo",
     "servings": "4",
     "ingredients": [
@@ -33450,7 +33450,7 @@ const RECIPES = [
     "addedDate": "2026-09-01",
     "title": "Cha Cha Chimichurri",
     "category": "Side",
-    "cuisine": "Caribbean/Latin American",
+    "cuisine": "Caribbean/Latin",
     "source": "Life-Changing Salads",
     "servings": "About 1 cup",
     "ingredients": [
@@ -36988,7 +36988,7 @@ const RECIPES = [
     "addedDate": "2026-09-01",
     "title": "Beef Stroganoff",
     "category": "Main",
-    "cuisine": "Russian/Eastern European",
+    "cuisine": "Eastern European",
     "source": "Family recipe",
     "servings": "6",
     "ingredients": [
@@ -54221,7 +54221,7 @@ async function remoteFetchAll(){
    IndexedDB's quota is far higher (typically hundreds of MB+), so this actually
    persists across visits. */
 const NYT_CACHE_KEY = 'cookbook.nytRecipes';
-const NYT_CACHE_VERSION = 11; /* bumped: v10 cache predates stripping 1,496 unneeded possessive-name prefixes (Mom's/Grandma's/random-person's) from recipe titles */
+const NYT_CACHE_VERSION = 12; /* bumped: v11 cache predates deleting 14 more junk-prefixed titles, renaming Caribbean/Latin American -> Caribbean/Latin, and Russian/Eastern European -> Eastern European */
 const NYT_DB_NAME = 'cookbookCache', NYT_DB_STORE = 'nytRecipes';
 
 function openNytDB(){
