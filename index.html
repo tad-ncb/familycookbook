@@ -145,15 +145,14 @@
   .stamp-badge.cuisine{
     color:var(--ink-soft); border-color:var(--line); background:var(--stamp-soft);
   }
-  /* time sits on its own row and wraps -- it used to be nowrap beside the
-     badges, which overflowed once the total + split were both shown */
-  .card-time{
-    font-family:'Work Sans', sans-serif; font-size:10px; font-variant-numeric:tabular-nums;
-    color:var(--ink-faint); line-height:1.5; letter-spacing:0.02em;
-    display:flex; flex-wrap:wrap; gap:2px 8px; margin-bottom:7px;
+  /* time/servings ride in the same row as the course/cuisine badges -- a
+     lighter-weight "fact" style (filled, no border color) distinguishes
+     stats from taxonomy without needing a separate row */
+  .card-stat{
+    font-family:'Work Sans', sans-serif; font-size:10px; color:var(--ink-soft);
+    background:var(--card-hover); border:1px solid var(--hair); padding:2px 7px;
+    border-radius:4px; font-variant-numeric:tabular-nums; white-space:nowrap;
   }
-  .card-time .t-total{ color:var(--ink-soft); font-weight:600; }
-  .card-time .servings-tag{ color:var(--ink-faint); }
   .card-title{
     font-family:'Archivo',sans-serif; font-weight:600; font-size:15.5px;
     line-height:1.25; margin:0 0 8px; transition:color .12s ease;
@@ -172,10 +171,7 @@
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
     flex:1 1 auto; min-width:0;
   }
-  .card-added{
-    font-family:'Work Sans',sans-serif; font-style:italic; font-size:12px; color:var(--ink-soft);
-    white-space:nowrap; flex:0 0 auto;
-  }
+  .card-added{ flex:0 0 auto; }
 
   .modal-overlay{
     position:fixed; inset:0; background:var(--scrim); display:none;
@@ -307,7 +303,11 @@
     color:var(--ink-faint); letter-spacing:0.04em; line-height:1.5;
   }
   .made-badge{ color:var(--stamp); }
-  .ing-preview{ font-style:italic; color:var(--ink-faint); }
+  .ing-preview{ display:flex; flex-wrap:wrap; gap:4px; }
+  .ing-pill{
+    font-family:'Work Sans', sans-serif; font-size:10.5px; color:var(--ink-soft);
+    background:var(--stamp-soft); padding:2px 7px; border-radius:4px;
+  }
   .stars{ color:var(--gold); letter-spacing:0.5px; }
   .ahead-pill{
     font-family:'Work Sans', sans-serif; font-size:9px; text-transform:uppercase;
@@ -52966,18 +52966,12 @@ function importData(e){
 
 /* ---------------- grid ---------------- */
 function starStr(n){ const k=Math.max(0,Math.min(5,Math.round(n))); return '★★★★★'.slice(0,k) + '☆☆☆☆☆'.slice(0,5-k); }
-function cardTimeHTML(r){
+/* card-level time is just the total, as a single stat tag alongside course/
+   cuisine/servings -- the prep/cook breakdown is a modal-only level of detail */
+function cardStatsHTML(r){
   const out = [];
-  const t = r._total;
-  if(t){
-    out.push(`<span class="t-total">${fmtTime(t)} total</span>`);
-    const p = parseTime(r.prepTime), c = parseTime(r.cookTime);
-    if(p) out.push(`<span>${fmtTime(p)} prep</span>`);
-    if(c) out.push(`<span>${fmtTime(c)} cook</span>`);
-  }
-  /* servings gets its own tag here rather than folded into the source line --
-     a stat about the dish belongs with total/prep/cook, not with attribution */
-  if(r.servings) out.push(`<span class="servings-tag">${escapeHTML(servingsLabel(r.servings))}</span>`);
+  if(r._total) out.push(`<span class="card-stat">${fmtTime(r._total)}</span>`);
+  if(r.servings) out.push(`<span class="card-stat">${escapeHTML(servingsLabel(r.servings))}</span>`);
   return out.join('');
 }
 function cardMetaHTML(r){
@@ -52988,7 +52982,7 @@ function cardMetaHTML(r){
        quick ingredient preview instead, so the card hints at the dish
        without needing to open it. */
     const preview = ingredientPreview(r);
-    if(preview) bits.push(`<span class="ing-preview">${escapeHTML(preview)}</span>`);
+    if(preview.length) bits.push(`<div class="ing-preview">${preview.map(ing=>`<span class="ing-pill">${escapeHTML(ing)}</span>`).join('')}</div>`);
   } else {
     bits.push(`<span class="made-badge">Made ${n}×</span><span>${relTime(last)}</span>`);
   }
@@ -53006,7 +53000,7 @@ const BORING_INGREDIENTS = new Set([
 function ingredientPreview(r){
   const core = r.ingredientCore || [];
   const ranked = [...core].sort((a,b) => (BORING_INGREDIENTS.has(a)?1:0) - (BORING_INGREDIENTS.has(b)?1:0));
-  return ranked.slice(0,5).join(', ');
+  return ranked.slice(0,5);
 }
 function renderGrid(){
   const grid = document.getElementById('grid');
@@ -53028,15 +53022,15 @@ function renderGrid(){
         <div class="card-tags">
           ${r.category ? `<span class="stamp-badge">${escapeHTML(r.category)}</span>` : ''}
           ${r.cuisine ? `<span class="stamp-badge cuisine">${zwsp(escapeHTML(r.cuisine))}</span>` : ''}
+          ${cardStatsHTML(r)}
           ${r._ahead ? `<span class="stamp-badge ahead">${escapeHTML(r._ahead.label)}</span>` : ''}
         </div>
       </div>
       <h3 class="card-title${r.nativeName?' dual-name':''}">${zwsp(escapeHTML(displayTitle(r)))}</h3>
-      <div class="card-time">${cardTimeHTML(r)}</div>
       ${cardMetaHTML(r)}
       <div class="card-bottom">
         <span class="card-source">${zwsp(escapeHTML(r.source||''))}</span>
-        <span class="card-added">${fmtAddedDate(addedDateOf(r))}</span>
+        <span class="card-added card-stat">${fmtAddedDate(addedDateOf(r))}</span>
       </div>`;
     card.onclick = ()=> openModal(r);
     grid.appendChild(card);
