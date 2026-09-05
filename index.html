@@ -63,14 +63,17 @@
   ::selection{background:var(--stamp); color:#fff;}
 
   .masthead{ border-bottom:1px solid var(--line); }
-  .masthead-inner{ max-width:var(--maxw); margin:0 auto; padding:clamp(10px,1.6vw,16px) clamp(12px,2.6vw,32px) clamp(6px,1vw,10px); text-align:center; }
+  .masthead-inner{
+    max-width:var(--maxw); margin:0 auto; padding:clamp(10px,1.6vw,16px) clamp(12px,2.6vw,32px) clamp(6px,1vw,10px);
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px 16px;
+  }
   h1.title{
     font-family:'Archivo',sans-serif; font-weight:600;
     font-size:clamp(18px, 2.1vw, 22px); line-height:1.15;
     letter-spacing:-0.008em; margin:0; color:var(--ink);
   }
 
-  .controls{ max-width:var(--maxw); margin:0 auto; padding:clamp(6px,1vw,10px) clamp(12px,2.6vw,32px) clamp(10px,1.6vw,16px); }
+  .controls{ max-width:var(--maxw); margin:0 auto; padding:clamp(6px,1vw,10px) clamp(12px,2.6vw,32px) 0; }
   /* Search sits as just another labeled row, same shape as Course/Cuisine
      below it -- not a separate oversized hero bar -- and the input itself
      is sized to the text, half-width, like the Must-include/exclude boxes. */
@@ -589,11 +592,7 @@
   .inv-add input{ flex:1 1 70px; min-width:0; padding:5px 7px; border:1px solid var(--line); border-radius:3px; font-size:13px; background:var(--paper); color:var(--ink); }
   .inv-add input#invName-pantry, .inv-add input#invName-fridge, .inv-add input#invName-freezer, .inv-add input#invName-shopping{ flex:2 1 100px; }
   /* ---------- Phase 3: theme, making mode, mobile chrome ---------- */
-  .util-row{
-    max-width:var(--maxw); margin:0 auto;
-    padding:0 clamp(12px,2.6vw,32px) 8px;
-    display:flex; align-items:center; gap:10px; justify-content:flex-end;
-  }
+  .util-row{ display:flex; align-items:center; gap:10px; }
   .icon-btn{
     background:transparent; border:1px solid var(--line); border-radius:3px;
     color:var(--ink-faint); cursor:pointer; padding:5px 9px; line-height:1;
@@ -707,18 +706,17 @@
 
 <div class="masthead">
   <div class="masthead-inner">
-    <h1 class="title" id="homeTitle" title="Back to the cookbook" style="cursor:pointer;">The Deemer-Berdux Family Cookbook</h1>
+    <h1 class="title" id="homeTitle" title="Back to the cookbook" style="cursor:pointer;">Deemer-Berdux Family Cookbook</h1>
     <div class="viewtabs" id="viewTabs">
       <button class="vt" data-view="plan" style="display:none">Plan the week</button>
       <button class="vt" data-view="history" style="display:none">History</button>
       <button class="vt" data-view="storage" style="display:none">Storage</button>
     </div>
+    <div class="util-row">
+      <button class="icon-btn" id="themeBtn" title="Switch theme">◐ Light</button>
+      <span id="authArea"></span>
+    </div>
   </div>
-</div>
-
-<div class="util-row">
-  <button class="icon-btn" id="themeBtn" title="Switch theme">◐ Light</button>
-  <span id="authArea"></span>
 </div>
 <div id="authPanel"></div>
 
