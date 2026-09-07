@@ -16,7 +16,7 @@
 <meta name="apple-mobile-web-app-title" content="Cookbook">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Work+Sans:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Work+Sans:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
 <style>
   /* Dark is the default -- navy/silver, deliberately dark-first.
      [data-theme="light"] swaps in the cool-grey/silver counterpart. */
@@ -46,11 +46,11 @@
     --paper: #eef0f3;
     --card: #ffffff;
     --card-hover: #f7f8fa;
-    /* was #171a20 -- technically navy-tinted but the blue was too subtle to read
-       as anything but black; every button border/icon/heading in the light
-       theme uses this token, so a barely-there tint there reads as "black
-       text, black buttons" site-wide instead of the intended navy identity */
-    --ink: #16203a;
+    /* was #171a20, then #16203a -- both still read as "black" at a glance
+       (dark enough that the navy tint barely shows), so every heading/
+       button/border in the light theme just looked like plain black text.
+       Lightened further while keeping full readability against --paper. */
+    --ink: #23335a;
     --ink-soft: #5b616c;
     --ink-faint: #9aa0ab;
     --line: #d7dbe1;
@@ -83,9 +83,11 @@
     display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px 16px;
   }
   h1.title{
-    font-family:'Archivo',sans-serif; font-weight:600;
-    font-size:clamp(18px, 2.1vw, 22px); line-height:1.15;
-    letter-spacing:-0.008em; margin:0; color:var(--ink);
+    /* removed per request to reclaim vertical space -- kept in the DOM
+       (rather than deleted) so #homeTitle's existing "back to cookbook"
+       click handler still has an element to attach to; the nav dropdown
+       already covers that navigation anyway. */
+    display:none;
   }
 
   .controls{ max-width:var(--maxw); margin:0 auto; padding:clamp(6px,1vw,10px) clamp(12px,2.6vw,32px) 0; }
@@ -105,7 +107,16 @@
   .result-count{
     font-family:'Work Sans', sans-serif; font-size:12px; font-variant-numeric:tabular-nums;
     color:var(--ink-soft); white-space:nowrap; flex-shrink:0;
+    /* fixed width, not just tabular-nums -- "955 / 955" vs "35 / 955" still
+       differ in total DIGIT COUNT, so this box's own intrinsic width was
+       still changing as you filtered. Since the search input right before
+       it flex-grows to fill whatever space is left over, a shrinking count
+       here freed up room for the input to expand into, which pushed the
+       Filters button (between them) sideways every time the count changed. */
+    min-width:88px; text-align:right;
   }
+  .loading-spin{ display:inline-block; animation:loadingSpin 0.8s linear infinite; }
+  @keyframes loadingSpin{ from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
   .load-pill{
     font-family:'Work Sans', sans-serif; font-size:10.5px; color:var(--stamp);
     border:1px solid var(--stamp); border-radius:10px; padding:2px 9px;
@@ -123,16 +134,26 @@
      the fold before you've even seen one. Both are no-ops above 640px --
      the select stays hidden and #filterPanel is never given .collapsed. */
   .viewtabs-mobile{ display:none; }
+  /* A small square icon button living right in the search row (not its own
+     full-width bar below it) -- sliders glyph is the universal "filter"
+     symbol, distinct from the heart/star used for Interested/Family. */
   .filters-toggle{
-    display:none; align-items:center; gap:8px;
-    font-family:'Work Sans',sans-serif; font-size:13px; font-weight:500; color:var(--ink);
+    display:none; align-items:center; justify-content:center; position:relative;
+    width:32px; height:32px; flex:0 0 auto; color:var(--ink-soft);
     background:var(--card); border:1px solid var(--line); border-radius:6px;
-    padding:7px 12px; margin:8px 0 4px; cursor:pointer; width:100%; justify-content:space-between;
+    padding:0; cursor:pointer;
   }
+  /* Same button stays put whether the panel's open or closed -- it just
+     swaps its icon (sliders -> X) so it still reads as "tap to close"
+     instead of disappearing and leaving a separate close control to find. */
+  /* No icon swap on open anymore -- the individual source/course/etc.
+     buttons already show their own on/off state, so this button just
+     stays a plain, unchanging toggle. */
   .filters-toggle.open{ border-color:var(--stamp); color:var(--stamp); }
   .filters-toggle-badge{
-    font-size:11px; font-variant-numeric:tabular-nums; color:var(--paper); background:var(--stamp);
-    border-radius:9px; padding:1px 7px; line-height:1.5;
+    position:absolute; top:-6px; right:-6px;
+    font-size:10px; font-variant-numeric:tabular-nums; color:var(--paper); background:var(--stamp);
+    border-radius:9px; padding:1px 5px; line-height:1.5; border:1.5px solid var(--paper);
   }
   .facet-name{
     font-family:'Work Sans', sans-serif; font-size:11px; font-weight:500;
@@ -146,10 +167,20 @@
     padding:3px 8px; cursor:pointer; white-space:nowrap; line-height:1.3;
     transition:background .12s ease, border-color .12s ease, color .12s ease;
   }
+  .cuisine-select-mobile{ display:none; }
+  .chip-break{ display:none; flex-basis:100%; height:0; }
+  .ing-row{ gap:14px; flex-wrap:nowrap; }
+  .ing-col{ flex:1 1 0; min-width:0; display:flex; flex-direction:column; gap:6px; }
+  .ing-col input{
+    background:var(--card); border:1px solid var(--line); border-radius:6px;
+    font-family:'Work Sans',sans-serif; font-size:13px; line-height:1.3;
+    color:var(--ink); padding:4px 8px; width:100%;
+  }
+  .diet-abbr{ display:none; }
   .facet-link:hover{border-color:var(--stamp);}
   .facet-link.active{ color:var(--paper); background:var(--stamp); border-color:var(--stamp); font-weight:500; }
-  .facet-link .n{color:var(--ink-faint); font-size:11px;}
-  .facet-link.active .n{ color:var(--paper); opacity:0.75; }
+  .facet-link .n, .tb-btn .n{color:var(--ink-faint); font-size:11px;}
+  .facet-link.active .n, .tb-btn.on .n{ color:var(--paper); opacity:0.75; }
 
   button.clear-btn{
     font-family:'Work Sans', sans-serif; font-size:12.5px;
@@ -175,17 +206,23 @@
   .load-more-btn:hover{ border-color:var(--stamp); color:var(--stamp); }
 
   .card{
-    background:var(--card); padding:34px 18px 16px; cursor:pointer;
+    background:var(--card); padding:12px 18px 10px; cursor:pointer;
     display:flex; flex-direction:column; min-height:196px; position:relative;
     transition:background .12s ease; min-width:0; overflow-x:hidden;
   }
   .card:hover{background:var(--card-hover);}
   .card:hover .card-title{color:var(--stamp);}
-  .family-mark{ position:absolute; top:12px; right:12px; color:var(--stamp); }
+  /* Absolute overlay at the card's top-right, floating over the title's own
+     corner rather than taking a line/row of its own anywhere -- the title
+     already reserves room there via its own right padding below. */
+  .card-icons{
+    position:absolute; top:10px; right:12px; z-index:1;
+    display:flex; align-items:center; gap:5px;
+  }
+  .family-mark{ color:var(--stamp); flex:0 0 auto; }
   .interested-star{
-    position:absolute; top:8px; left:8px; z-index:2;
-    background:none; border:none; cursor:pointer; padding:4px;
-    font-size:17px; line-height:1; color:var(--ink-faint); opacity:0.55;
+    background:none; border:none; cursor:pointer; padding:0; flex:0 0 auto;
+    font-size:14px; line-height:1; color:var(--ink-faint); opacity:0.55;
   }
   .interested-star:hover{ opacity:1; color:var(--stamp); }
   .interested-star.on{ color:var(--stamp); opacity:1; }
@@ -196,9 +233,9 @@
     padding:3px 8px; border-radius:5px; white-space:nowrap;
   }
   .card-title{
-    font-family:'Archivo',sans-serif; font-weight:600; font-size:15.5px;
+    font-family:'Cormorant Garamond',serif; font-weight:600; font-size:15.5px;
     line-height:1.25; margin:0 0 8px; transition:color .12s ease;
-    overflow-wrap:anywhere;
+    overflow-wrap:anywhere; padding-right:34px;
     display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
   }
   /* dishes shown as "Native Name (English Name)" run longer than a normal
@@ -253,11 +290,17 @@
   .modal-sideval{ font-family:'Work Sans',sans-serif; font-size:12.5px; color:var(--ink); line-height:1.4; }
   .modal-main{ padding:clamp(20px, 3.5vw, 32px) clamp(16px, 4vw, 40px) 40px; min-width:0; }
   .modal h2{
-    font-family:'Archivo',sans-serif; font-weight:600; font-size:clamp(20px, 4.4vw, 26px);
+    font-family:'Cormorant Garamond',serif; font-weight:600; font-size:clamp(20px, 4.4vw, 26px);
     line-height:1.18; margin:0 0 20px; padding-right:20px; overflow-wrap:anywhere;
   }
   .modal h2.dual-name{ font-size:clamp(16px, 4vw, 21px); line-height:1.2; }
   .tags{display:flex; gap:6px; flex-wrap:wrap; margin:2px 0 0;}
+  /* mobile-only (see the max-width:640px block below for the shown state) --
+     hidden by default so desktop and print (neither matches that screen
+     media query) don't show these duplicated alongside the sidebar copy.
+     .modal-tags-mobile placed after .tags above so this display:none wins
+     the same-specificity source-order tiebreak against it. */
+  .modal-actions-mobile, .modal-meta-grid, .modal-tags-mobile{ display:none; }
   .tagpill{
     font-family:'Work Sans', sans-serif; font-size:9.5px; text-transform:uppercase;
     letter-spacing:0.05em; border:1px solid var(--line); padding:2px 9px; color:var(--ink-soft);
@@ -294,7 +337,7 @@
     content:counter(step); position:absolute; left:0; top:0;
     width:22px; height:22px; border-radius:50%; border:1.5px solid var(--stamp);
     display:flex; align-items:center; justify-content:center;
-    font-family:'Archivo',sans-serif; font-weight:600; font-size:12px; color:var(--stamp);
+    font-family:'Work Sans',sans-serif; font-weight:700; font-size:12px; color:var(--stamp);
   }
   .steps li strong{ font-weight:700; color:var(--ink); }
   .notes-box{
@@ -312,20 +355,34 @@
   }
 
   @media (max-width:640px){
-    .masthead-inner{padding:16px 20px 10px;}
-    .controls{padding:10px 20px 14px;}
+    .masthead-inner{padding:12px 20px 8px;}
+    .controls{padding:2px 20px 4px;}
+    .facet-rows{margin-top:0;}
+    #filterPanel{padding-bottom:0;}
     .grid{padding:8px 10px 90px; grid-template-columns:1fr; gap:1px;}
-    .card{min-height:auto; padding:30px 15px 13px;}
+    .card{min-height:auto; padding:10px 15px 8px;}
     .months-wrap{ grid-template-columns:1fr; }
     .ing-list{columns:1;}
     .facet-name{width:100%; margin-bottom:4px; padding-top:0;}
-    .search-row input{ flex-basis:100%; max-width:none; }
-    /* Tabs: swap the two-row button grid for a single compact select. */
-    .viewtabs{ display:none; }
+    /* Was forcing the input to full width, pushing "955 / 955" onto its own
+       line below -- letting the input keep its desktop flex-grow behavior
+       (shrink to make room, rather than claim the whole row) puts the count
+       back on the same line, to its right. */
+    .search-row input{ flex:1 1 140px; min-width:100px; }
+    /* Tabs: swap the two-row button grid for a single compact select.
+       !important because a later, unguarded `.viewtabs{display:flex}` base
+       rule (Phase 2 styles, further down the file) would otherwise win this
+       cascade tie by source order despite this media query matching --
+       confirmed as the actual cause of the tabs and the mobile dropdown
+       both rendering at once. */
+    .viewtabs{ display:none !important; }
     .viewtabs-mobile{
       display:block; font-family:'Work Sans',sans-serif; font-size:13px; font-weight:600;
       color:var(--stamp); background:var(--card); border:1px solid var(--stamp); border-radius:6px;
       padding:6px 10px; max-width:100%;
+      /* fills the row up to the Dark/synced group instead of shrinking to
+         "Cookbook"'s own text width and leaving a dead gap before them. */
+      flex:1 1 auto;
     }
     /* Filters: collapsed by default (JS adds/removes .open), chip rows
        become single horizontally-swipeable lines instead of wrapping to
@@ -333,12 +390,71 @@
     .filters-toggle{ display:flex; }
     .filter-panel{ display:none; }
     .filter-panel.open{ display:block; }
-    .chip-row{ flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:2px; }
-    .chip-row .facet-link{ flex:0 0 auto; }
-    .facet-row:has(.chip-row){ flex-wrap:nowrap; }
-    #ingIncludeInput, #ingExcludeInput{ width:100% !important; }
+    /* Course/Cuisine/Diet chips wrap (not a horizontal scroll) at a smaller
+       size so most/all values are visible without swiping -- Cuisine still
+       has too many distinct values to ever fit this way (see its own
+       cuisine-scroll rule below, which keeps the old swipeable single line
+       just for that one row). */
+    .chip-row{ flex-wrap:wrap; width:100%; }
+    .chip-break{ display:block; }
+    #categoryChips{ justify-content:center; }
+    /* V/VG/GF/DF as 4 equal-width columns spanning the full row, like a
+       segmented control, instead of auto-width pills that wrap. */
+    .diet-full{ display:none; }
+    .diet-abbr{ display:inline; }
+    #dietChips{ flex-wrap:nowrap; }
+    #dietChips .facet-link{ flex:1 1 0; min-width:0; text-align:center; justify-content:center; }
+    /* the Author select above has no bottom border of its own on mobile
+       (labels are hidden, so nothing draws the usual .tb-group hairline in
+       the right place) -- add one above Show so it doesn't run straight
+       into Author with no separation. */
+    #showGroup{ justify-content:center; border-top:1px solid var(--line); padding-top:9px; margin-top:2px; padding-bottom:2px; }
+    /* Include/Exclude row: drop its own bottom border/padding since the
+       Author select right after it already reads as the next section. */
+    #filterPanel .ing-row{ border-bottom:none; padding-bottom:2px; }
+    /* Family/Curated gets its own line; the 4 archive sources share the
+       next line together instead of however many happen to fit before a
+       natural wrap (was splitting 3-then-2 across two ragged lines). */
+    #sourceToolbar .tb-group{ justify-content:center; padding-bottom:3px; }
+    #sourceToolbar + .facet-row{ padding-top:3px; }
+    #filterPanel .facet-link{ font-size:11px; padding:2px 6px; }
+    #filterPanel .facet-link .n, #filterPanel .tb-btn .n{ font-size:9.5px; }
+    #cuisineChips{ display:none; }
+    .cuisine-select-mobile{ display:block; width:100%; font-size:12.5px; padding:4px 8px; }
+    .ing-row{ gap:8px; }
+    .ing-col input{ font-size:12.5px; }
+    /* Titles like "Course"/"Cuisine"/"Diet"/"Show" are redundant with their
+       own chip labels once every row is this tight on space -- Search,
+       Author/Cookbook and Sort keep theirs since a bare input/select isn't
+       self-explanatory the way "Vegetarian" or "Appetizer" already are. */
+    .mobile-hide-label{ display:none; }
+    .compact-group{ gap:4px 6px; }
+    .compact-group .tb-btn{ font-size:11px; padding:2px 6px; }
     .toolbar label.tb-name{width:100%; margin-bottom:4px;}
     .toolbar .tb-name-spacer{display:none;}
+    /* With its label hidden, Author is the lone control on its row -- give
+       it a real width instead of native shrink-to-fit <select> sizing.
+       Centered per request, same as the Cuisine dropdown above it. */
+    /* flex-basis:100% explicitly (not "auto" relying on width to feed it) --
+       this has been reported still narrower than Cuisine across several
+       earlier attempts (width:100%, appearance:none) despite both selects
+       sharing this exact rule; an explicit flex-basis leaves no ambiguity
+       for a flex-item <select> to fall back to its own intrinsic content
+       width instead, which is a known cross-browser inconsistency. */
+    #authorSelect, #cuisineSelect{
+      display:block; width:100% !important; flex:1 1 100% !important; min-width:0; box-sizing:border-box;
+      text-align:center; text-align-last:center;
+    }
+    /* Clear filters + Sort (select and its ↑/↓ button) read as cramped/
+       clipped at the same compact size as the Show toggle buttons -- give
+       just these three a bit more room instead. */
+    #showGroup .clear-btn, #showGroup #sortSelect, #showGroup #sortDirBtn{ font-size:12px; padding:3px 9px; }
+    #showGroup #sortSelect{ max-width:60%; }
+    /* Never made/Made/Needs Extra Prep/Interested stretch to fill the row
+       evenly (like Diet's V/VG/GF/DF segmented control above) instead of
+       sitting as left-clustered auto-width pills with empty space after. */
+    #showGroup [data-made], #showGroup #aheadBtn{ flex:1 1 0; text-align:center; }
+    .sort-row{ display:flex; flex-basis:100%; justify-content:center; gap:6px; margin-top:6px; }
     /* a recipe already behaves like its own "page" (opening it pushes a real
        #r/<id> history entry, so the phone's back gesture just closes it and
        lands back on the filtered grid instead of leaving the site) -- the
@@ -351,24 +467,129 @@
       max-width:none; width:100vw; min-height:100vh; margin-bottom:0;
       border-top-width:2px; border-radius:0; box-shadow:none;
     }
+    /* Shrunk from 44px/border-bottom -- with the title now leading right
+       after it (metadata moved down/into the condensed grid), this read as
+       a heavy divider bar sitting in the way rather than a small close
+       affordance. */
+    /* position:fixed instead of sticky -- sticky still reserves its own
+       full-width row in the document flow (height alone, ~34px, was still
+       "space above the title" no matter how small); fixed removes it from
+       flow entirely so the title starts at the true top of the modal, while
+       staying reachable when scrolled since it's pinned to the viewport,
+       not the page. */
     .modal-close{
-      position:sticky; top:0; margin-left:auto; z-index:1;
-      width:44px; height:44px; font-size:22px;
-      background:var(--card); border-bottom:1px solid var(--line);
+      position:fixed; top:8px; right:8px; z-index:2;
+      width:30px; height:30px; font-size:18px;
+      background:var(--card); border-radius:50%; box-shadow:0 1px 4px rgba(0,0,0,.25);
     }
     .modal-inner{ grid-template-columns:1fr; }
-    .modal-side{ border-right:none; border-bottom:1px solid var(--line); padding:16px 20px; }
+    /* Everything modal-side used to hold on mobile has moved into
+       modal-main now (actions + metadata grid up top, cook panel at the
+       bottom) -- the sidebar itself would just be an empty box with its
+       own padding/border left over, which was the source of the stray gap
+       above the title. */
+    .modal-side{ display:none; }
+    /* Recipe modal, mobile: title/actions/metadata used to be a full vertical
+       list (modal-side) stacking ABOVE the title+ingredients, pushing both
+       below the fold. Now: title leads, a slim action row, tags, then a
+       condensed metadata grid -- ingredients follow immediately after. */
+    #modalActionsTop, .modal-meta-desktop{ display:none; }
+    /* block, not flex -- #modalActionsMobile itself was a flex container,
+       which made its two children (.action-row-top, .make-sub) sit side by
+       side as flex items on ONE row instead of stacking, squeezing the
+       "X of Y ingredients" progress text in next to the Print button
+       instead of appearing below the buttons as its own line. */
+    .modal-actions-mobile{ display:block; padding:0 0 10px; }
+    /* .icon-btn's default (faint text on a faint border, no fill) is meant
+       to read as a quiet secondary action among a lot of other small
+       controls -- fine on desktop's sidebar, but here it's the main
+       action row right under the title, and washed out to the point of
+       looking disabled, especially in dark mode. Full-contrast text + a
+       filled background instead. */
+    .modal-actions-mobile .icon-btn{
+      font-size:10px; padding:5px 3px; flex:1 1 0; text-align:center;
+      color:var(--ink); background:var(--card-hover); white-space:nowrap;
+    }
+    /* Sized by class, not DOM position -- was :first-child, which happened
+       to make Print noticeably bigger than its neighbors whenever Share
+       wasn't available (no navigator.share support) and Print ended up
+       first in the row instead of the actual "Start making" button. */
+    .modal-actions-mobile .make-btn{ flex:1.6 1 0; }
+    .modal-tags-mobile{ display:flex; margin:0 0 8px; }
+    .modal-tags-mobile:empty{ display:none; }
+    .modal-meta-grid{
+      display:grid; grid-template-columns:1fr 1fr; gap:0 14px;
+      border-top:1px solid var(--line); margin-bottom:10px;
+    }
+    .modal-meta-cell{
+      display:flex; align-items:baseline; gap:5px; padding:5px 0;
+      border-bottom:1px solid var(--line); font-size:11.5px; color:var(--ink); min-width:0;
+    }
+    /* was :nth-last-child(-n+2) to drop the border under the final row --
+       but that counts position among ALL children including any
+       .modal-meta-full rows mixed in (Source/Serves, when long), which
+       shift depending on which fields end up full-width vs paired cells,
+       throwing the pairing off and leaving mismatched border lines.
+       Simpler and predictable: every cell keeps its divider, uniformly. */
+    .modal-meta-cell .lbl{
+      flex:0 0 34px; font-size:8.5px; font-weight:600; text-transform:uppercase;
+      letter-spacing:.07em; color:var(--stamp); white-space:nowrap;
+    }
+    .modal-meta-cell .val{
+      flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    }
+    /* Source/Serves only use this (see openModal) when the value is long
+       enough to be worth its own wrapping line instead of an ellipsis cut --
+       a real sentence like a Serves note or a multi-author byline. */
+    .modal-meta-full{
+      font-size:11.5px; color:var(--ink); padding:0 0 8px; line-height:1.4;
+      border-bottom:1px solid var(--line); margin-bottom:2px; grid-column:1 / -1;
+    }
+    .modal-meta-full .lbl{
+      font-size:8.5px; font-weight:600; letter-spacing:.07em; text-transform:uppercase;
+      color:var(--stamp); margin-right:5px;
+    }
+    /* long titles (dual-name or just long) drop a size and allow a 3rd
+       wrapped line instead of eating the fold on their own. */
+    .modal h2.long-title{
+      font-size:15px; line-height:1.28; -webkit-line-clamp:3; display:-webkit-box;
+      -webkit-box-orient:vertical; overflow:hidden;
+    }
+    /* "Ingredients" as its own section heading was redundant space once the
+       list sits right under the scale bar with nothing else it could be --
+       "Method" stays, since steps aren't otherwise self-evidently labeled. */
+    /* was .section-title:first-of-type -- :first-of-type matches by tag
+       name (div), not class, and #modalActionsMobile/#modalTagsMobile/
+       #modalMetaGrid/#modalAhead are ALSO divs sitting before this one, so
+       it never actually matched "Ingredients" at all. Targeting the
+       specific element directly instead. */
+    #ingredientsSectionTitle{ display:none; }
+    .modal-meta-grid{ margin-bottom:6px; }
+    #modalScale .scale-bar{ margin:2px 0 8px; }
   }
   /* ---------- Phase 1: tracking + scaling ---------- */
-  .toolbar{
-    max-width:var(--maxw); margin:0 auto; padding:0 clamp(12px,2.6vw,32px);
-    display:flex; flex-wrap:wrap; align-items:center; gap:0 18px;
-  }
-  .toolbar:last-of-type{ padding-bottom:14px; }
+  /* .toolbar now lives nested inside #filterPanel (itself inside .controls,
+     which already supplies the left/right padding) alongside the Course/
+     Cuisine/Diet .facet-rows -- so it no longer gets its own max-width/
+     margin/padding (that was from when it was a standalone sibling of
+     .controls and would double up with the parent's padding, indenting it
+     out of alignment with the facet-rows next to it). Each .tb-group now
+     renders exactly like a .facet-row (same padding/border) instead of a
+     visually distinct block. */
+  /* was padding-bottom:10px here -- this unguarded base rule sits AFTER the
+     mobile media query's #filterPanel{padding-bottom:0} in source order, so
+     it was winning the cascade tie regardless of the media query matching
+     (same class of bug as the earlier .viewtabs one) and silently undoing
+     that fix. The last .toolbar's own :last-child rule below already zeroes
+     its own bottom padding, and .controls supplies outer breathing room
+     before the grid -- nothing else needs adding here. */
+  #filterPanel{ padding-bottom:0; }
+  .toolbar{ display:flex; flex-wrap:wrap; }
   .toolbar .tb-group{
-    display:flex; align-items:center; gap:8px; flex-basis:100%;
+    display:flex; align-items:baseline; flex-wrap:wrap; gap:5px 6px; flex-basis:100%;
     padding:7px 0; border-bottom:1px solid var(--line);
   }
+  #filterPanel .toolbar:last-child .tb-group{ border-bottom:none; padding-bottom:0; }
   .toolbar label.tb-name, .toolbar .tb-name-spacer{
     font-family:'Work Sans', sans-serif; font-size:11px; font-weight:500; text-transform:uppercase;
     letter-spacing:0.07em; color:var(--ink-faint);
@@ -381,6 +602,15 @@
     font-family:'Work Sans',sans-serif; font-size:12.5px; color:var(--ink); line-height:1.3;
     background:var(--card); border:1px solid var(--line); border-radius:6px;
     padding:3px 8px; cursor:pointer;
+    /* iOS Safari's native select chrome has been seen to ignore an explicit
+       width:100% in some flex contexts, which was the likely cause of
+       Author/Cuisine measuring differently on an actual phone despite
+       identical CSS -- stripping native appearance and drawing our own
+       arrow removes that platform-rendering variable entirely. */
+    -webkit-appearance:none; appearance:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b616c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat:no-repeat; background-position:right 8px center; background-size:13px;
+    padding-right:26px;
   }
   .tb-spacer{ flex:1 1 auto; }
   button.tb-btn{
@@ -435,7 +665,7 @@
   .step-badge{
     display:inline-flex; align-items:center; justify-content:center;
     width:16px; height:16px; border-radius:50%; border:1px solid var(--stamp);
-    color:var(--stamp); font-family:'Archivo',sans-serif; font-weight:600; font-size:9px;
+    color:var(--stamp); font-family:'Work Sans',sans-serif; font-weight:700; font-size:9px;
     margin-left:5px; vertical-align:middle;
   }
 
@@ -489,7 +719,7 @@
   .plan-head{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:16px; }
   .plan-nav{ display:flex; align-items:center; gap:6px; }
   .plan-range{
-    font-family:'Archivo',sans-serif; font-weight:600; font-size:16px;
+    font-family:'Cormorant Garamond',serif; font-weight:600; font-size:16px;
     padding:0 8px; white-space:nowrap;
   }
   .week{
@@ -516,7 +746,7 @@
   .slot-empty button:hover{ color:var(--stamp); border-color:var(--stamp); }
   .slot{ flex:1; display:flex; flex-direction:column; }
   .slot-title{
-    font-family:'Archivo',sans-serif; font-weight:600; font-size:13.5px; line-height:1.3;
+    font-family:'Cormorant Garamond',serif; font-weight:600; font-size:13.5px; line-height:1.3;
     cursor:pointer; margin-bottom:6px;
   }
   .slot-title:hover{ color:var(--stamp); }
@@ -567,8 +797,11 @@
   .shop{ margin-top:22px; border:1px solid var(--line); background:var(--card); padding:20px 22px; }
   .shop h3{
     font-family:'Work Sans', sans-serif; font-size:11px; text-transform:uppercase;
-    letter-spacing:0.1em; color:var(--ink-soft); margin:0 0 14px; font-weight:500;
+    letter-spacing:0.1em; color:var(--ink-soft); margin:0; font-weight:500;
   }
+  .shop-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+  .shop-head-actions{ display:flex; gap:8px; flex-wrap:wrap; }
+  .shop-lists{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px; padding-bottom:14px; border-bottom:1px solid var(--line); }
   .shop-cols{ columns:3; column-gap:32px; }
   .shop-sec{ break-inside:avoid; margin-bottom:16px; }
   .shop-sec h4{
@@ -577,38 +810,51 @@
     border-bottom:1px solid var(--line); padding-bottom:4px;
   }
   .shop-sec ul{ list-style:none; margin:0; padding:0; }
-  .shop-sec li{ font-size:13px; line-height:1.5; color:var(--ink); padding:1px 0; }
+  .shop-sec li{ display:flex; align-items:baseline; gap:6px; font-size:13px; line-height:1.5; color:var(--ink); padding:1px 0; }
   .shop-sec li .from{ color:var(--ink-faint); font-size:11px; }
+  .shop-check{ cursor:pointer; flex:0 0 auto; color:var(--stamp); }
+  .shop-item-text{ flex:1 1 auto; min-width:0; overflow-wrap:anywhere; }
+  .shop-sec li.shop-checked .shop-item-text{ color:var(--ink-faint); text-decoration:line-through; }
   .shop-empty{ color:var(--ink-faint); font-style:italic; }
 
   /* month / history */
-  /* 4 months visible at once as smaller calendars, not full-size stacked
-     ones requiring a scroll to see the older ones -- a 2x2 grid at roughly
-     half the old cell size. */
-  .months-wrap{ display:grid; grid-template-columns:repeat(2,1fr); gap:18px 24px; }
-  .month-label{
-    font-family:'Archivo',sans-serif; font-weight:600; font-size:12.5px;
-    color:var(--ink); margin-bottom:5px;
+  /* History: reverse-chronological list -- replaced a 4-month calendar
+     grid that was mostly empty cells with entries truncated to ~4
+     characters. Every row reads in full now; a search box + "load more"
+     replace month-paging. */
+  .history-search{
+    display:block; width:100%; max-width:360px; margin:0 0 16px;
+    font-family:'Work Sans',sans-serif; font-size:13px; line-height:1.3; color:var(--ink);
+    background:var(--card); border:1px solid var(--line); border-radius:6px; padding:6px 10px;
   }
-  .month{ display:grid; grid-template-columns:repeat(7,1fr); gap:1px; background:var(--line); border:1px solid var(--line); }
-  .mhead{
-    background:var(--paper); text-align:center; padding:3px 2px;
-    font-family:'Work Sans', sans-serif; font-size:8px; text-transform:uppercase;
-    letter-spacing:0.06em; color:var(--ink-faint);
+  .history-list{ display:flex; flex-direction:column; }
+  .hist-row{
+    display:flex; align-items:baseline; gap:14px; padding:11px 0;
+    border-bottom:1px solid var(--line); cursor:pointer;
   }
-  .mcell{ background:var(--card); min-height:46px; padding:3px 4px; overflow:hidden; }
-  .mcell.out{ background:var(--paper); }
-  .mcell.today{ box-shadow:inset 0 2px 0 var(--stamp); }
-  .mcell .mnum{ font-family:'Work Sans', sans-serif; font-size:9px; color:var(--ink-faint); }
-  .mcell .mitem{
-    font-size:9px; line-height:1.25; margin-top:2px; color:var(--ink); cursor:pointer;
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  .hist-row:hover .hist-title{ color:var(--stamp); }
+  .hist-date{
+    flex:0 0 62px; font-family:'Work Sans', sans-serif; font-size:11px;
+    color:var(--ink-faint); font-variant-numeric:tabular-nums; white-space:nowrap;
   }
-  .mcell .mitem:hover{ color:var(--stamp); }
-  .mcell .mstars{ color:var(--gold); font-size:8px; }
+  .hist-main{ flex:1 1 auto; min-width:0; }
+  .hist-title{
+    font-family:'Cormorant Garamond',serif; font-weight:600; font-size:14.5px;
+    color:var(--ink); transition:color .12s ease; overflow-wrap:anywhere;
+  }
+  .hist-meta{
+    display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:3px;
+    font-family:'Work Sans', sans-serif; font-size:11.5px; color:var(--ink-soft);
+  }
+  .hist-stars{ color:var(--gold); }
+  .hist-hh{
+    font-size:9.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-faint);
+    border:1px solid var(--line); border-radius:3px; padding:1px 5px;
+  }
+  .hist-note{ font-style:italic; }
   .hist-stats{ display:flex; flex-wrap:wrap; gap:26px; margin-bottom:16px; }
   .hstat{ font-family:'Work Sans', sans-serif; font-size:10.5px; color:var(--ink-faint); letter-spacing:0.05em; }
-  .hstat b{ display:block; font-family:'Archivo',sans-serif; font-weight:600; font-size:21px; color:var(--ink); letter-spacing:-0.01em; font-variant-numeric:tabular-nums; }
+  .hstat b{ display:block; font-family:'Cormorant Garamond',serif; font-weight:600; font-size:21px; color:var(--ink); letter-spacing:-0.01em; font-variant-numeric:tabular-nums; }
 
   /* picker */
   .picker-search{ display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin:6px 0 14px; }
@@ -648,9 +894,34 @@
   @media (max-width:640px){
     .planwrap{ padding:16px 14px 90px; }
     .week{ grid-template-columns:1fr; }
-    .day{ min-height:auto; }
+    /* Meaningfully more compact per-day (smaller padding/fonts/gaps) so more
+       of the week clears the fold before scrolling -- a genuinely
+       zero-scroll 7-day view isn't realistic while every day still shows
+       full add/swap/leftover/cook controls (each needs a real tap target),
+       but this noticeably shortens a typical day. */
+    /* Date moves from its own full-width row above Dinner/Lunch to a
+       narrow column beside them -- a day label ("MON 31") doesn't need a
+       whole row's worth of width just to sit on its own line above
+       everything else. */
+    .day{ min-height:auto; padding:5px 8px 6px; flex-direction:row; align-items:flex-start; gap:8px; }
+    .day-head{
+      flex:0 0 32px; flex-direction:column; align-items:flex-start;
+      justify-content:flex-start; gap:1px; margin-bottom:0;
+    }
+    .day-head .dnum{ font-size:14px; }
+    .day-body{ flex:1 1 auto; min-width:0; }
+    .meal-block{ margin-bottom:3px; }
+    .meal-label{ margin-bottom:1px; font-size:8px; }
+    .meal-block .slot{ padding:6px; margin-bottom:4px; }
+    .slot-title{ font-size:12.5px; margin-bottom:3px; }
+    .slot-meta{ margin-bottom:5px; }
+    .slot-actions{ margin-top:5px; gap:3px; }
+    .slot-actions button{ padding:3px 5px; }
+    .slot-empty{ gap:4px; }
+    .slot-empty button{ padding:3px 6px; font-size:9px; }
     .shop-cols{ columns:1; }
-    .mcell{ min-height:64px; }
+    .hist-row{ gap:10px; }
+    .hist-date{ flex-basis:48px; font-size:10px; }
   }
   .settings{
     border:1px solid var(--line); background:var(--card);
@@ -684,10 +955,23 @@
   .inv-add input#invName-pantry, .inv-add input#invName-fridge, .inv-add input#invName-freezer, .inv-add input#invName-shopping{ flex:2 1 100px; }
   /* ---------- Phase 3: theme, making mode, mobile chrome ---------- */
   .util-row{ display:flex; align-items:center; gap:10px; }
+  /* #authArea wraps whatever syncLabel() renders (a span sharing .icon-btn
+     with #themeBtn) -- as a plain inline span it was an extra box around
+     that content, throwing off vertical alignment/height next to the
+     button sitting directly in the flex row beside it. Making it a flex
+     item itself (rather than just an inline wrapper) puts its child on
+     equal footing. */
+  .util-row #authArea{ display:inline-flex; align-items:center; }
   .icon-btn{
     background:transparent; border:1px solid var(--line); border-radius:3px;
     color:var(--ink-faint); cursor:pointer; padding:5px 9px; line-height:1;
     font-family:'Work Sans', sans-serif; font-size:11px;
+    display:inline-flex; align-items:center; justify-content:center; gap:4px;
+    /* buttons carry native platform chrome (min-height/padding) that
+       persists even after setting explicit padding above unless appearance
+       is reset -- without this, #themeBtn (a <button>) rendered a hair
+       taller than the "synced" indicator (a <span>) right next to it. */
+    -webkit-appearance:none; appearance:none; box-sizing:border-box; vertical-align:middle;
   }
   .icon-btn:hover{ color:var(--stamp); border-color:var(--stamp); }
   .icon-btn.on{ color:#fff; background:var(--stamp); border-color:var(--stamp); }
@@ -770,7 +1054,7 @@
     .ing-list{ columns:1; }
     .action-row-top{ gap:6px; }
   }
-  .sync-dot{ font-size:10.5px; letter-spacing:0.04em; }
+  .sync-dot{ font-size:11px; letter-spacing:0.04em; }
   .sync-dot.s-ok, .sync-dot.s-idle{ color:#5FA36B; border-color:#5FA36B33; }
   .sync-dot.s-syncing{ color:var(--stamp); border-color:var(--stamp); }
   .sync-dot.s-error{ color:var(--alert); border-color:var(--alert); }
@@ -804,6 +1088,17 @@
     @page{ margin:0.4in; }
     .modal{ position:static !important; width:100%; max-width:100%; box-shadow:none; border:none; margin:0; }
     .modal-close, #modalActionsTop, .cook-panel, #modalAhead{ display:none !important; }
+    /* The mobile redesign (title/actions/metadata moved into .modal-main,
+       .modal-side hidden below 640px) was leaking into print: some print
+       paths (confirmed: iOS share-sheet print) render at the device's own
+       CSS width, which also matches the max-width:640px screen query, so
+       BOTH rule sets were applying at once -- the mobile elements showing
+       (with none of this condensing) right alongside .modal-side forced
+       hidden, instead of the one condensed sidebar layout this whole block
+       assumes. Force the print-intended state explicitly regardless of
+       viewport width. */
+    .modal-side{ display:block !important; }
+    #modalActionsMobile, .modal-meta-grid, .modal-tags-mobile{ display:none !important; }
     .modal-inner{ grid-template-columns:130px 1fr; display:grid !important; }
     body, .modal-main, .modal-side{ font-size:10.5px !important; }
     .modal-main{ padding:0 !important; }
@@ -812,7 +1107,7 @@
     .modal-sidelabel:first-child{ margin-top:0 !important; }
     .modal-sideval, .modal-side .tags{ font-size:9.5px !important; }
     .section-title{ font-size:9px !important; margin:10px 0 4px !important; }
-    .section-title:first-of-type{ margin-top:0 !important; }
+    #ingredientsSectionTitle{ display:block !important; margin-top:0 !important; }
     #modalScale{ display:none !important; }
     .ing-list{ columns:3 !important; column-gap:14px !important; }
     .ing-list li{ font-size:9.5px !important; line-height:1.25 !important; padding:2px 0 2px 12px !important; }
@@ -832,6 +1127,9 @@
   body.printing > #modalOverlay{ display:block !important; position:static !important; background:none !important; padding:0 !important; }
   body.printing .modal{ position:static !important; width:100%; max-width:100%; box-shadow:none; border:none; margin:0; }
   body.printing .modal-close, body.printing #modalActionsTop, body.printing .cook-panel, body.printing #modalAhead{ display:none !important; }
+  /* same fix as the bare @media print block above -- see its comment */
+  body.printing .modal-side{ display:block !important; }
+  body.printing #modalActionsMobile, body.printing .modal-meta-grid, body.printing .modal-tags-mobile{ display:none !important; }
   body.printing .modal-inner{ grid-template-columns:130px 1fr; display:grid !important; }
   body.printing, body.printing .modal-main, body.printing .modal-side{ font-size:10.5px !important; }
   body.printing .modal-main{ padding:0 !important; }
@@ -840,7 +1138,7 @@
   body.printing .modal-sidelabel:first-child{ margin-top:0 !important; }
   body.printing .modal-sideval, body.printing .modal-side .tags{ font-size:9.5px !important; }
   body.printing .section-title{ font-size:9px !important; margin:10px 0 4px !important; }
-  body.printing .section-title:first-of-type{ margin-top:0 !important; }
+  body.printing #ingredientsSectionTitle{ display:block !important; margin-top:0 !important; }
   body.printing #modalScale{ display:none !important; }
   body.printing .ing-list{ columns:3 !important; column-gap:14px !important; }
   body.printing .ing-list li{ font-size:9.5px !important; line-height:1.25 !important; padding:2px 0 2px 12px !important; }
@@ -908,56 +1206,64 @@
 </div>
 
 <div id="cookbookView">
-<div class="toolbar" id="sourceToolbar"></div>
 <div class="controls">
   <div class="facet-rows">
     <div class="facet-row">
-      <span class="facet-name">Search</span>
+      <span class="facet-name mobile-hide-label">Search</span>
       <div class="search-row">
-        <input id="searchInput" type="text" placeholder="What are we making?">
+        <input id="searchInput" type="text" placeholder="Search…">
+        <button class="filters-toggle" id="filtersToggle" type="button" title="Filters" aria-label="Filters">
+          <svg class="icon-sliders" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2.3" fill="currentColor" stroke="none"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="16" cy="12" r="2.3" fill="currentColor" stroke="none"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="2.3" fill="currentColor" stroke="none"/></svg>
+          <span class="filters-toggle-badge" id="filtersToggleBadge" hidden>0</span>
+        </button>
+        <!-- A dedicated quick-clear icon here would have been a 2nd X right
+             next to the Filters button's own X (its closed/open icon) --
+             too easy to confuse which does what. Clear filters (inside the
+             panel) already covers this. -->
         <span class="result-count" id="resultCount"></span>
-        <span class="load-pill" id="nytLoadIndicator" hidden>Loading full library&hellip;</span>
       </div>
     </div>
-    <button class="filters-toggle" id="filtersToggle" type="button">
-      <span>&#9881; Filters</span>
-      <span class="filters-toggle-badge" id="filtersToggleBadge" hidden>0</span>
-    </button>
+    <!-- Everything below Search lives in one panel now -- on desktop this is
+         just a normal always-visible block (no CSS hides it above 640px);
+         on mobile it's collapsed behind the Filters button above, which
+         stays put and swaps its icon to an X while open (see .icon-sliders/
+         .icon-x) -- same button closes it again, no separate close control
+         needed. -->
     <div id="filterPanel" class="filter-panel">
+    <div class="toolbar" id="sourceToolbar"></div>
     <div class="facet-row">
-      <span class="facet-name">Course</span>
+      <span class="facet-name mobile-hide-label">Course</span>
       <div id="categoryChips" class="chip-row"></div>
     </div>
     <div class="facet-row">
-      <span class="facet-name">Cuisine</span>
+      <span class="facet-name mobile-hide-label">Cuisine</span>
       <div id="cuisineChips" class="chip-row"></div>
+      <!-- 23 distinct cuisines is too many to ever wrap into 1-2 mobile
+           lines even shrunk -- below 640px this dropdown replaces the chip
+           row entirely (see .cuisine-select-mobile); desktop keeps the
+           chips, which have room to wrap and still show counts at a glance. -->
+      <select id="cuisineSelect" class="tb-select cuisine-select-mobile"></select>
     </div>
     <div class="facet-row">
-      <span class="facet-name">Diet</span>
+      <span class="facet-name mobile-hide-label">Diet</span>
       <div id="dietChips" class="chip-row"></div>
     </div>
-    <div class="facet-row" style="border-bottom:none; padding-bottom:0;">
-      <span class="facet-name">Include</span>
-      <div style="display:flex; flex-wrap:wrap; align-items:center; gap:6px;">
-        <input id="ingIncludeInput" type="text" list="ingIncludeOptions" placeholder="e.g. chicken" style="font-family:'Work Sans',sans-serif; font-size:13px; line-height:1.3; padding:4px 8px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink); width:200px;">
+    <div class="facet-row ing-row">
+      <div class="ing-col">
+        <input id="ingIncludeInput" type="text" list="ingIncludeOptions" placeholder="+ include e.g. chicken">
         <datalist id="ingIncludeOptions"></datalist>
         <div id="ingIncludeChips" style="display:flex; flex-wrap:wrap; gap:4px;"></div>
       </div>
-    </div>
-    <div class="facet-row">
-      <span class="facet-name">Exclude</span>
-      <div style="display:flex; flex-wrap:wrap; align-items:center; gap:6px;">
-        <input id="ingExcludeInput" type="text" list="ingExcludeOptions" placeholder="e.g. cinnamon, celery" style="font-family:'Work Sans',sans-serif; font-size:13px; line-height:1.3; padding:4px 8px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink); width:200px;">
+      <div class="ing-col">
+        <input id="ingExcludeInput" type="text" list="ingExcludeOptions" placeholder="− exclude e.g. cinnamon">
         <datalist id="ingExcludeOptions"></datalist>
         <div id="ingExcludeChips" style="display:flex; flex-wrap:wrap; gap:4px;"></div>
       </div>
     </div>
+    <div class="toolbar" id="toolbar"></div>
     </div>
   </div>
 </div>
-
-<div class="toolbar" id="toolbar"></div>
-<div class="toolbar" id="sortToolbar"></div>
 
 <main class="grid" id="grid"></main>
 <div id="loadMoreWrap"></div>
@@ -976,7 +1282,6 @@
       </div>
       <div class="tb-spacer"></div>
       <div class="plan-nav">
-        <button class="tb-btn on" id="suggestWeek">Suggest the week</button>
         <button class="tb-btn" id="clearWeek">Clear</button>
         <button class="tb-btn" id="shopBtn">Shopping &amp; prep</button>
         <button class="tb-btn" id="setBtn">Household</button>
@@ -992,16 +1297,10 @@
 
 <div id="historyView" style="display:none">
   <div class="planwrap">
-    <div class="plan-head">
-      <div class="plan-nav">
-        <button class="tb-btn" id="monPrev">&lsaquo;</button>
-        <span class="plan-range" id="monRange"></span>
-        <button class="tb-btn" id="monNext">&rsaquo;</button>
-        <button class="tb-btn" id="monToday">This month</button>
-      </div>
-    </div>
     <div id="histStats"></div>
-    <div id="monthsWrap" class="months-wrap"></div>
+    <input type="text" id="historySearch" placeholder="Search what you've cooked…" class="history-search">
+    <div id="historyList" class="history-list"></div>
+    <div id="historyLoadMore"></div>
   </div>
 </div>
 
@@ -1052,6 +1351,10 @@
     <div class="modal-inner">
       <div class="modal-side">
         <div id="modalActionsTop"></div>
+        <!-- Hidden on mobile (see .modal-meta-desktop) in favor of the
+             condensed #modalMetaGrid inside .modal-main, right after the
+             title -- desktop keeps this exact vertical list unchanged. -->
+        <div class="modal-meta-desktop">
         <div class="modal-sidelabel">Course</div><div class="modal-sideval" id="modalSideCourse"></div>
         <div class="modal-sidelabel">Cuisine</div><div class="modal-sideval" id="modalSideCuisine"></div>
         <div class="modal-sidelabel">Source</div><div class="modal-sideval" id="modalSideSource"></div>
@@ -1059,14 +1362,22 @@
         <div class="modal-sidelabel">Prep / Cook</div><div class="modal-sideval" id="modalSideTime"></div>
         <div class="modal-sidelabel">Diet</div><div class="tags" id="modalTags"></div>
         <div class="modal-sidelabel">Added</div><div class="modal-sideval" id="modalSideAdded"></div>
-        <div id="modalCook"></div>
+        </div>
       </div>
       <div class="modal-main">
         <h2 id="modalTitle"></h2>
+        <!-- Mobile-only: same actions as #modalActionsTop above (duplicated,
+             not moved -- desktop's sidebar copy stays exactly as it was),
+             slim icon row via CSS, plus the condensed metadata grid so
+             Course/Cuisine/Source/Serves/Prep-Cook/Added don't push
+             ingredients below the fold. -->
+        <div id="modalActionsMobile" class="modal-actions-mobile"></div>
+        <div class="tags modal-tags-mobile" id="modalTagsMobile"></div>
+        <div class="modal-meta-grid" id="modalMetaGrid"></div>
 
         <div id="modalAhead"></div>
 
-        <div class="section-title">Ingredients</div>
+        <div class="section-title" id="ingredientsSectionTitle">Ingredients</div>
         <div id="modalScale"></div>
         <ul class="ing-list" id="modalIngredients"></ul>
 
@@ -1074,6 +1385,13 @@
         <ol class="steps" id="modalSteps"></ol>
 
         <div id="modalNotesWrap"></div>
+        <!-- Whether-it's-been-cooked lives at the very end now -- it was in
+             the sidebar, which on mobile stacks ABOVE the title (DOM/grid
+             order), meaning "Not yet cooked" was the first thing you saw
+             before even the recipe name. Single element, just relocated
+             (not duplicated) -- renderCookPanel() still finds it the same
+             way on both desktop and mobile. -->
+        <div id="modalCook"></div>
         <div id="modalShareFooter"></div>
       </div>
     </div>
@@ -13927,7 +14245,7 @@ const RECIPES = [
     "source": "Emailed family recipe, Nov 14, 2020",
     "servings": "6-8",
     "ingredients": [
-      "For the spice blend (used in two batches):",
+      "For spice blend (2 batches):",
       "6 tsp (30 ml) ground turmeric",
       "5 tsp (25 ml) garam masala",
       "3 tsp (15 ml) coriander",
@@ -13944,7 +14262,7 @@ const RECIPES = [
       "1 1/2-2 cups (360-480 ml) whole-milk yogurt",
       "2 Tbsp (30 ml) lemon juice",
       "2-4 lbs (910 g-1.8 kg) boneless, skinless chicken thighs/breasts",
-      "Aromatics (split between the marinade and the sauce):",
+      "Aromatics (marinade &amp; sauce):",
       "1 garlic bulb, finely diced",
       "2-inch piece of ginger, finely grated",
       "2 medium onions, finely diced",
@@ -59035,7 +59353,7 @@ const LS_KEY = 'cookbook.state.v1';
    standalone/auto-added shopping-list entries ride the same synced table
    and CRUD helpers as the three real storage tiers. */
 const INVENTORY_KINDS = ['pantry','fridge','freezer'];
-function blankState(){ return {version:1, cookLog:[], plan:[], inventory:{items:[]}, interested:[], prefs:{}}; }
+function blankState(){ return {version:1, cookLog:[], plan:[], inventory:{items:[]}, interested:[], shoppingLists:[], prefs:{}}; }
 /* Deletes are tombstones (_d) rather than removals, and every mutable record carries
    a _t stamp -- without both, a delete on one device is silently undone by the other. */
 function newer(x, y){ return ((y && y._t)||0) >= ((x && x._t)||0) ? y : x; }
@@ -59099,6 +59417,14 @@ function mergeStates(base, over){
     const prev = ntm.get(e.id);
     ntm.set(e.id, prev ? newer(prev, e) : e);
   });
+  /* Named shopping lists -- same tombstone pattern as everything else above,
+     one row per list (id is a generated uid, not tied to any recipe). */
+  const slm = new Map();
+  [...(base.shoppingLists||[]), ...(over.shoppingLists||[])].forEach(e=>{
+    if(!e || !e.id) return;
+    const prev = slm.get(e.id);
+    slm.set(e.id, prev ? newer(prev, e) : e);
+  });
   const bp = base.prefs || {}, op = over.prefs || {};
   return {
     version: 1,
@@ -59106,6 +59432,7 @@ function mergeStates(base, over){
     plan,
     inventory: {items: [...im.values()]},
     interested: [...ntm.values()],
+    shoppingLists: [...slm.values()],
     prefs: ((op._t||0) >= (bp._t||0)) ? Object.assign({}, bp, op) : Object.assign({}, op, bp)
   };
 }
@@ -59447,9 +59774,46 @@ function archiveSourceOf(r){
   return 'Other recipe sites';
 }
 let enabledSources = [CURATED_TIER];
-let archiveFetched = false; /* the one bulk nyt_recipes fetch only ever needs to happen once per visit, no matter how many of the 4 archive buttons get toggled */
+/* Approximate row counts for the 4 archive source buttons -- declared here
+   (not down by loadArchiveSourceCounts/toggleSource where it's used) because
+   the very first boot render() call happens before that point in the file,
+   and a `let` is in its temporal dead zone until its declaration line
+   actually runs -- syncToolbar() reading this too early threw a
+   ReferenceError that silently aborted that whole render() call, which is
+   what broke the author/cuisine dropdowns, the sync-status display, and
+   card click wiring all at once (everything after that point in the boot
+   sequence never ran). */
+let archiveSourceCounts = {};
+/* Each of the 4 archive sources fetches independently now, not as one
+   shared ~60k-row pull -- turning on just NYT (~19k rows) used to also
+   download Epicurious/BBC/Other (adding up to the full ~60k) since they
+   all shared one bulk fetch, which is what made a single button take 37
+   seconds. archiveFetchedSources tracks which ones have been individually
+   fetched so re-toggling a source that's already loaded is just a filter
+   change, same as before. */
+let archiveFetchedSources = new Set();
+/* Precomputed + indexed server-side (see add_archive_source_column.sql) --
+   was a mix of `source = '...'` and `id LIKE 'prefix-%'`, the latter unable
+   to use a normal index (forces a sequential table scan). BBC in
+   particular was consistently the slowest of the 4 buttons despite having
+   the fewest rows, because a sequential scan wastes proportionally more
+   work finding its ~2%-of-the-table share than NYT's ~32% share. An
+   indexed equality lookup makes every source equally fast regardless of
+   its size. */
+const ARCHIVE_SOURCE_FILTERS = {
+  'NYT Cooking': q => q.eq('archive_source', 'nyt'),
+  'Epicurious': q => q.eq('archive_source', 'epicurious'),
+  'BBC Good Food': q => q.eq('archive_source', 'bbc'),
+  'Other recipe sites': q => q.eq('archive_source', 'other'),
+};
 let archiveLoading = false;
-let state = { query:"", category:null, cuisine:null, diets:[], author:null, sort:"newest", sortDir:1, made:"all", aheadOnly:false, includeIngredients:[], excludeIngredients:[] };
+/* Which specific source is currently mid-fetch, if any -- syncToolbar used
+   to show "Loading…" on every ENABLED source whenever archiveLoading was
+   true (not just the one actually fetching), which is why an already-
+   loaded, already-toggled-on source would randomly flash "Loading…" while
+   a completely different button was fetching. */
+let currentlyLoadingSource = null;
+let state = { query:"", category:null, cuisine:null, diets:[], author:null, sort:"top", sortDir:1, made:"all", aheadOnly:false, includeIngredients:[], excludeIngredients:[] };
 const COURSE_ORDER = ["Appetizer","Salad","Soup","Bread","Side","Main","Dessert","Breakfast","Drink"];
 const STALE_DAYS = 75;   /* "had it, but not in 2-3 months" */
 
@@ -59480,6 +59844,7 @@ const DIET_DEFINITIONS = {
 };
 function recipeDietTags(r){ return Object.keys(DIET_DEFINITIONS).filter(d=>DIET_DEFINITIONS[d](r)); }
 const ALL_DIETS = Object.keys(DIET_DEFINITIONS);
+const DIET_ABBREV = {Vegetarian:'V', Vegan:'VG', 'Gluten Free':'GF', 'Dairy Free':'DF'};
 function countFor(field, value){ return RECIPES.filter(r=>matchesFiltersExcept(r, field) && r[field]===value).length; }
 function countForTag(tag){ return RECIPES.filter(r=>matchesFiltersExcept(r, 'diet') && recipeDietTags(r).includes(tag)).length; }
 
@@ -59639,6 +60004,18 @@ function authorOf(r){
   return UNKNOWN_AUTHOR;
 }
 function countForAuthor(a){ return RECIPES.filter(r=>authorOf(r)===a).length; }
+/* One pass tallying every author's count at once -- computeAllAuthors used
+   to call countForAuthor (itself a full RECIPES.filter() scan) once per
+   candidate in a .filter(), then AGAIN twice per comparison inside a
+   .sort() -- with 50-150+ distinct authors once archive sources are
+   merged in, that's thousands of full-array scans on every single
+   render(), a major contributor to toggling a source feeling exactly as
+   slow as loading one. */
+function computeAuthorCounts(){
+  const m = {};
+  RECIPES.forEach(r=>{ const a = authorOf(r); m[a] = (m[a]||0)+1; });
+  return m;
+}
 /* computed fresh every call, NOT a one-time const -- NYT Cooking's real count
    (and technically the whole option list) depends on the async NYT fetch having
    merged into RECIPES by the time this runs, which hasn't happened yet the very
@@ -59651,16 +60028,41 @@ function computeAllAuthors(){
   if(present.has(NYT_AUTHOR)) rest.push(NYT_AUTHOR);
   if(present.has(FAMILY_AUTHOR)) rest.push(FAMILY_AUTHOR);
   if(present.has(UNKNOWN_AUTHOR)) rest.push(UNKNOWN_AUTHOR);
-  return named.concat(rest).sort((a,b)=> countForAuthor(b) - countForAuthor(a));
+  /* A one-or-two-recipe author is mostly dropdown clutter -- their recipes
+     are still fully in the catalog and findable by search/other filters,
+     just not worth a named entry of their own in an already-long list. */
+  const counts = computeAuthorCounts();
+  return named.concat(rest).filter(a=>(counts[a]||0) > 2).sort((a,b)=> (counts[b]||0) - (counts[a]||0));
 }
 
 function renderChips(){
+  /* countFor/countForTag each did a full RECIPES.filter() scan PER chip --
+     36 separate full-array scans (9 categories + 23 cuisines + 4 diets)
+     every single render(), which is what made toggling a source (even
+     just turning one OFF, no network involved) feel exactly as slow as
+     loading one in the first place once tens of thousands of archive rows
+     were merged in. One single pass over RECIPES computes every chip's
+     count at once instead. */
+  const catCounts = {}, cuiCounts = {}, dietCounts = {};
+  RECIPES.forEach(r=>{
+    if(r.category && matchesFiltersExcept(r, 'category')) catCounts[r.category] = (catCounts[r.category]||0)+1;
+    if(r.cuisine && matchesFiltersExcept(r, 'cuisine')) cuiCounts[r.cuisine] = (cuiCounts[r.cuisine]||0)+1;
+    if(matchesFiltersExcept(r, 'diet')) recipeDietTags(r).forEach(tag=>{ dietCounts[tag] = (dietCounts[tag]||0)+1; });
+  });
   const catWrap = document.getElementById('categoryChips');
   catWrap.innerHTML = '';
-  ALL_CATEGORIES.forEach(cat=>{
+  ALL_CATEGORIES.forEach((cat,i)=>{
+    /* forces a line break every 5th chip on mobile (see .chip-break) so 9
+       categories read as an even 5-then-4 instead of however many happen
+       to fit before the row's natural wrap point (was landing on 6-then-3). */
+    if(i>0 && i%5===0){
+      const brk = document.createElement('div');
+      brk.className = 'chip-break';
+      catWrap.appendChild(brk);
+    }
     const chip = document.createElement('span');
     chip.className = 'facet-link' + (state.category===cat ? ' active':'');
-    chip.innerHTML = `${cat} <span class="n">${countFor('category',cat)}</span>`;
+    chip.innerHTML = `${cat} <span class="n">${catCounts[cat]||0}</span>`;
     chip.onclick = ()=>{ state.category = state.category===cat ? null : cat; render(); };
     catWrap.appendChild(chip);
   });
@@ -59669,19 +60071,26 @@ function renderChips(){
   ALL_CUISINES.forEach(c=>{
     const chip = document.createElement('span');
     chip.className = 'facet-link' + (state.cuisine===c ? ' active':'');
-    chip.innerHTML = `${zwsp(escapeHTML(c))} <span class="n">${countFor('cuisine',c)}</span>`;
+    chip.innerHTML = `${zwsp(escapeHTML(c))} <span class="n">${cuiCounts[c]||0}</span>`;
     chip.onclick = ()=>{ state.cuisine = state.cuisine===c ? null : c; render(); };
     cuiWrap.appendChild(chip);
   });
+  const cuiSelect = document.getElementById('cuisineSelect');
+  cuiSelect.innerHTML = `<option value="">All cuisines</option>` + ALL_CUISINES.map(c=>
+    `<option value="${escapeHTML(c)}"${state.cuisine===c?' selected':''}>${escapeHTML(c)} (${cuiCounts[c]||0})</option>`).join('');
+  cuiSelect.onchange = ()=>{ state.cuisine = cuiSelect.value || null; render(); };
   const dietWrap = document.getElementById('dietChips');
   dietWrap.innerHTML = '';
   ALL_DIETS.forEach(d=>{
     const chip = document.createElement('span');
     /* multi-select, unlike Course/Cuisine -- Vegan and Gluten Free aren't
        mutually exclusive the way Appetizer/Main are, so picking one
-       shouldn't clear the other. */
+       shouldn't clear the other. Two labels ride together (.diet-full/
+       .diet-abbr) -- desktop shows the full word, mobile swaps to just the
+       abbreviation (V/VG/GF/DF) so all 4 fit as one equal-width row instead
+       of wrapping. */
     chip.className = 'facet-link' + (state.diets.includes(d) ? ' active':'');
-    chip.innerHTML = `${zwsp(escapeHTML(d))} <span class="n">${countForTag(d)}</span>`;
+    chip.innerHTML = `<span class="diet-full">${zwsp(escapeHTML(d))}</span><span class="diet-abbr">${escapeHTML(DIET_ABBREV[d]||d)}</span> <span class="n">${dietCounts[d]||0}</span>`;
     chip.onclick = ()=>{
       state.diets = state.diets.includes(d) ? state.diets.filter(x=>x!==d) : [...state.diets, d];
       render();
@@ -59724,9 +60133,17 @@ function renderIngredientChips(){
 function matchesQuery(recipe, q){
   if(!q) return true;
   const t = q.toLowerCase();
-  return [recipe.title, recipe.shortTitle, recipe.source, recipe.cuisine, recipe.category, recipe.notes,
+  const localHit = [recipe.title, recipe.shortTitle, recipe.source, recipe.cuisine, recipe.category, recipe.notes,
           ...(recipe.tags||[]), ...(recipe.ingredients||[]), ...(recipe.instructions||[])]
     .filter(Boolean).join(' ').toLowerCase().includes(t);
+  if(localHit) return true;
+  /* archive rows that haven't been opened yet (see _lite / fetchRecipeDetail)
+     don't have their ingredients/instructions text on hand locally to search
+     -- archiveQueryHits is the server-side full-text fallback's answer for
+     the current query (see runArchiveSearch), so a "wok"-style match buried
+     in instructions text still surfaces even though that text was never
+     downloaded in bulk. */
+  return recipe._lite && archiveQueryFor === q && archiveQueryHits.has(recipe.id);
 }
 function passesMade(r){
   const n = timesMade(r.id), last = lastMade(r.id), d = daysSince(last);
@@ -59756,6 +60173,18 @@ function getFiltered(){
   let list = RECIPES.filter(r=>matchesFiltersExcept(r, null));
   const byTitle = (a,b)=>a.title.localeCompare(b.title);
   const sorters = {
+    /* Default on load: highest rated, then most cooked, then most recently
+       cooked, then (family is already handled below as an outer partition,
+       ahead of any of this) alphabetical as the final tiebreak. */
+    top: (a,b)=>{
+      const ra = avgRating(a.id)||0, rb = avgRating(b.id)||0;
+      if(rb !== ra) return rb - ra;
+      const ma = timesMade(a.id), mb = timesMade(b.id);
+      if(mb !== ma) return mb - ma;
+      const la = lastMade(a.id), lb = lastMade(b.id);
+      if(la !== lb){ if(!la) return 1; if(!lb) return -1; return lb.localeCompare(la); }
+      return byTitle(a,b);
+    },
     az: byTitle,
     recent: (a,b)=>{ const A=lastMade(a.id), B=lastMade(b.id);
                      if(!A && !B) return byTitle(a,b); if(!A) return 1; if(!B) return -1;
@@ -59785,26 +60214,58 @@ function getFiltered(){
 }
 
 /* ---------------- toolbar ---------------- */
+/* Shared by the Clear filters button (inside the filter panel) and the
+   quick-clear button next to Search (outside it, beside the Filters
+   toggle) -- same reset either way, just reachable without opening the
+   panel first. */
+function clearAllFilters(){
+  state = {query:"", category:null, cuisine:null, diets:[], author:null, sort:"top", sortDir:1, made:"all", aheadOnly:false, includeIngredients:[], excludeIngredients:[]};
+  document.getElementById('searchInput').value = '';
+  document.getElementById('ingIncludeInput').value = '';
+  document.getElementById('ingExcludeInput').value = '';
+  render();
+}
 function renderToolbar(){
   const tb = document.getElementById('toolbar');
   if(!tb.dataset.built){
     tb.dataset.built = '1';
     tb.innerHTML = `
       <div class="tb-group">
-        <label class="tb-name" for="authorSelect">Author/Cookbook</label>
+        <label class="tb-name mobile-hide-label" for="authorSelect">Author/Cookbook</label>
         <select class="tb-select" id="authorSelect"></select>
       </div>
-      <div class="tb-group">
-        <label class="tb-name">Show</label>
+      <div class="tb-group compact-group" id="showGroup">
+        <label class="tb-name mobile-hide-label">Show</label>
         <button class="tb-btn" data-made="never">Never made</button>
         <button class="tb-btn" data-made="made">Made</button>
-        <button class="tb-btn" data-made="interested">★ Interested</button>
         <!-- "+ Plan ahead" is an independent toggle that combines with whichever
              Show state is active, not a mutually-exclusive 3rd Show option --
              sharing this row is just to save vertical space, not a grouping claim. -->
-        <button class="tb-btn" id="aheadBtn">Needs Extra Prep</button>
-        <button class="tb-btn clear-btn" id="clearFilters">Clear filters</button>
+        <button class="tb-btn" id="aheadBtn" title="Needs extra prep (marinate/rest/chill ahead)">Needs Prep</button>
+        <button class="tb-btn" data-made="interested">★ Interested</button>
+        <!-- Own row, deterministically -- Never made/Made/Needs Extra Prep/
+             Interested stretch (flex:1) to fill THEIR row, which otherwise
+             left no space for Clear filters to also land on that same line;
+             wrapping this trio in its own flex-basis:100% group guarantees
+             they always render together on the next row instead of however
+             the wrap happens to fall out. -->
+        <div class="sort-row">
+          <button class="tb-btn clear-btn" id="clearFilters">Clear filters</button>
+          <select class="tb-select" id="sortSelect">
+            <option value="top">Sort by</option>
+            <option value="az">A – Z</option>
+            <option value="recent">Recently made</option>
+            <option value="stale">Longest since made</option>
+            <option value="most">Most made</option>
+            <option value="rating">Highest rated</option>
+            <option value="quick">Quickest</option>
+            <option value="newest">Newest added</option>
+          </select>
+          <button class="tb-btn" id="sortDirBtn" title="Reverse sort order">↓</button>
+        </div>
       </div>`;
+    document.getElementById('sortSelect').onchange = e=>{ state.sort = e.target.value; renderGrid(); };
+    document.getElementById('sortDirBtn').onclick = ()=>{ state.sortDir = (state.sortDir === -1) ? 1 : -1; syncToolbar(); renderGrid(); };
     tb.querySelectorAll('[data-made]').forEach(b=>{
       /* clicking the already-active button toggles back to "all" -- with the
          "All" button removed, this is the only way back to the unfiltered view */
@@ -59812,13 +60273,7 @@ function renderToolbar(){
     });
     document.getElementById('aheadBtn').onclick = ()=>{ state.aheadOnly = !state.aheadOnly; renderToolbar(); renderGrid(); };
     document.getElementById('authorSelect').onchange = e=>{ state.author = e.target.value || null; renderGrid(); };
-    document.getElementById('clearFilters').onclick = ()=>{
-      state = {query:"", category:null, cuisine:null, diets:[], author:null, sort:"newest", sortDir:1, made:"all", aheadOnly:false, includeIngredients:[], excludeIngredients:[]};
-      document.getElementById('searchInput').value = '';
-      document.getElementById('ingIncludeInput').value = '';
-      document.getElementById('ingExcludeInput').value = '';
-      render();
-    };
+    document.getElementById('clearFilters').onclick = clearAllFilters;
   }
   const srcTb = document.getElementById('sourceToolbar');
   if(!srcTb.dataset.built){
@@ -59829,37 +60284,17 @@ function renderToolbar(){
        match", and burying it behind the mobile Filters toggle would hide
        something that changes what Search itself can find at all. */
     srcTb.innerHTML = `
-      <div class="tb-group">
-        <label class="tb-name">Recipes from</label>
-        <button class="tb-btn" data-source="${CURATED_TIER}">Curated (${RECIPES.filter(r=>!r._fromArchive).length})</button>
-        <button class="tb-btn" data-source="NYT Cooking">NYT</button>
-        <button class="tb-btn" data-source="Epicurious">Epicurious</button>
-        <button class="tb-btn" data-source="Other recipe sites">Other recipe sites</button>
-        <button class="tb-btn" data-source="BBC Good Food">BBC Good Food</button>
+      <div class="tb-group compact-group">
+        <label class="tb-name mobile-hide-label">Recipes from</label>
+        <button class="tb-btn" data-source="${CURATED_TIER}">Family <span class="n">${RECIPES.filter(r=>!r._fromArchive).length}</span></button>
+        <button class="tb-btn" data-source="NYT Cooking" data-label="NYT">NYT</button>
+        <button class="tb-btn" data-source="Epicurious" data-label="Epicurious">Epicurious</button>
+        <button class="tb-btn" data-source="BBC Good Food" data-label="BBC">BBC</button>
+        <button class="tb-btn" data-source="Other recipe sites" data-label="Other">Other</button>
       </div>`;
     srcTb.querySelectorAll('[data-source]').forEach(b=>{
       b.onclick = ()=> toggleSource(b.dataset.source);
     });
-  }
-  const st = document.getElementById('sortToolbar');
-  if(!st.dataset.built){
-    st.dataset.built = '1';
-    st.innerHTML = `
-      <div class="tb-group">
-        <label class="tb-name" for="sortSelect">Sort</label>
-        <select class="tb-select" id="sortSelect">
-          <option value="az">A – Z</option>
-          <option value="recent">Recently made</option>
-          <option value="stale">Longest since made</option>
-          <option value="most">Most made</option>
-          <option value="rating">Highest rated</option>
-          <option value="quick">Quickest</option>
-          <option value="newest">Newest added</option>
-        </select>
-        <button class="tb-btn" id="sortDirBtn" title="Reverse sort order">↓</button>
-      </div>`;
-    document.getElementById('sortSelect').onchange = e=>{ state.sort = e.target.value; renderGrid(); };
-    document.getElementById('sortDirBtn').onclick = ()=>{ state.sortDir = (state.sortDir === -1) ? 1 : -1; syncToolbar(); renderGrid(); };
   }
   syncToolbar();
 }
@@ -59872,15 +60307,33 @@ function syncToolbar(){
     const src = b.dataset.source;
     b.classList.toggle('on', enabledSources.includes(src));
     if(src === CURATED_TIER) return;
-    b.disabled = archiveLoading;
-    b.textContent = (archiveLoading && enabledSources.includes(src)) ? 'Loading…' : src;
+    /* Only disable a button if it specifically needs a NEW fetch that's
+       currently blocked by another one in flight -- an already-loaded
+       source stays clickable (instant toggle) regardless of what else is
+       loading. And "Loading…" only ever shows on the ONE button actually
+       fetching (currentlyLoadingSource), not on every other enabled
+       source too (that compound condition used to match any of them). */
+    b.disabled = archiveLoading && !archiveFetchedSources.has(src);
+    /* whole-k counts with no parens ("NYT 19k" not "NYT (18.7k)") -- close
+       enough to the physical one-line budget that dropping the decimal and
+       the parens (vs the earlier attempt) was enough to fit all 5, without
+       giving up the numbers entirely like the previous round did. */
+    const count = archiveSourceCounts[src];
+    /* innerHTML + a .n span, not plain textContent -- matches the exact
+       count styling Course/Cuisine/Diet chips already use (smaller,
+       muted), instead of the count rendering at the same size/weight as
+       the button's own label. */
+    b.innerHTML = (src === currentlyLoadingSource) ? 'Loading…'
+      : count != null ? `${b.dataset.label} <span class="n">${fmtCompactCount(count)}</span>` : b.dataset.label;
+    if(count != null) b.title = `~${count.toLocaleString()} recipes`;
   });
   /* rebuilt fresh every call (not baked in once like the other controls) --
      NYT Cooking's real count depends on the async fetch having merged into
      RECIPES, which isn't true yet the first time the toolbar is built. */
   const authorSel = document.getElementById('authorSelect');
-  authorSel.innerHTML = '<option value="">All</option>' +
-    computeAllAuthors().map(a=>`<option value="${escapeHTML(a)}">${escapeHTML(a)} (${countForAuthor(a)})</option>`).join('');
+  const authorCounts = computeAuthorCounts();
+  authorSel.innerHTML = '<option value="">All authors/cookbooks</option>' +
+    computeAllAuthors().map(a=>`<option value="${escapeHTML(a)}">${escapeHTML(a)} (${authorCounts[a]||0})</option>`).join('');
   authorSel.value = state.author || '';
   document.getElementById('sortSelect').value = state.sort;
   const dirBtn = document.getElementById('sortDirBtn');
@@ -59953,8 +60406,6 @@ function cardLinesHTML(r){
     const preview = ingredientPreview(r);
     if(preview.length) lines.push(cardLine('With', preview.map(escapeHTML).join(', ')));
   }
-  if(r.source) lines.push(cardLine('Author', zwsp(escapeHTML(r.source))));
-  lines.push(cardLine('Added', fmtAddedDate(addedDateOf(r))));
   return lines.join('');
 }
 /* pantry staples that are almost always present and say nothing distinctive
@@ -59991,7 +60442,12 @@ function renderGrid(){
   const sig = filterSignature();
   if(sig !== lastFilterSig){ renderLimit = RENDER_PAGE; lastFilterSig = sig; }
   grid.innerHTML = '';
-  document.getElementById('resultCount').textContent = `${filtered.length} / ${RECIPES.length}`;
+  /* Shows in place of the count while an archive source is mid-fetch --
+     same fixed-width box (see .result-count), so this doesn't introduce
+     its own layout shift the way the raw "Loading…" text would. */
+  document.getElementById('resultCount').innerHTML = archiveLoading
+    ? `<span class="loading-spin">&#8635;</span> Loading…`
+    : `${filtered.length} / ${RECIPES.length}`;
   const made = DATA.cookLog.filter(e=>!e._d).length;
   document.getElementById('footerCount').textContent =
     `${RECIPES.length} recipes catalogued, and counting.` + (made ? `  ${made} meals logged.` : '');
@@ -60004,10 +60460,17 @@ function renderGrid(){
   toShow.forEach(r=>{
     const card = document.createElement('div');
     card.className = 'card';
+    /* Top-right overlay, not a line of their own -- floats over the title's
+       own top-right corner (title already reserves that space via its own
+       right padding) instead of taking a dedicated row anywhere. */
     const familyMark = isFamilyRecipe(r)
-      ? `<svg class="family-mark" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-label="Family recipe"><path d="M6 2h12v20l-6-4-6 4V2z"/></svg>` : '';
-    card.innerHTML = `${familyMark}
-      <button class="interested-star${isInterested(r.id)?' on':''}" title="${isInterested(r.id)?'Remove from interested':'Mark as interested'}" aria-label="Mark as interested">${isInterested(r.id)?'★':'☆'}</button>
+      ? `<svg class="family-mark" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-label="Family recipe"><path d="M12 21s-6.7-4.4-9.8-8.9C.5 9.4 1.6 5.9 4.7 4.8 6.9 4 9 4.8 12 7.4c3-2.6 5.1-3.4 7.3-2.6 3.1 1.1 4.2 4.6 2.5 7.3C18.7 16.6 12 21 12 21z"/></svg>`
+      : '';
+    card.innerHTML = `
+      <div class="card-icons">
+        <button class="interested-star${isInterested(r.id)?' on':''}" title="${isInterested(r.id)?'Remove from interested':'Mark as interested'}" aria-label="Mark as interested">${isInterested(r.id)?'★':'☆'}</button>
+        ${familyMark}
+      </div>
       <h3 class="card-title${r.nativeName?' dual-name':''}">${zwsp(escapeHTML(displayTitle(r)))}</h3>
       <div class="card-lines">${cardLinesHTML(r)}</div>`;
     card.onclick = ()=> openModal(r);
@@ -60035,16 +60498,19 @@ function render(){ renderChips(); renderToolbar(); renderGrid(); updateFiltersTo
    panel has anything applied without having to open it to check. Search
    text isn't counted -- that field stays visible outside the panel. */
 function updateFiltersToggle(){
+  const nonDefaultSources = enabledSources.filter(s=>s!==CURATED_TIER).length
+    + (enabledSources.includes(CURATED_TIER)?0:1);
   const n = (state.category?1:0) + (state.cuisine?1:0) + state.diets.length
-    + state.includeIngredients.length + state.excludeIngredients.length;
+    + state.includeIngredients.length + state.excludeIngredients.length + nonDefaultSources;
   const badge = document.getElementById('filtersToggleBadge');
   badge.textContent = n;
   badge.hidden = n===0;
 }
-document.getElementById('filtersToggle').onclick = function(){
-  this.classList.toggle('open');
+function toggleFilterPanel(){
+  document.getElementById('filtersToggle').classList.toggle('open');
   document.getElementById('filterPanel').classList.toggle('open');
-};
+}
+document.getElementById('filtersToggle').onclick = toggleFilterPanel;
 
 /* ---------------- modal ---------------- */
 let modalRecipe = null, modalFactor = 1;
@@ -60221,7 +60687,7 @@ function renderCookPanel(){
     d.onclick = ()=>{ removeCook(d.dataset.ev); renderCookPanel(); renderGrid(); };
   });
 }
-function openModal(r){
+async function openModal(r){
   modalRecipe = r; modalFactor = 1;
   const p = parseTime(r.prepTime), c = parseTime(r.cookTime), t = r._total;
   document.getElementById('modalSideCourse').innerHTML = r.category ? `<span class="stamp-badge">${escapeHTML(r.category)}</span>` : '—';
@@ -60234,32 +60700,77 @@ function openModal(r){
   const modalTitleEl = document.getElementById('modalTitle');
   modalTitleEl.innerHTML = zwsp(escapeHTML(displayTitle(r)));
   modalTitleEl.classList.toggle('dual-name', !!r.nativeName);
+  /* mobile-only: any long title (dual-name or just a long single name) drops
+     a size and allows a 3rd wrapped line -- see .modal h2.long-title -- so
+     it doesn't eat the whole fold on its own. 50 chars is comfortably past
+     every normal title but well under the truly long ones. */
+  modalTitleEl.classList.toggle('long-title', displayTitle(r).length > 50);
 
-  const tagsWrap = document.getElementById('modalTags');
-  tagsWrap.innerHTML = '';
-  /* diet labels in r.tags come from NYT's own (unreliable -- see DIET_DEFINITIONS
-     above) scrape; drop them here and show the ingredient-computed ones instead,
-     so the modal doesn't contradict what the Diet filter just decided. */
-  const RAW_DIET_LABELS = new Set(['Vegan','Vegan-friendly','Vegetarian','Gluten Free','Dairy Free']);
-  (r.tags||[]).filter(t2=>!RAW_DIET_LABELS.has(t2)).concat(recipeDietTags(r))
-    .forEach(t2=>{ const s=document.createElement('span'); s.className='tagpill'; s.textContent=t2; tagsWrap.appendChild(s); });
-  if(r._ahead){ const s=document.createElement('span'); s.className='tagpill'; s.textContent=r._ahead.label; tagsWrap.appendChild(s); }
+  const dietTagsList = (()=>{
+    /* diet labels in r.tags come from NYT's own (unreliable -- see DIET_DEFINITIONS
+       above) scrape; drop them here and show the ingredient-computed ones instead,
+       so the modal doesn't contradict what the Diet filter just decided. */
+    const RAW_DIET_LABELS = new Set(['Vegan','Vegan-friendly','Vegetarian','Gluten Free','Dairy Free']);
+    const list = (r.tags||[]).filter(t2=>!RAW_DIET_LABELS.has(t2)).concat(recipeDietTags(r));
+    if(r._ahead) list.push(r._ahead.label);
+    return list;
+  })();
+  ['modalTags', 'modalTagsMobile'].forEach(id=>{
+    const wrap = document.getElementById(id);
+    wrap.innerHTML = '';
+    dietTagsList.forEach(t2=>{ const s=document.createElement('span'); s.className='tagpill'; s.textContent=t2; wrap.appendChild(s); });
+  });
+
+  /* Mobile condensed metadata grid -- Course/Cuisine/Prep-Cook/Added always
+     stay as short inline cells; Source and Serves are the two fields that
+     can genuinely run long (a multi-author byline, a full sentence like
+     "6-8 as a main dish..."), so past ~20 characters each gets pulled onto
+     its own full-width wrapping line instead of being squeezed/truncated
+     into half a grid row. NYT sources collapse to just "NYT" first --
+     every archive NYT row's real source is already exactly "NYT Cooking",
+     so nothing is lost. */
+  const OWN_LINE_LEN = 20;
+  const sourceVal = (r.source||'').startsWith('NYT Cooking') ? 'NYT' : (r.source || '—');
+  const servesVal = r.servings ? servingsLabel(r.servings) : '—';
+  const metaCell = (label, val)=> `<div class="modal-meta-cell"><span class="lbl">${label}</span><span class="val">${escapeHTML(String(val))}</span></div>`;
+  const metaFull = (label, val)=> `<div class="modal-meta-full"><span class="lbl">${label}</span>${escapeHTML(String(val))}</div>`;
+  document.getElementById('modalMetaGrid').innerHTML = [
+    metaCell('Course', r.category || '—'),
+    metaCell('Cuisine', r.cuisine || '—'),
+    sourceVal.length > OWN_LINE_LEN ? metaFull('Source', sourceVal) : metaCell('Source', sourceVal),
+    servesVal.length > OWN_LINE_LEN ? metaFull('Serves', servesVal) : metaCell('Serves', servesVal),
+    metaCell('Prep/Cook', (parseTime(r.prepTime) && parseTime(r.cookTime)) ? `${fmtTime(parseTime(r.prepTime))} / ${fmtTime(parseTime(r.cookTime))}` : (r._total ? `${fmtTime(r._total)} total` : '—')),
+    metaCell('Added', fmtAddedDate(addedDateOf(r))),
+  ].join('');
 
   document.getElementById('modalAhead').innerHTML = r._ahead
     ? `<div class="ahead-callout"><strong>${r._ahead.label}.</strong> This one needs starting ahead — allow about ${fmtDur(r._ahead.minutes)} before you plan to eat.</div>` : '';
 
-  renderScaleBar();
-  renderIngredients();
+  /* Archive rows opened for the first time this visit don't have their
+     ingredients/instructions/notes text on hand yet (nytBoot's bulk load
+     deliberately skips it -- see NYT_LITE_COLUMNS); fetch just this one
+     recipe's text now instead. Metadata/tags/cook-history above don't
+     depend on it, so they render immediately either way. */
+  function renderStepsAndNotes(){
+    const stepsWrap = document.getElementById('modalSteps');
+    stepsWrap.innerHTML = '';
+    (r.instructions||[]).forEach(step=>{ const li=document.createElement('li'); li.innerHTML=renderInline(step); stepsWrap.appendChild(li); });
+    document.getElementById('modalNotesWrap').innerHTML = r.notes
+      ? `<div class="notes-box"><span class="notes-label">Notes &amp; Variations</span>${renderInline(r.notes)}</div>` : '';
+  }
+  if(r._lite){
+    document.getElementById('modalScale').innerHTML = '';
+    document.getElementById('modalIngredients').innerHTML = '<li class="heading">Loading…</li>';
+    document.getElementById('modalSteps').innerHTML = '<li>Loading…</li>';
+    document.getElementById('modalNotesWrap').innerHTML = '';
+  } else {
+    renderScaleBar();
+    renderIngredients();
+    renderStepsAndNotes();
+  }
   ticks = loadTicks(r.id);
   making = (ticks.ing.length + ticks.step.length) > 0;
   document.getElementById('modalCard').classList.toggle('making', making);
-
-  const stepsWrap = document.getElementById('modalSteps');
-  stepsWrap.innerHTML = '';
-  (r.instructions||[]).forEach(step=>{ const li=document.createElement('li'); li.innerHTML=renderInline(step); stepsWrap.appendChild(li); });
-
-  document.getElementById('modalNotesWrap').innerHTML = r.notes
-    ? `<div class="notes-box"><span class="notes-label">Notes &amp; Variations</span>${renderInline(r.notes)}</div>` : '';
 
   renderCookPanel();
   renderModalActionsTop();
@@ -60275,6 +60786,16 @@ function openModal(r){
   document.body.style.overflow = 'hidden';
   document.getElementById('modalCard').scrollTop = 0;
   document.getElementById('modalOverlay').scrollTop = 0;
+
+  if(r._lite){
+    await fetchRecipeDetail(r);
+    if(modalRecipe !== r) return; /* closed or navigated to a different recipe while this was in flight */
+    renderScaleBar();
+    renderIngredients();
+    renderStepsAndNotes();
+    wireTicks();
+    paintTicks();
+  }
 }
 function closeModal(){
   /* on a genuine shared-recipe landing there's no toolbar/grid behind this
@@ -60299,8 +60820,36 @@ let searchTimer;
 document.getElementById('searchInput').addEventListener('input', e=>{
   clearTimeout(searchTimer);
   const val = e.target.value;
-  searchTimer = setTimeout(()=>{ state.query = val; renderGrid(); }, 80);
+  searchTimer = setTimeout(()=>{ state.query = val; renderGrid(); runArchiveSearch(val); }, 80);
 });
+/* Server-side full-text fallback for the ingredient/instruction text that
+   nytBoot's lite bulk load no longer carries locally (see _lite / NYT_LITE_
+   COLUMNS) -- fires one small indexed query per settled search term instead
+   of ever re-downloading that text in bulk. Local matching (title/tags/
+   already-opened recipes) is instant and unaffected; this only ADDS archive
+   hits that live purely in text nobody's fetched yet. */
+let archiveQueryHits = new Set(), archiveQueryFor = null, archiveSearchGen = 0;
+function buildPrefixTsQuery(q){
+  const words = q.toLowerCase().match(/[a-z0-9]+/g);
+  if(!words || !words.length) return null;
+  return words.map(w=>w+':*').join(' & ');
+}
+async function runArchiveSearch(q){
+  if(!sb || !archiveFetchedSources.size || !enabledSources.some(s=>s!==CURATED_TIER)){ return; }
+  if(!q || q.trim().length < 2){
+    archiveQueryHits = new Set(); archiveQueryFor = null;
+    return;
+  }
+  const tsQuery = buildPrefixTsQuery(q);
+  if(!tsQuery) return;
+  const gen = ++archiveSearchGen;
+  const res = await sb.from('nyt_recipes').select('id').textSearch('search_vec', tsQuery, {config:'english'}).limit(500);
+  if(gen !== archiveSearchGen) return; /* a newer keystroke already superseded this request */
+  if(res.error){ console.error('archive full-text search error', res.error); return; }
+  archiveQueryHits = new Set((res.data||[]).map(row=>row.id));
+  archiveQueryFor = q;
+  render();
+}
 /* Adding a chip requires an explicit action -- pressing Enter, or picking a
    suggestion from the datalist dropdown -- never just typing text that
    happens to exactly match an option, which used to add it silently
@@ -60555,19 +61104,6 @@ function candidatesFor(iso, ctx, includeAll){
     return sc === -Infinity ? null : {r, score: sc.score, why: sc.why};
   }).filter(Boolean).sort((a,b)=> b.score - a.score);
 }
-function suggestWeek(weekStart){
-  /* fill only empty dinner slots. Lunch and any dinners added manually are left alone. */
-  const order = [];
-  for(let i=0;i<7;i++) order.push(addDays(weekStart, i));
-  order.forEach(iso=>{
-    if(dinnerSlotsFor(iso).length) return;
-    const ctx = weekContext(weekStart, iso);
-    const best = candidatesFor(iso, ctx, false)[0];
-    if(best) addSlot(iso, 'dinner', {recipeId: best.r.id});
-  });
-  persist();
-}
-
 /* ---------------- prep tasks ---------------- */
 function prepTasks(weekStart){
   const out = [];
@@ -60587,12 +61123,64 @@ function prepTasks(weekStart){
 
 /* ---------------- inventory (pantry / fridge / freezer / shopping) ---------------- */
 function invItems(kind){ return DATA.inventory.items.filter(it=> it.kind===kind && !it._d); }
-function addInvItem(kind, name, qty, unit){
-  const row = {id:uid(), kind, name, qty: qty||'', unit: unit||'', _t: Date.now()};
+function addInvItem(kind, name, qty, unit, listId){
+  const row = {id:uid(), kind, name, qty: qty||'', unit: unit||'', listId: listId||null, _t: Date.now()};
   DATA.inventory.items.push(row);
   persist();
   if(typeof pushWrite === 'function') pushWrite({table:'inventory_items', kind, row});
   return row;
+}
+/* ---------------- named shopping lists ---------------- */
+/* "Which list am I even looking at" was the actual complaint -- one
+   unnamed always-current bucket couldn't distinguish "this week" from
+   "Costco run" from "party". Lists themselves sync (shared across the
+   household, like everything else); which one you're currently VIEWING is
+   local-only per device (localStorage) -- Nick and Tyler might reasonably
+   be looking at different lists on their own phones at the same time. */
+function getShoppingLists(){ return DATA.shoppingLists.filter(l=>!l._d).sort((a,b)=>(a._t||0)-(b._t||0)); }
+function addShoppingList(name){
+  const row = {id:uid(), name, _t: Date.now()};
+  DATA.shoppingLists.push(row);
+  persist();
+  if(typeof pushWrite === 'function') pushWrite({table:'shopping_lists', row});
+  return row;
+}
+function renameShoppingList(id, name){
+  const l = DATA.shoppingLists.find(x=>x.id===id);
+  if(!l) return;
+  l.name = name; l._t = Date.now();
+  persist();
+  if(typeof pushWrite === 'function') pushWrite({table:'shopping_lists', row:l});
+}
+function deleteShoppingList(id){
+  const l = DATA.shoppingLists.find(x=>x.id===id);
+  if(!l) return;
+  l._d = true; l._t = Date.now();
+  DATA.inventory.items.filter(it=> it.kind==='shopping' && it.listId===id && !it._d).forEach(it=>{
+    it._d = true; it._t = Date.now();
+    if(typeof pushWrite === 'function') pushWrite({table:'inventory_items', kind: it.kind, row: it});
+  });
+  persist();
+  if(typeof pushWrite === 'function') pushWrite({table:'shopping_lists', row: l});
+}
+const ACTIVE_SHOP_LIST_KEY = 'cookbook.activeShopList';
+function getActiveShopListId(){ try{ return localStorage.getItem(ACTIVE_SHOP_LIST_KEY) || null; }catch(e){ return null; } }
+function setActiveShopListId(id){ try{ localStorage.setItem(ACTIVE_SHOP_LIST_KEY, id||''); }catch(e){} }
+/* Ensures there's always at least one list to land on, and that the
+   locally-remembered "active" one still actually exists (it may have been
+   deleted from another device, or this may be a first-ever visit). */
+function ensureActiveShopList(){
+  let lists = getShoppingLists();
+  if(!lists.length){
+    addShoppingList('Shopping list');
+    lists = getShoppingLists();
+  }
+  let active = getActiveShopListId();
+  if(!active || !lists.some(l=>l.id===active)){
+    active = lists[0].id;
+    setActiveShopListId(active);
+  }
+  return active;
 }
 function removeInvItem(id){
   const it = DATA.inventory.items.find(x=>x.id===id);
@@ -60610,7 +61198,7 @@ function markInvEmpty(id){
   const already = invItems('shopping').some(s=> s.name.toLowerCase() === it.name.toLowerCase());
   persist();
   if(typeof pushWrite === 'function') pushWrite({table:'inventory_items', kind: it.kind, row: it});
-  if(!already) addInvItem('shopping', it.name, '', it.unit);
+  if(!already) addInvItem('shopping', it.name, '', it.unit, ensureActiveShopList());
 }
 function hasQty(it){ return !(it.qty===0 || it.qty==='0' || it.qty===''); }
 /* ---------------- shopping list ---------------- */
@@ -60618,11 +61206,15 @@ function haveInInventory(noun){
   const inv = [...invItems('pantry'), ...invItems('fridge'), ...invItems('freezer')];
   return inv.find(it=> it && it.name && hasQty(it) && noun.indexOf(String(it.name).toLowerCase()) !== -1);
 }
-function buildShoppingList(weekStart){
+function buildShoppingList(weekStart, listId){
   const bySection = {};
   const seen = new Map();
   /* weekStart is optional -- a standalone shopping list (no meal plan involved)
-     just skips straight to the manually-added "extra" items below. */
+     just skips straight to the manually-added "extra" items below. Manual
+     extras only ever belong to one named list at a time (listId) -- the
+     week-based "Shopping & prep" panel (weekStart set) shows recipe-driven
+     ingredients only, not mixed in with whichever named list happens to be
+     active, since a specific week isn't itself one of the named lists. */
   for(let i=0; weekStart && i<7; i++){
     const iso = addDays(weekStart, i);
     slotsFor(iso).forEach(e=>{
@@ -60639,7 +61231,7 @@ function buildShoppingList(weekStart){
           const sec = sectionFor(line);
           const key = sec + '|' + noun;
           if(seen.has(key)){ seen.get(key).from.push(displayTitle(r)); return; }
-          const item = {text: scaled, from: [displayTitle(r)], have: !!haveInInventory(noun)};
+          const item = {key, text: scaled, from: [displayTitle(r)], have: !!haveInInventory(noun)};
           seen.set(key, item);
           (bySection[sec] || (bySection[sec] = [])).push(item);
         });
@@ -60650,27 +61242,49 @@ function buildShoppingList(weekStart){
           const sec = sectionFor(line);
           const key = sec + '|manual|' + noun;
           if(seen.has(key)){ seen.get(key).from.push(e.manualName); return; }
-          const item = {text: line, from: [e.manualName], have: !!haveInInventory(noun)};
+          const item = {key, text: line, from: [e.manualName], have: !!haveInInventory(noun)};
           seen.set(key, item);
           (bySection[sec] || (bySection[sec] = [])).push(item);
         });
       }
     });
   }
-  const extra = invItems('shopping');
-  if(extra.length){
-    bySection['Shopping list'] = extra.map(it=> ({
-      text: [it.qty, it.unit, it.name].filter(Boolean).join(' '), from: ['added manually'], have: false, invId: it.id
-    }));
+  if(!weekStart){
+    /* Manually-added items now sort into the same grocery-aisle sections
+       (Produce, Dairy & Eggs, Pantry, ...) as recipe-driven ingredients
+       instead of landing in one undifferentiated "Shopping list" catch-all
+       -- auto-assigned by name via the same sectionFor() rules, no need to
+       pick a category when adding an item. */
+    invItems('shopping').filter(it=> it.listId === listId).forEach(it=>{
+      const sec = sectionFor(it.name);
+      const item = {
+        key: 'extra|'+it.id, text: [it.qty, it.unit, it.name].filter(Boolean).join(' '),
+        from: ['added manually'], have: false, invId: it.id
+      };
+      (bySection[sec] || (bySection[sec] = [])).push(item);
+    });
   }
   return bySection;
 }
-const SECTION_ORDER = ['Shopping list','Produce','Meat & Seafood','Dairy & Eggs','Bakery','Frozen','Pantry','Spices','Other'];
+/* Checked-off ("bought while out and about") state -- local to this device
+   on purpose: a shopping trip is normally one person, one phone, and this
+   list is fully recomputed from the live plan/inventory on every render
+   anyway (it's not a saved/named list of its own -- see the household
+   question this raised), so there's nothing meaningful to sync yet. */
+const SHOP_CHECKED_KEY = 'cookbook.shopChecked';
+function loadShopChecked(){ try{ return JSON.parse(localStorage.getItem(SHOP_CHECKED_KEY)) || {}; }catch(e){ return {}; } }
+function isShopChecked(key){ return !!loadShopChecked()[key]; }
+function toggleShopChecked(key){
+  const m = loadShopChecked();
+  if(m[key]) delete m[key]; else m[key] = true;
+  try{ localStorage.setItem(SHOP_CHECKED_KEY, JSON.stringify(m)); }catch(e){}
+}
+function clearShopChecked(){ try{ localStorage.removeItem(SHOP_CHECKED_KEY); }catch(e){} }
+const SECTION_ORDER = ['Produce','Meat & Seafood','Dairy & Eggs','Bakery','Frozen','Pantry','Spices','Other'];
 
 /* ---------------- view switching ---------------- */
 let view = 'cookbook';
 let weekStart = mondayOf(todayISO());
-let monthCursor = todayISO().slice(0,7);
 
 function setView(v){
   view = v;
@@ -60683,7 +61297,7 @@ function setView(v){
   document.getElementById('viewTabsMobile').value = v;
   if(v==='plan') renderWeek();
   if(v==='shopping') renderStandaloneShopping();
-  if(v==='history') renderMonth();
+  if(v==='history') renderHistory();
   if(v==='storage') renderStorage();
 }
 document.querySelectorAll('#viewTabs .vt').forEach(b=> b.onclick = ()=> setView(b.dataset.view));
@@ -60742,9 +61356,14 @@ function mealBlockHTML(iso, mealType, label){
   const slots = slotsFor(iso).filter(s=> (s.mealType||'dinner') === mealType);
   let html = `<div class="meal-block"><div class="meal-label">${label}</div>`;
   slots.forEach(s=> html += slotRowHTML(s, iso));
+  /* the per-day "suggest" button (separate from the removed "Suggest the
+     week") was one more full row on every single empty day -- the picker
+     opened by "+ add dinner" already leads with the same top suggestion
+     ("Suggested for this night"), so this was a second way to reach the
+     exact same thing, at a real cost in vertical space across 7 empty
+     days. */
   html += `<div class="slot-empty">
       <button data-add="${iso}" data-meal="${mealType}">+ add ${label.toLowerCase()}</button>
-      ${(mealType==='dinner' && !slots.length) ? `<button data-sug="${iso}">suggest</button>` : ''}
     </div></div>`;
   return html;
 }
@@ -60759,18 +61378,19 @@ function renderWeek(){
     const cell = document.createElement('div');
     cell.className = 'day' + (iso===today ? ' today' : '') + (iso<today ? ' past' : '');
     let inner = `<div class="day-head"><span>${DAY_NAMES[i]}</span><span class="dnum">${dateOf(iso).getDate()}</span></div>`;
+    /* .day-body wraps Dinner+Lunch so mobile can lay the day out as
+       [date column] [meals column] side by side instead of the date
+       taking a full row of its own above them -- see the mobile .day
+       flex-direction:row override. */
+    inner += `<div class="day-body">`;
     inner += mealBlockHTML(iso, 'dinner', 'Dinner');
     inner += mealBlockHTML(iso, 'lunch', 'Lunch');
+    inner += `</div>`;
     cell.innerHTML = inner;
     grid.appendChild(cell);
   }
 
   grid.querySelectorAll('[data-add]').forEach(b=> b.onclick = ()=> openPicker(b.dataset.add, b.dataset.meal, b.dataset.swap||null));
-  grid.querySelectorAll('[data-sug]').forEach(b=> b.onclick = ()=>{
-    const iso = b.dataset.sug;
-    const best = candidatesFor(iso, weekContext(weekStart, iso), false)[0];
-    if(best){ addSlot(iso, 'dinner', {recipeId: best.r.id}); renderWeek(); }
-  });
   grid.querySelectorAll('[data-clear]').forEach(b=> b.onclick = ()=>{ removeSlot(b.dataset.clear); renderWeek(); });
   grid.querySelectorAll('[data-open]').forEach(b=> b.onclick = ()=>{ const r=recipeById(b.dataset.open); if(r) openModal(r); });
   grid.querySelectorAll('[data-lo]').forEach(b=> b.onclick = ()=>{
@@ -60830,21 +61450,88 @@ function renderWeekSummary(){
 
 function renderShopInto(hostId, ws, rerender){
   const host = document.getElementById(hostId);
-  const list = buildShoppingList(ws);
+  /* The week-based "Shopping & prep" panel (ws set) has no named-list concept
+     of its own -- a specific week isn't one of your named lists, it's
+     recipe-driven ingredients for THAT week. Only the standalone Shopping
+     tab deals in named lists. */
+  const activeId = ws ? null : ensureActiveShopList();
+  const lists = ws ? [] : getShoppingLists();
+  const activeList = lists.find(l=>l.id===activeId);
+  const list = buildShoppingList(ws, activeId);
   const secs = SECTION_ORDER.filter(s=> list[s] && list[s].length);
-  const title = ws ? `Shopping list — ${fmtRange(ws, addDays(ws,6))}` : 'Shopping list';
-  if(!secs.length){
-    host.innerHTML = `<div class="shop"><h3>${title}</h3><div class="shop-empty">${ws ? 'Plan some dinners first, or add items from Storage.' : 'Nothing on the list yet — add items from Storage.'}</div></div>`;
-    return;
-  }
-  host.innerHTML = `<div class="shop">
-    <h3>${title}</h3>
-    <div class="shop-cols">${secs.map(s=>`
-      <div class="shop-sec"><h4>${s}</h4><ul>${list[s].map(it=>
-        `<li>${it.have?'<span class="from">[have] </span>':''}${zwsp(escapeHTML(it.text))}${it.from.length>1?` <span class="from">×${it.from.length}</span>`:''}${it.invId?` <span class="ch-del" data-bought="${it.invId}">bought</span>`:''}</li>`
-      ).join('')}</ul></div>`).join('')}</div>
+  const title = ws ? `Shopping list — ${fmtRange(ws, addDays(ws,6))}` : (activeList ? activeList.name : 'Shopping list');
+  const anyChecked = Object.keys(loadShopChecked()).length > 0;
+  const hasExtras = ws ? false : invItems('shopping').some(it=> it.listId===activeId);
+
+  const listSwitcher = ws ? '' : `<div class="shop-lists">
+    ${lists.map(l=>`<button class="tb-btn${l.id===activeId?' on':''}" data-switch-list="${l.id}">${escapeHTML(l.name)}</button>`).join('')}
+    <button class="tb-btn" id="shopNewList">+ New list</button>
   </div>`;
-  host.querySelectorAll('[data-bought]').forEach(b=> b.onclick = ()=>{ removeInvItem(b.dataset.bought); rerender(); });
+  const headActions = ws ? '' : `<div class="shop-head-actions">
+    <button class="tb-btn" id="shopRenameList" title="Rename this list">Rename</button>
+    ${lists.length>1 ? `<button class="tb-btn" id="shopDeleteList" title="Delete this list">Delete list</button>` : ''}
+    ${(hasExtras || anyChecked) ? `<button class="tb-btn clear-btn" id="shopClearList">Clear list</button>` : ''}
+  </div>`;
+
+  if(!secs.length){
+    host.innerHTML = `<div class="shop">${listSwitcher}<div class="shop-head"><h3>${escapeHTML(title)}</h3>${headActions}</div><div class="shop-empty">${ws ? 'Plan some dinners first, or add items from Storage.' : 'Nothing on this list yet — add items below.'}</div></div>`;
+  } else {
+    /* Every item (recipe-driven or manual) gets a check-off you can tap while
+       actually at the store -- "have I bought this yet" -- separate from
+       deleting, which only makes sense for the manually-added ones (a
+       recipe-driven line comes back on its own next time you plan that
+       dinner, so "delete" would just be undone by the plan itself). Clear
+       list resets both: removes every item on THIS list and forgets which
+       boxes were checked, for starting the next trip fresh. */
+    host.innerHTML = `<div class="shop">
+      ${listSwitcher}
+      <div class="shop-head">
+        <h3>${escapeHTML(title)}</h3>
+        ${headActions}
+      </div>
+      <div class="shop-cols">${secs.map(s=>`
+        <div class="shop-sec"><h4>${s}</h4><ul>${list[s].map(it=>{
+          const checked = isShopChecked(it.key);
+          return `<li class="${checked?'shop-checked':''}">
+            <span class="shop-check" data-check="${escapeHTML(it.key)}" role="checkbox" aria-checked="${checked}">${checked?'☑':'☐'}</span>
+            <span class="shop-item-text">${it.have?'<span class="from">[have] </span>':''}${zwsp(escapeHTML(it.text))}${it.from.length>1?` <span class="from">×${it.from.length}</span>`:''}</span>
+            ${it.invId?` <span class="ch-del" data-del="${it.invId}">delete</span>`:''}
+          </li>`;
+        }).join('')}</ul></div>`).join('')}</div>
+    </div>`;
+  }
+  host.querySelectorAll('[data-check]').forEach(el=> el.onclick = ()=>{ toggleShopChecked(el.dataset.check); rerender(); });
+  host.querySelectorAll('[data-del]').forEach(b=> b.onclick = ()=>{ removeInvItem(b.dataset.del); rerender(); });
+  host.querySelectorAll('[data-switch-list]').forEach(b=> b.onclick = ()=>{ setActiveShopListId(b.dataset.switchList); rerender(); });
+  const newListBtn = host.querySelector('#shopNewList');
+  if(newListBtn) newListBtn.onclick = ()=>{
+    const name = prompt('Name for the new list (e.g. "Costco run", "Party"):');
+    if(!name || !name.trim()) return;
+    const row = addShoppingList(name.trim());
+    setActiveShopListId(row.id);
+    rerender();
+  };
+  const renameBtn = host.querySelector('#shopRenameList');
+  if(renameBtn) renameBtn.onclick = ()=>{
+    const name = prompt('Rename this list:', activeList ? activeList.name : '');
+    if(!name || !name.trim()) return;
+    renameShoppingList(activeId, name.trim());
+    rerender();
+  };
+  const deleteListBtn = host.querySelector('#shopDeleteList');
+  if(deleteListBtn) deleteListBtn.onclick = ()=>{
+    if(!confirm(`Delete "${activeList ? activeList.name : 'this list'}" and everything on it?`)) return;
+    deleteShoppingList(activeId);
+    setActiveShopListId(null); /* ensureActiveShopList picks a fresh one next render */
+    rerender();
+  };
+  const clearBtn = host.querySelector('#shopClearList');
+  if(clearBtn) clearBtn.onclick = ()=>{
+    if(!confirm('Clear this list? This removes every item on it and un-checks everything.')) return;
+    invItems('shopping').filter(it=>it.listId===activeId).forEach(it=> removeInvItem(it.id));
+    clearShopChecked();
+    rerender();
+  };
 }
 function renderShop(){ renderShopInto('shopPanel', weekStart, renderShop); }
 function renderStandaloneShopping(){ renderShopInto('shoppingView', null, renderStandaloneShopping); }
@@ -60897,7 +61584,7 @@ function renderStorage(){
     const nameEl = document.getElementById('invName-'+k);
     const name = nameEl.value.trim();
     if(!name) return;
-    addInvItem(k, name, document.getElementById('invQty-'+k).value.trim(), document.getElementById('invUnit-'+k).value.trim());
+    addInvItem(k, name, document.getElementById('invQty-'+k).value.trim(), document.getElementById('invUnit-'+k).value.trim(), k==='shopping' ? ensureActiveShopList() : undefined);
     renderStorage();
   });
   host.querySelectorAll('[data-empty]').forEach(b=> b.onclick = ()=>{ markInvEmpty(b.dataset.empty); renderStorage(); });
@@ -60907,7 +61594,6 @@ function renderStorage(){
 document.getElementById('weekPrev').onclick  = ()=>{ weekStart = addDays(weekStart,-7); renderWeek(); };
 document.getElementById('weekNext').onclick  = ()=>{ weekStart = addDays(weekStart, 7); renderWeek(); };
 document.getElementById('weekToday').onclick = ()=>{ weekStart = mondayOf(todayISO()); renderWeek(); };
-document.getElementById('suggestWeek').onclick = ()=>{ suggestWeek(weekStart); renderWeek(); };
 document.getElementById('clearWeek').onclick = ()=>{
   if(!confirm('Clear every meal planned this week?')) return;
   for(let i=0;i<7;i++) slotsFor(addDays(weekStart,i)).forEach(s=> removeSlot(s.id));
@@ -60922,7 +61608,7 @@ document.getElementById('shopAddBtn').onclick = ()=>{
   const nameEl = document.getElementById('shopAddName');
   const name = nameEl.value.trim();
   if(!name) return;
-  addInvItem('shopping', name, document.getElementById('shopAddQty').value.trim(), document.getElementById('shopAddUnit').value.trim());
+  addInvItem('shopping', name, document.getElementById('shopAddQty').value.trim(), document.getElementById('shopAddUnit').value.trim(), ensureActiveShopList());
   nameEl.value = ''; document.getElementById('shopAddQty').value=''; document.getElementById('shopAddUnit').value='';
   nameEl.focus();
   renderStandaloneShopping();
@@ -61034,10 +61720,17 @@ function closePicker(){
   document.getElementById('pickerOverlay').classList.remove('open');
   document.body.style.overflow=''; pickerIso=null; pickerMeal='dinner'; pickerSwapId=null;
 }
-function pickRecipe(recipeId){
+async function pickRecipe(recipeId){
   if(pickerSwapId) updateSlot(pickerSwapId, {recipeId, manualName: undefined, manualIngredients: undefined, leftoverOf: undefined});
   else addSlot(pickerIso, pickerMeal, {recipeId});
   closePicker(); renderWeek();
+  /* the picker lets you plan a dish straight off its card, without ever
+     opening its modal -- but the shopping list needs real ingredient lines,
+     and a lite archive row (see NYT_LITE_COLUMNS) doesn't have them locally
+     yet. Fetch now so the list is right by the time anyone looks at it,
+     rather than silently missing this dish's items. */
+  const r = recipeById(recipeId);
+  if(r && r._lite){ await fetchRecipeDetail(r); renderWeek(); }
 }
 function saveCustomDish(){
   const name = document.getElementById('pcName').value.trim();
@@ -61102,82 +61795,60 @@ document.getElementById('pickerInput').addEventListener('input', renderPicker);
 document.getElementById('pickerCustomToggle').onclick = ()=> document.getElementById('pickerCustomForm').classList.toggle('open');
 document.getElementById('pcSave').onclick = saveCustomDish;
 
-/* ---------------- history / month ---------------- */
-/* monthCursor is the most recent (rightmost) of a 4-month rolling window --
-   shows the last 4 months at once instead of paging one month at a time. */
-function monthKeyOffset(key, delta){
-  let [y,m] = key.split('-').map(Number);
-  m += delta;
-  while(m<1){ m+=12; y--; }
-  while(m>12){ m-=12; y++; }
-  return y+'-'+String(m).padStart(2,'0');
-}
-function renderOneMonthGrid(key){
-  const [y, m] = key.split('-').map(Number);
-  const first = new Date(y, m-1, 1), last = new Date(y, m, 0);
-  const lead = (first.getDay()+6)%7;
-  const today = todayISO();
-  const cells = [];
-  for(let i=0;i<lead;i++) cells.push(null);
-  for(let d=1; d<=last.getDate(); d++) cells.push(isoOf(new Date(y, m-1, d)));
-  while(cells.length % 7) cells.push(null);
+/* ---------------- history ---------------- */
+/* A 4-month mostly-empty calendar grid (entries truncated to ~4 characters
+   to fit a day cell) wasn't actually answering "what have we cooked" --
+   a reverse-chronological list is: every entry reads in full, newest
+   first, searchable, and costs nothing when a month had 2 dinners logged
+   instead of 30. */
+let historyRenderLimit = 50;
+function renderHistory(){
+  const all = DATA.cookLog.filter(e=>!e._d).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const q = (document.getElementById('historySearch').value||'').trim().toLowerCase();
+  const filtered = q ? all.filter(e=>{
+    const r = recipeById(e.recipeId);
+    return r && displayTitle(r).toLowerCase().includes(q);
+  }) : all;
 
-  const block = document.createElement('div');
-  block.className = 'month-block';
-  block.innerHTML = `<div class="month-label">${MONTHS[m-1]} ${y}</div><div class="month"></div>`;
-  const grid = block.querySelector('.month');
-  grid.innerHTML = DAY_NAMES.map(d=>`<div class="mhead">${d}</div>`).join('');
-  cells.forEach(iso=>{
-    const div = document.createElement('div');
-    if(!iso){ div.className='mcell out'; grid.appendChild(div); return; }
-    div.className = 'mcell' + (iso===today?' today':'');
-    const evs = DATA.cookLog.filter(e=> e.date === iso && !e._d);
-    const planned = dinnerSlotsFor(iso).filter(s=> !s.leftoverOf);
-    let html = `<div class="mnum">${dateOf(iso).getDate()}</div>`;
-    evs.forEach(e=>{
-      const r = recipeById(e.recipeId);
-      html += `<div class="mitem" data-open="${e.recipeId}">${r?zwsp(escapeHTML(displayTitle(r))):'—'}${e.rating?`<div class="mstars">${starStr(e.rating)}</div>`:''}</div>`;
-    });
-    if(!evs.length){
-      planned.forEach(s=>{
-        const r = s.recipeId ? recipeById(s.recipeId) : null;
-        const name = r ? displayTitle(r) : s.manualName;
-        if(name) html += `<div class="mitem" style="opacity:.5" data-open="${r?r.id:''}">${zwsp(escapeHTML(name))}</div>`;
-      });
-    }
-    div.innerHTML = html;
-    grid.appendChild(div);
-  });
-  return block;
-}
-function renderMonth(){
-  const keys = [monthKeyOffset(monthCursor,-3), monthKeyOffset(monthCursor,-2), monthKeyOffset(monthCursor,-1), monthCursor];
-  document.getElementById('monRange').textContent = MONTHS[+keys[0].split('-')[1]-1] + ' ' + keys[0].split('-')[0]
-    + ' – ' + MONTHS[+keys[3].split('-')[1]-1] + ' ' + keys[3].split('-')[0];
-  const wrap = document.getElementById('monthsWrap');
-  wrap.innerHTML = '';
-  keys.forEach(key => wrap.appendChild(renderOneMonthGrid(key)));
-  wrap.querySelectorAll('[data-open]').forEach(el=> el.onclick = ()=>{ const r=recipeById(el.dataset.open); if(r) openModal(r); });
+  const me = currentHousehold();
+  const toShow = filtered.slice(0, historyRenderLimit);
+  const host = document.getElementById('historyList');
+  host.innerHTML = toShow.length ? toShow.map(e=>{
+    const r = recipeById(e.recipeId);
+    return `<div class="hist-row" data-open="${e.recipeId}">
+      <div class="hist-date">${fmtAddedDate(e.date)}</div>
+      <div class="hist-main">
+        <div class="hist-title">${r?zwsp(escapeHTML(displayTitle(r))):'(recipe no longer on file)'}</div>
+        <div class="hist-meta">
+          ${e.rating?`<span class="hist-stars">${starStr(e.rating)}</span>`:''}
+          ${householdOf(e)!==me?`<span class="hist-hh">${HOUSEHOLD_LABEL[householdOf(e)]||householdOf(e)}</span>`:''}
+          ${e.note?`<span class="hist-note">${escapeHTML(e.note)}</span>`:''}
+          ${e.leftover?`<span class="hist-note">Leftovers: ${escapeHTML(e.leftover)}</span>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('') : `<div class="shop-empty">${q ? 'Nothing matches that.' : "Nothing logged yet — mark a recipe cooked and it'll show up here."}</div>`;
+  host.querySelectorAll('[data-open]').forEach(el=> el.onclick = ()=>{ const r=recipeById(el.dataset.open); if(r) openModal(r); });
 
-  const inWindow = DATA.cookLog.filter(e=> !e._d && e.date && keys.includes(e.date.slice(0,7)));
-  const cuis = new Set(inWindow.map(e=>{ const r=recipeById(e.recipeId); return r?r.cuisine:null; }).filter(Boolean));
+  const remaining = filtered.length - toShow.length;
+  const moreWrap = document.getElementById('historyLoadMore');
+  moreWrap.innerHTML = remaining > 0
+    ? `<button class="load-more-btn" id="histLoadMoreBtn">Show ${Math.min(50, remaining)} more (${remaining} left)</button>` : '';
+  if(remaining > 0) document.getElementById('histLoadMoreBtn').onclick = ()=>{ historyRenderLimit += 50; renderHistory(); };
+
+  const cuis = new Set(all.map(e=>{ const r=recipeById(e.recipeId); return r?r.cuisine:null; }).filter(Boolean));
   const never = RECIPES.filter(r=> timesMade(r.id)===0).length;
   document.getElementById('histStats').innerHTML = `<div class="hist-stats">
-    <div class="hstat"><b>${inWindow.length}</b>meals in these 4 months</div>
-    <div class="hstat"><b>${cuis.size}</b>cuisines</div>
-    <div class="hstat"><b>${DATA.cookLog.filter(e=>!e._d).length}</b>logged all time</div>
+    <div class="hstat"><b>${all.length}</b>logged all time</div>
+    <div class="hstat"><b>${cuis.size}</b>cuisines cooked</div>
     <div class="hstat"><b>${never}</b>never made yet</div>
   </div>`;
 }
-document.getElementById('monPrev').onclick = ()=>{
-  let [y,m]=monthCursor.split('-').map(Number); m--; if(m<1){m=12;y--;}
-  monthCursor = y+'-'+String(m).padStart(2,'0'); renderMonth();
-};
-document.getElementById('monNext').onclick = ()=>{
-  let [y,m]=monthCursor.split('-').map(Number); m++; if(m>12){m=1;y++;}
-  monthCursor = y+'-'+String(m).padStart(2,'0'); renderMonth();
-};
-document.getElementById('monToday').onclick = ()=>{ monthCursor = todayISO().slice(0,7); renderMonth(); };
+let historySearchTimer;
+document.getElementById('historySearch').addEventListener('input', ()=>{
+  clearTimeout(historySearchTimer);
+  historySearchTimer = setTimeout(()=>{ historyRenderLimit = 50; renderHistory(); }, 80);
+});
 
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closePicker(); });
 prefs();
@@ -61189,7 +61860,11 @@ setView('cookbook');
 
 /* ---------------- theme (dark by default) ---------------- */
 const THEME_KEY = 'cookbook.theme';
-function currentTheme(){ try{ return localStorage.getItem(THEME_KEY) || 'light'; }catch(e){ return 'light'; } }
+/* comment above has said "dark by default" for a while, but this actually
+   returned 'light' whenever nothing was saved yet -- so every fresh device/
+   browser opened in light mode regardless of OS dark-mode setting until you
+   manually toggled it once. Fixed to match the stated intent. */
+function currentTheme(){ try{ return localStorage.getItem(THEME_KEY) || 'dark'; }catch(e){ return 'dark'; } }
 function applyTheme(mode){
   document.documentElement.setAttribute('data-theme', mode);
   try{ localStorage.setItem(THEME_KEY, mode); }catch(e){}
@@ -61220,10 +61895,15 @@ function paintTicks(){
   [...steps.querySelectorAll('li')].forEach((li,i)=> li.classList.toggle('tick', ticks.step.indexOf(i) !== -1));
   const ingTotal = [...ing.querySelectorAll('li:not(.heading)')].length;
   const stepTotal = steps.querySelectorAll('li').length;
-  const prog = document.getElementById('makeProg');
-  if(prog) prog.textContent = making
-    ? `${ticks.ing.length} of ${ingTotal} ingredients · ${ticks.step.length} of ${stepTotal} steps`
-    : '';
+  /* querySelectorAll, not getElementById -- #modalActionsTop (desktop) and
+     #modalActionsMobile both render a #makeProg span (see
+     renderModalActionsTop), so both copies need updating, not just
+     whichever one getElementById happens to find first. */
+  document.querySelectorAll('.make-prog').forEach(prog=>{
+    prog.textContent = making
+      ? `${ticks.ing.length} of ${ingTotal} ingredients · ${ticks.step.length} of ${stepTotal} steps`
+      : '';
+  });
 }
 function toggleTick(kind, i){
   const arr = ticks[kind], at = arr.indexOf(i);
@@ -61256,7 +61936,13 @@ function setMaking(on){
    the left column's cook-log section -- the button and the form it opens
    don't need to be next to each other in the DOM. */
 function renderModalActionsTop(){
-  const host = document.getElementById('modalActionsTop');
+  /* Rendered into BOTH #modalActionsTop (desktop sidebar, unchanged) and
+     #modalActionsMobile (mobile, right under the title -- see openModal) --
+     every internal lookup below is host.querySelector-scoped (not
+     document.getElementById), so the same ids inside each copy don't
+     collide with each other. */
+  ['modalActionsTop', 'modalActionsMobile'].forEach(hostId=>{
+  const host = document.getElementById(hostId);
   /* two rows: the mode-toggle actions (Start Making / Mark Cooked) on top,
      then Share/Print below. Share via... already puts the recipe (link
      included, see recipeAsText) into whatever app the OS share sheet picks,
@@ -61264,15 +61950,34 @@ function renderModalActionsTop(){
      browser with no share-sheet support at all (Firefox desktop, notably),
      where this is now the only way to hand off a link short of Print; if
      that turns out to matter, Copy Link is one line to bring back. */
-  host.innerHTML = `<div class="action-row-top">
-      <button class="icon-btn ${making?'on':''}" id="makeToggle">${making?'Making mode on':'Start making'}</button>
-      <button class="icon-btn" id="markCookedTop">Mark cooked</button>
-    </div>
-    ${making ? `<div class="make-sub"><span class="make-prog" id="makeProg"></span><button class="icon-btn" id="makeReset">reset ticks</button></div>` : ''}
-    <div class="action-row-top">
-      ${navigator.share ? `<button class="icon-btn" id="shareNative">Share via&hellip;</button>` : ''}
-      <button class="icon-btn" id="printRecipe">Print</button>
-    </div>`;
+  const mobile = hostId === 'modalActionsMobile';
+  /* Mobile gets a compact 2-row layout, same shape as desktop, but with
+     real SVG icons (not emoji -- 🖶/⤴ render as an unrecognizable box on
+     some platforms/fonts) each paired with a short visible text label.
+     Icon-only buttons had no way to be understood on a touch device (no
+     hover to reveal a `title` tooltip) -- a checkmark alone doesn't say
+     "mark cooked" to anyone, and the print glyph specifically was
+     unreadable, which is what made it look like an unlabeled empty box. */
+  const ckIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 9 17 20 6"/></svg>`;
+  const shareIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="7 8 12 3 17 8"/><path d="M5 21h14a2 2 0 0 0 2-2v-5"/><path d="M5 21a2 2 0 0 1-2-2v-5"/></svg>`;
+  const printIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>`;
+  host.innerHTML = mobile
+    ? `<div class="action-row-top">
+        <button class="icon-btn make-btn ${making?'on':''}" id="makeToggle">${making?'⏸':'▶'} ${making?'Making mode on':'Start making'}</button>
+        <button class="icon-btn" id="markCookedTop">${ckIcon} Cooked</button>
+        <button class="icon-btn" id="shareNative">${shareIcon} Share</button>
+        <button class="icon-btn" id="printRecipe">${printIcon} Print</button>
+      </div>
+      ${making ? `<div class="make-sub"><span class="make-prog" id="makeProg"></span><button class="icon-btn" id="makeReset">reset ticks</button></div>` : ''}`
+    : `<div class="action-row-top">
+        <button class="icon-btn ${making?'on':''}" id="makeToggle">${making?'Making mode on':'Start making'}</button>
+        <button class="icon-btn" id="markCookedTop">Mark cooked</button>
+      </div>
+      ${making ? `<div class="make-sub"><span class="make-prog" id="makeProg"></span><button class="icon-btn" id="makeReset">reset ticks</button></div>` : ''}
+      <div class="action-row-top">
+        <button class="icon-btn" id="shareNative">Share via&hellip;</button>
+        <button class="icon-btn" id="printRecipe">Print</button>
+      </div>`;
 
   host.querySelector('#makeToggle').onclick = ()=> setMaking(!making);
   const rst = host.querySelector('#makeReset');
@@ -61280,17 +61985,41 @@ function renderModalActionsTop(){
 
   host.querySelector('#markCookedTop').onclick = ()=>{
     const f = document.getElementById('cookForm');
-    if(f) f.classList.toggle('open');
+    if(!f) return;
+    f.classList.toggle('open');
+    /* the cook panel now lives at the very bottom of the recipe (see
+       openModal) -- toggling it open with no scroll left it invisible off
+       the bottom of a long recipe, reading as "the button doesn't do
+       anything" even though it correctly opened the form down there. */
+    if(f.classList.contains('open')) f.scrollIntoView({behavior:'smooth', block:'center'});
   };
 
   const sn = host.querySelector('#shareNative');
   if(sn) sn.onclick = ()=>{
-    navigator.share({title: modalRecipe.title, text: recipeAsText(modalRecipe)}).catch(()=>{});
+    if(navigator.share){
+      navigator.share({title: modalRecipe.title, text: recipeAsText(modalRecipe)}).catch(()=>{});
+      return;
+    }
+    /* Share was only ever rendered when navigator.share existed, which
+       made it silently disappear in any context (browser, PWA install
+       state, etc.) where the Web Share API isn't available -- always show
+       the button, and copy-to-clipboard here instead when there's no
+       native share sheet to hand off to. */
+    const original = sn.innerHTML;
+    const showFeedback = (text)=>{ sn.innerHTML = text; setTimeout(()=>{ sn.innerHTML = original; }, 1500); };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(recipeAsText(modalRecipe))
+        .then(()=> showFeedback('Copied!'))
+        .catch(()=> showFeedback('Could not copy'));
+    } else {
+      showFeedback('Not supported here');
+    }
   };
   host.querySelector('#printRecipe').onclick = ()=>{
     document.body.classList.add('printing');
     window.print();
   };
+  });
 }
 
 /* ---------------- screen wake lock ---------------- */
@@ -61382,29 +62111,32 @@ function rowToPlan(r){
     _d: !!r.deleted, _t: Date.parse(r.updated_at)
   };
 }
-function rowToInv(r){ return {id:r.id, kind:r.kind, name:r.name, qty:r.qty, unit:r.unit, _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
+function rowToInv(r){ return {id:r.id, kind:r.kind, name:r.name, qty:r.qty, unit:r.unit, listId:r.list_id||null, _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
 function rowToInterested(r){ return {id:r.recipe_id, _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
+function rowToShoppingList(r){ return {id:r.id, name:r.name, _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
 
 async function remoteFetchAll(){
   if(!sb) return null;
   const hh = currentHousehold();
-  const [cl, pd, iv, pf, it] = await Promise.all([
+  const [cl, pd, iv, pf, it, sl] = await Promise.all([
     sb.from('cook_log').select('*').eq('household_id', hh),
     sb.from('plan_days').select('*').eq('household_id', hh),
     sb.from('inventory_items').select('*').eq('household_id', hh),
     sb.from('prefs').select('*').eq('household_id', hh).maybeSingle(),
-    sb.from('interested_recipes').select('*')
+    sb.from('interested_recipes').select('*'),
+    sb.from('shopping_lists').select('*').eq('household_id', hh)
   ]);
   if(cl.error || pd.error || iv.error || pf.error){
     console.error('Supabase fetch error', cl.error||pd.error||iv.error||pf.error);
     return null;
   }
-  /* interested_recipes is newer than the other 4 tables -- if its migration
-     (create_interested_recipes_table.sql) hasn't been run yet, this table
-     simply doesn't exist. That's a real, expected transitional state, not a
-     reason to fail cook_log/plan_days/inventory/prefs too -- degrade to an
-     empty shortlist instead of returning null for the whole fetch. */
+  /* interested_recipes and shopping_lists are both newer than the other
+     tables -- if a migration hasn't been run yet, that table simply doesn't
+     exist. That's a real, expected transitional state, not a reason to fail
+     cook_log/plan_days/inventory/prefs too -- degrade to empty instead of
+     returning null for the whole fetch. */
   if(it.error) console.error('interested_recipes fetch error (has the migration been run?)', it.error);
+  if(sl.error) console.error('shopping_lists fetch error (has the migration been run?)', sl.error);
   const p = pf.data || {household: currentHousehold(), rituals: [], updated_at: new Date(0).toISOString()};
   return {
     version: 1,
@@ -61412,6 +62144,7 @@ async function remoteFetchAll(){
     plan: pd.data.map(rowToPlan),
     inventory: {items: iv.data.map(rowToInv)},
     interested: it.error ? [] : it.data.map(rowToInterested),
+    shoppingLists: sl.error ? [] : sl.data.map(rowToShoppingList),
     prefs: Object.assign({household: p.household, rituals: p.rituals||[]}, {_t: Date.parse(p.updated_at)})
   };
 }
@@ -61436,7 +62169,11 @@ async function remoteFetchAll(){
    IndexedDB's quota is far higher (typically hundreds of MB+), so this actually
    persists across visits. */
 const NYT_CACHE_KEY = 'cookbook.nytRecipes';
-const NYT_CACHE_VERSION = 17; /* bumped: v16 cache predates the unit-conversion pass (46,631 rows) and the 13,223-recipe Epicurious import */
+const NYT_CACHE_VERSION = 18; /* bumped: v17 cache still had full ingredients/instructions/notes text baked into every cached row; v18 switches the bulk fetch to a lightweight column set (see nytBoot/NYT_LITE_COLUMNS) so a cold load isn't ~94MB of JSON */
+/* Columns needed to browse/filter/render a card, WITHOUT the ~70%-of-payload
+   ingredients/instructions/notes text -- that gets fetched per-recipe, on
+   demand, only when its modal is actually opened (see fetchRecipeDetail). */
+const NYT_LITE_COLUMNS = 'id,title,category,cuisine,source,servings,needs_review,total_time,cook_time,prep_time,tags,ingredient_core,ingredient_all,ingredient_dietary,ahead_label,ahead_minutes';
 const NYT_DB_NAME = 'cookbookCache', NYT_DB_STORE = 'nytRecipes';
 
 function openNytDB(){
@@ -61447,23 +62184,23 @@ function openNytDB(){
     req.onerror = () => reject(req.error);
   });
 }
-async function loadNytCache(){
+async function loadNytCache(key){
   try{
     const db = await openNytDB();
     return await new Promise((resolve, reject) => {
       const tx = db.transaction(NYT_DB_STORE, 'readonly');
-      const req = tx.objectStore(NYT_DB_STORE).get(NYT_CACHE_KEY);
+      const req = tx.objectStore(NYT_DB_STORE).get(key);
       req.onsuccess = () => resolve(req.result || null);
       req.onerror = () => reject(req.error);
     });
   }catch(e){ return null; } /* corrupt/missing/unsupported -- fall through to a fresh fetch */
 }
-async function saveNytCache(payload){
+async function saveNytCache(key, payload){
   try{
     const db = await openNytDB();
     await new Promise((resolve, reject) => {
       const tx = db.transaction(NYT_DB_STORE, 'readwrite');
-      tx.objectStore(NYT_DB_STORE).put(payload, NYT_CACHE_KEY);
+      tx.objectStore(NYT_DB_STORE).put(payload, key);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
@@ -61481,6 +62218,13 @@ function rowToNytRecipe(r){
     ingredients: r.ingredients || [],
     instructions: r.instructions || [],
     notes: r.notes || '',
+    /* the bulk archive fetch (see nytBoot) deliberately omits ingredients/
+       instructions/notes -- they're ~70% of a row's payload and unneeded
+       until this specific recipe is actually opened. _lite marks a row as
+       still missing that text so openModal() knows to fetch it on demand;
+       rows built from a detail fetch (fetchRecipeDetail) or from the old
+       full-row cache format never set it. */
+    _lite: !('ingredients' in r),
     needsReview: !!r.needs_review,
     totalTime: r.total_time || null,
     cookTime: r.cook_time || null,
@@ -61492,6 +62236,11 @@ function rowToNytRecipe(r){
     ingredientCore: r.ingredient_core || [],
     ingredientAll: r.ingredient_all || [],
     ingredientDietary: r.ingredient_dietary || [],
+    /* Precomputed server-side (see set_nyt_recipes_ahead_flags.sql) instead of
+       running detectAhead() over instructions text that a lite row doesn't
+       have locally -- without this, "Needs Extra Prep" would silently read
+       as false for every archive recipe until it's individually opened. */
+    _aheadPrecomputed: r.ahead_label ? {label: r.ahead_label, minutes: r.ahead_minutes} : null,
     addedDate: '2026-09-02',
     _fromArchive: true, /* distinguishes archive rows from the curated ~955 -- see archiveSourceOf() */
   };
@@ -61513,7 +62262,11 @@ async function mergeNytRecipes(rows){
       /* the one-time _ahead/_servings/_total/_plan derived-index pass already ran
          over RECIPES at load, before these rows existed -- redo it per-row here or
          cards/scale-bar/plan-ahead logic would silently see undefined for all of them. */
-      r._ahead    = detectAhead(r);
+      /* lite rows don't have instructions text locally to run detectAhead()
+         against -- use the precomputed flag from the bulk fetch instead (see
+         rowToNytRecipe); non-lite rows (already-detailed, or from an older
+         full-row cache) still get it computed live as before. */
+      r._ahead    = r._lite ? r._aheadPrecomputed : detectAhead(r);
       r._servings = parseServings(r.servings);
       r._total    = totalTime(r);
       r._plan     = planMinutes(r);
@@ -61521,6 +62274,24 @@ async function mergeNytRecipes(rows){
     });
     if(i+CHUNK < rows.length) await new Promise(res=>setTimeout(res,0));
   }
+}
+
+/* Fills in the ingredients/instructions/notes text that nytBoot's bulk fetch
+   deliberately left out (see NYT_LITE_COLUMNS) -- called from openModal()
+   the moment a lite archive row is actually opened. One tiny single-row
+   request instead of that text riding along in the 46k-row bulk load that
+   was stalling out on weaker connections. Mutates the row in place so it's
+   only ever fetched once per visit, whichever card/link opens it next. */
+async function fetchRecipeDetail(r){
+  if(!r._lite || !sb) return r;
+  const res = await sb.from('nyt_recipes').select('ingredients,instructions,notes').eq('id', r.id).single();
+  if(!res.error && res.data){
+    r.ingredients = res.data.ingredients || [];
+    r.instructions = res.data.instructions || [];
+    r.notes = res.data.notes || '';
+    r._lite = false;
+  }
+  return r;
 }
 
 /* ---------------- family recipe submissions (CMS-lite) ----------------
@@ -61582,117 +62353,189 @@ async function deleteSubmission(id){
   await familySubmissionsBoot();
 }
 
-function setNytLoading(on){
-  const el = document.getElementById('nytLoadIndicator');
-  if(el) el.hidden = !on;
+/* Approximate row counts for the 4 archive source buttons, shown next to
+   their label the same way Family/Curated already shows its (real, local)
+   count -- fetched once at boot via count=estimated (a Postgres planner
+   estimate, not an actual COUNT(*)) rather than count=exact, which was
+   confirmed to 500/timeout on this table at its current size (see nytBoot).
+   An estimate is perfectly fine for a UI badge; if a query fails, that
+   button just shows no number rather than blocking anything else.
+   (archiveSourceCounts itself is declared much earlier, next to
+   enabledSources -- see the comment there for why.) */
+function fmtCompactCount(n){
+  if(n == null) return '';
+  if(n < 1000) return String(n);
+  return Math.round(n/1000) + 'k'; /* whole-k, no decimal -- every character counts to fit 5 buttons on one line */
+}
+async function loadArchiveSourceCounts(){
+  if(!sb) return;
+  const specs = [
+    ['NYT Cooking', c=>c.eq('archive_source', 'nyt')],
+    ['Epicurious', c=>c.eq('archive_source', 'epicurious')],
+    ['BBC Good Food', c=>c.eq('archive_source', 'bbc')],
+    ['Other recipe sites', c=>c.eq('archive_source', 'other')],
+  ];
+  await Promise.all(specs.map(async ([src, filter])=>{
+    /* this endpoint has confirmed intermittent 500s/timeouts even on the
+       cheap `estimated` count (not just the `exact` one nytBoot avoids),
+       and BBC's specifically was seen failing outright at 3 attempts (a
+       narrower id-prefix filter on this column apparently costs more to
+       plan than the wider ones, not less) -- more attempts with a longer
+       backoff clears it far more reliably than leaving a button
+       permanently blank over what's ultimately a transient blip. */
+    for(let attempt = 1; attempt <= 5; attempt++){
+      try{
+        let q = sb.from('nyt_recipes').select('id', {count:'estimated', head:true}).eq('needs_review', false);
+        q = filter(q);
+        const res = await q;
+        if(!res.error && res.count != null){ archiveSourceCounts[src] = res.count; syncToolbar(); return; }
+      }catch(e){ /* fall through to retry */ }
+      if(attempt < 5) await new Promise(r=>setTimeout(r, 500 * attempt));
+    }
+    console.error('archive source count failed after retries', src);
+  }));
+  syncToolbar();
 }
 /* Once fetched, archive rows stay in RECIPES for the rest of the visit --
    toggling a source off/on after that first fetch is just a filter change
    (see archiveSourceOf() in matchesFiltersExcept), not an add/remove of
    thousands of DOM-adjacent rows every click. The Curated tier never needs
-   a fetch at all (it's baked into the page); the other 4 share ONE fetch
-   the first time ANY of them gets turned on, tracked by archiveFetched so
-   flipping a second or third source on later doesn't refetch. */
+   a fetch at all (it's baked into the page); each of the other 4 fetches
+   independently the first time IT specifically gets turned on (tracked per-
+   source in archiveFetchedSources), not as one shared fetch for all 4 --
+   see nytBoot's comment for why that used to make one button take 37s. */
 async function toggleSource(src){
   if(src === CURATED_TIER){
     enabledSources = enabledSources.includes(src) ? enabledSources.filter(s=>s!==src) : [...enabledSources, src];
     renderToolbar(); render();
     return;
   }
-  if(archiveLoading) return;
   const turningOn = !enabledSources.includes(src);
+  const needsFetch = turningOn && !archiveFetchedSources.has(src);
+  /* Only a NEW fetch is blocked while another is already in flight --
+     toggling a source that's already loaded on/off is just a filter
+     change (no network involved) and should stay instant regardless of
+     what else is loading, instead of every button waiting in line behind
+     whichever one you clicked first. */
+  if(needsFetch && archiveLoading) return;
   enabledSources = turningOn ? [...enabledSources, src] : enabledSources.filter(s=>s!==src);
-  if(turningOn && !archiveFetched){
+  if(needsFetch){
     archiveLoading = true;
+    currentlyLoadingSource = src;
     renderToolbar(); /* shows "Loading…" on this button right away, before the await below */
-    await nytBoot(); /* merges into RECIPES and calls render() itself once done */
-    archiveFetched = true;
-    archiveLoading = false;
+    /* Also flip "955/955" over to a Loading… indicator right away, without
+       paying for a full renderGrid() rebuild just to change this one
+       label -- render() (which does call renderGrid) doesn't run again
+       until AFTER the fetch finishes, so nothing was visibly changing for
+       however long the fetch actually took. */
+    document.getElementById('resultCount').innerHTML = `<span class="loading-spin">&#8635;</span> Loading…`;
+    try{
+      await nytBoot(src); /* merges into RECIPES and calls render() itself once done */
+      archiveFetchedSources.add(src);
+    }catch(e){
+      /* whatever the cause, archiveLoading must never come out of this
+         still true -- that's what left every source button permanently
+         disabled (can't turn NYT/BBC back off, can't try another one)
+         after a failed load instead of just showing the failure and
+         letting you retry. */
+      console.error('nytBoot failed', e);
+    }finally{
+      archiveLoading = false;
+      currentlyLoadingSource = null;
+    }
   }
   renderToolbar(); render();
+  if(turningOn) runArchiveSearch(state.query);
 }
-async function nytBoot(){
+async function nytBoot(src){
   if(!sb) return;
-  setNytLoading(true);
-  const cached = await loadNytCache();
+  const cacheKey = NYT_CACHE_KEY + ':' + src;
+  const cached = await loadNytCache(cacheKey);
   if(cached && cached.version === NYT_CACHE_VERSION && Array.isArray(cached.rows)){
     /* A version bump is a manual step (see NYT_CACHE_VERSION comment) and it's
-       been forgotten more than once after an import -- so before trusting the
-       cache, also ask Supabase for just a row count (a `head:true` request
-       returns no rows, this costs about as little as a network round trip
-       can). If the live count doesn't match what's cached, something changed
-       (an import added/removed rows) even though nobody remembered to bump
-       the version, so fall through to a full refetch instead of silently
-       showing stale data. This can't catch an in-place UPDATE that doesn't
-       change the row count (e.g. fixing a title or a dietary tag) -- that
-       still needs an explicit version bump. */
-    const liveCount = (await sb.from('nyt_recipes').select('*', {count:'exact', head:true}).eq('needs_review', false)).count;
-    if(liveCount == null || liveCount === cached.rows.length){
-      console.log(`nytBoot: cache hit, showing ${cached.rows.length} cached NYT recipes, skipping the network fetch`);
-      await mergeNytRecipes(cached.rows);
-      render();
-      setNytLoading(false);
-      return; /* the whole point of caching is to skip the ~20-request paginated
-                 fetch on repeat visits -- only an actual data change should
-                 ever trigger a full refetch */
-    }
-    console.log(`nytBoot: cache stale (cached ${cached.rows.length} rows, live count ${liveCount}) -- refetching`);
+       been forgotten more than once after an import -- cache trust used to
+       also be double-checked against a live `count=exact` row count, but
+       that query itself started returning 500s once this table passed ~60k
+       rows (a Postgres statement timeout on the count, confirmed directly
+       against the API) -- which was the actual cause of archive loads
+       taking 20+ seconds and then locking up: a failed count silently
+       dropped the whole fetch below into a slow one-page-at-a-time fallback.
+       Trusting the cache version alone is less thorough (an in-place edit
+       that doesn't change row count needs an explicit version bump, same
+       limitation as before) but doesn't depend on a query that's now
+       unreliable at this table size. */
+    console.log(`nytBoot(${src}): cache hit, showing ${cached.rows.length} cached recipes, skipping the network fetch`);
+    await mergeNytRecipes(cached.rows);
+    render();
+    return;
   }
-  console.log('nytBoot: no usable cache, fetching all NYT recipes from Supabase');
+  console.log(`nytBoot(${src}): no usable cache, fetching from Supabase`);
 
-  /* PostgREST caps a single response at 1000 rows by default, and the table is
-     now ~46k rows -- that's ~46 pages. Fetching them one at a time, waiting for
-     each round trip before starting the next, made a cold (uncached) load take
-     noticeably long. Since .order('id') already makes every page's range
-     well-defined regardless of fetch order, request a bounded number of pages
-     concurrently instead of strictly sequentially -- each page still retries
-     on its own if it fails, and whatever pages DID succeed are kept even if
-     one keeps failing, same as before. */
-  const PAGE_SIZE = 1000, CONCURRENCY = 6;
-  const countRes = await sb.from('nyt_recipes').select('*', {count:'exact', head:true}).eq('needs_review', false);
-  const total = countRes.count;
-  let allData = [], hadError = false;
+  /* PostgREST caps a single response at 1000 rows by default. Each of the 4
+     archive sources now fetches only its own rows (filtered server-side --
+     see ARCHIVE_SOURCE_FILTERS) instead of one shared ~60k-row pull for
+     whichever button happened to be clicked first -- turning on just NYT
+     (~19k rows) used to also silently download Epicurious/BBC/Other on top
+     of it, which is what made a single button take 37 seconds. Pages within
+     THIS source's own fetch still go out in concurrent batches, walking
+     forward without needing to know the total row count up front (see the
+     count=exact reliability note above) -- a batch containing a short or
+     failed page marks the end. */
+  /* Concurrency and retry count both walked back down from an earlier
+     attempt at this (10 / 5 attempts) that assumed every timeout was a
+     one-off blip -- during an actual sustained rough patch on this
+     endpoint, that combination makes the WORST case dramatically longer
+     (5 retries x a growing backoff, repeated per page) instead of failing
+     fast, which is what turned into a 30+ second hang that never
+     resolved. Fewer concurrent requests is also gentler on a
+     resource-constrained backend that's already struggling. A hard
+     overall deadline below is the real fix for "never ends", though --
+     no amount of retry tuning guarantees an upper bound on its own. */
+  const PAGE_SIZE = 1000, CONCURRENCY = 5, OVERALL_DEADLINE_MS = 15000;
+  const startedAt = Date.now();
+  let allData = [], hadError = false, timedOut = false;
   async function fetchPage(from){
     for(let attempt = 1; attempt <= 3; attempt++){
-      const res = await sb.from('nyt_recipes').select('*').eq('needs_review', false)
-        .order('id').range(from, from + PAGE_SIZE - 1);
+      let q = sb.from('nyt_recipes').select(NYT_LITE_COLUMNS).eq('needs_review', false);
+      q = ARCHIVE_SOURCE_FILTERS[src](q);
+      const res = await q.order('id').range(from, from + PAGE_SIZE - 1);
       if(!res.error) return res.data;
-      console.error(`nyt_recipes fetch error (page starting at ${from}, attempt ${attempt})`, res.error);
+      console.error(`nyt_recipes fetch error (${src}, page starting at ${from}, attempt ${attempt})`, res.error);
       if(attempt < 3) await new Promise(r => setTimeout(r, 500 * attempt));
     }
     hadError = true;
     return null;
   }
-  if(total == null){
-    /* count query itself failed -- fall back to the old strictly-sequential
-       walk, since we can't plan a page list without knowing when to stop */
-    let from = 0;
-    while(true){
-      const data = await fetchPage(from);
-      if(!data) break;
+  let from = 0, done = false;
+  while(!done){
+    if(Date.now() - startedAt > OVERALL_DEADLINE_MS){
+      /* whatever is already fetched gets kept and merged/rendered below --
+         this is what guarantees "never ends" can't actually happen, no
+         matter how degraded the backend is right now. */
+      timedOut = true; hadError = true;
+      console.error(`nytBoot(${src}): stopping after ${OVERALL_DEADLINE_MS}ms -- backend seems degraded, keeping ${allData.length} rows fetched so far`);
+      break;
+    }
+    const starts = []; for(let i=0; i<CONCURRENCY; i++) starts.push(from + i*PAGE_SIZE);
+    const batch = await Promise.all(starts.map(fetchPage));
+    for(const data of batch){
+      if(!data){ done = true; break; }
       allData = allData.concat(data);
-      if(data.length < PAGE_SIZE) break;
-      from += PAGE_SIZE;
+      if(data.length < PAGE_SIZE){ done = true; break; }
     }
-  } else {
-    const starts = []; for(let from=0; from<total; from+=PAGE_SIZE) starts.push(from);
-    for(let i=0; i<starts.length; i+=CONCURRENCY){
-      const batch = await Promise.all(starts.slice(i, i+CONCURRENCY).map(fetchPage));
-      batch.forEach(data => { if(data) allData = allData.concat(data); });
-    }
+    from += CONCURRENCY * PAGE_SIZE;
   }
   const rows = allData.map(rowToNytRecipe);
   /* only cache on a fully clean fetch -- a partial result cached would silently
      cap every future load at whatever happened to succeed this one time */
   if(!hadError){
-    await saveNytCache({version: NYT_CACHE_VERSION, rows});
+    await saveNytCache(cacheKey, {version: NYT_CACHE_VERSION, rows});
   }
   const before = RECIPES.length;
   await mergeNytRecipes(rows);
   if(RECIPES.length !== before) render(); /* only re-render if the fetch actually added anything new vs. the cache */
-  if(hadError) console.error(`nytBoot: stopped early after fetching ${allData.length} NYT recipes -- see errors above`);
-  else console.log(`nytBoot: fetch complete, ${allData.length} rows fetched, RECIPES now has ${RECIPES.length} total`);
-  setNytLoading(false);
+  if(hadError) console.error(`nytBoot(${src}): stopped early after fetching ${allData.length} recipes -- see errors above`);
+  else console.log(`nytBoot(${src}): fetch complete, ${allData.length} rows fetched, RECIPES now has ${RECIPES.length} total`);
 }
 
 /* ---------------- offline write queue ---------------- */
@@ -61723,6 +62566,13 @@ async function runOp(op){
     return sb.from('inventory_items').upsert({
       id: op.row.id, household_id: currentHousehold(), kind: op.kind, name: op.row.name,
       qty: (op.row.qty===''||op.row.qty===undefined) ? null : op.row.qty, unit: op.row.unit||null,
+      list_id: op.row.listId||null,
+      deleted: !!op.row._d, updated_at: new Date(op.row._t).toISOString()
+    });
+  }
+  if(op.table === 'shopping_lists'){
+    return sb.from('shopping_lists').upsert({
+      id: op.row.id, household_id: currentHousehold(), name: op.row.name,
       deleted: !!op.row._d, updated_at: new Date(op.row._t).toISOString()
     });
   }
@@ -61774,6 +62624,7 @@ function subscribeRealtime(){
     .on('postgres_changes', {event:'*', schema:'public', table:'inventory_items'}, onRemoteChange)
     .on('postgres_changes', {event:'*', schema:'public', table:'prefs'}, onRemoteChange)
     .on('postgres_changes', {event:'*', schema:'public', table:'interested_recipes'}, onRemoteChange)
+    .on('postgres_changes', {event:'*', schema:'public', table:'shopping_lists'}, onRemoteChange)
     .subscribe();
 }
 function unsubscribeRealtime(){
@@ -61791,7 +62642,7 @@ function onRemoteChange(){
     persist(true);
     render();
     if(view==='plan') renderWeek();
-    if(view==='history') renderMonth();
+    if(view==='history') renderHistory();
     if(view==='storage') renderStorage();
   }, 400);
 }
@@ -61832,6 +62683,7 @@ authBoot();
 /* the archive never auto-loads -- see toggleSource(), which is the only
    thing that ever calls nytBoot() now; every fresh load starts curated-only */
 familySubmissionsBoot();
+loadArchiveSourceCounts();
 
 /* remove the print-condensed layout once the print dialog closes --
    afterprint fires whether the user actually printed or cancelled, either
