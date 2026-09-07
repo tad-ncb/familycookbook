@@ -127,10 +127,14 @@
   .facet-rows{ margin-top:4px; display:flex; flex-direction:column; gap:0; }
   .facet-row{ display:flex; align-items:baseline; flex-wrap:wrap; gap:5px 6px; padding:7px 0; border-bottom:1px solid var(--line); }
   .chip-row{ display:flex; flex-wrap:wrap; flex:1 1 0%; min-width:0; gap:5px 6px; }
-  /* Author has no desktop chip-row alternative (unlike Cuisine, which only
-     falls back to this select on mobile) -- it needs the chip-row's
-     row-filling behavior on every screen size, not just below 640px. */
-  #authorSelect{ flex:1 1 0%; min-width:0; width:100%; }
+  /* #authorSelectWrap keeps .chip-row's proven flex-item sizing (the actual
+     fix -- see the HTML comment above it) but overrides its `display:flex`
+     back to a plain block, since its one child is a <select>, not chips to
+     lay out. The select itself is then just a normal block-level child
+     filling its block parent -- ordinary CSS with no flex/select
+     interaction involved at all. */
+  #authorSelectWrap{ display:block; }
+  #authorSelect{ display:block; width:100%; box-sizing:border-box; }
 
   /* Mobile-only compact chrome: a <select> standing in for the view-tab
      buttons (saves the second wrapped row), and a collapsible filter panel
@@ -408,19 +412,20 @@
     .diet-abbr{ display:inline; }
     #dietChips{ flex-wrap:nowrap; }
     #dietChips .facet-link{ flex:1 1 0; min-width:0; text-align:center; justify-content:center; }
-    /* the Author select above has no bottom border of its own on mobile
-       (labels are hidden, so nothing draws the usual .tb-group hairline in
-       the right place) -- add one above Show so it doesn't run straight
-       into Author with no separation. */
-    #showGroup{ justify-content:center; border-top:1px solid var(--line); padding-top:9px; margin-top:2px; padding-bottom:2px; }
-    /* Include/Exclude row: drop its own bottom border/padding since the
-       Author select right after it already reads as the next section. */
-    #filterPanel .ing-row{ border-bottom:none; padding-bottom:2px; }
-    /* Family/Curated gets its own line; the 4 archive sources share the
-       next line together instead of however many happen to fit before a
-       natural wrap (was splitting 3-then-2 across two ragged lines). */
-    #sourceToolbar .tb-group{ justify-content:center; padding-bottom:3px; }
-    #sourceToolbar + .facet-row{ padding-top:3px; }
+    /* Every row in the mobile filter panel gets the SAME top/bottom padding
+       -- previously each row had its own one-off value (2px here, 3px
+       there, 9px somewhere else, several as asymmetric top-only or
+       bottom-only overrides compensating for a since-fixed layout quirk),
+       which is exactly what made the vertical rhythm read as "all over the
+       place" rather than a consistent list. One value, applied uniformly,
+       replaces all of that patchwork. */
+    .facet-row{ padding:5px 0; }
+    #sourceToolbar .tb-group{ justify-content:center; padding:5px 0; }
+    #showGroup{ justify-content:center; padding:5px 0 2px; }
+    /* Include/Exclude keeps its border removed (the Author row right after
+       it already reads as the next section) but the same uniform padding
+       as every other row. */
+    #filterPanel .ing-row{ border-bottom:none; padding-bottom:5px; }
     #filterPanel .facet-link{ font-size:11px; padding:2px 6px; }
     #filterPanel .facet-link .n, #filterPanel .tb-btn .n{ font-size:9.5px; }
     #cuisineChips{ display:none; }
@@ -436,19 +441,19 @@
     .compact-group .tb-btn{ font-size:11px; padding:2px 6px; }
     .toolbar label.tb-name{width:100%; margin-bottom:4px;}
     .toolbar .tb-name-spacer{display:none;}
-    /* With its label hidden, Author is the lone control on its row -- give
-       it a real width instead of native shrink-to-fit <select> sizing.
-       Centered per request, same as the Cuisine dropdown above it. */
-    /* flex-basis:100% explicitly (not "auto" relying on width to feed it) --
-       this has been reported still narrower than Cuisine across several
-       earlier attempts (width:100%, appearance:none) despite both selects
-       sharing this exact rule; an explicit flex-basis leaves no ambiguity
-       for a flex-item <select> to fall back to its own intrinsic content
-       width instead, which is a known cross-browser inconsistency. */
-    #authorSelect, #cuisineSelect{
+    /* Cuisine's select is still a direct flex item of its .facet-row (its
+       chip-row sibling is display:none on mobile, this is the only visible
+       child) -- flex-basis:100% explicitly, not "auto" relying on width to
+       feed it, since a flex-item <select> falling back to its own
+       intrinsic content width is a known cross-browser inconsistency. */
+    #cuisineSelect{
       display:block; width:100% !important; flex:1 1 100% !important; min-width:0; box-sizing:border-box;
       text-align:center; text-align-last:center;
     }
+    /* Author's select is never a flex item at all (see #authorSelectWrap
+       above it) -- centered per request, same as Cuisine, but no flex
+       properties needed since it's just a block child filling its wrapper. */
+    #authorSelect{ text-align:center; text-align-last:center; }
     /* Clear filters + Sort (select and its ↑/↓ button) read as cramped/
        clipped at the same compact size as the Show toggle buttons -- give
        just these three a bit more room instead. */
@@ -1305,15 +1310,20 @@
       <span class="facet-name mobile-hide-label">Diet</span>
       <div id="dietChips" class="chip-row"></div>
     </div>
-    <!-- Same facet-row markup as Course/Cuisine/Diet above -- Author was
-         previously built by JS inside a separate .tb-group (renderToolbar()),
-         which despite matching CSS on paper kept measuring narrower than
-         Cuisine's select in practice. Using the exact same row structure as
-         the row directly above it removes any remaining doubt: same parent,
-         same border-bottom, same flex context, guaranteed same width. -->
+    <!-- Same facet-row markup as Course/Cuisine/Diet above. A bare <select>
+         as a direct flex item (what was here, and what #cuisineSelect still
+         is) has a known cross-browser sizing quirk that kept measuring
+         narrower than its siblings across several fix attempts, even with
+         matching CSS. Sidestepping it entirely: the flex item is a plain
+         .chip-row DIV (the exact mechanism already proven to size correctly
+         for Course/Cuisine/Diet's chip rows), and the select is just a
+         plain block child inside it -- never itself a flex item, so that
+         whole class of bug no longer applies. -->
     <div class="facet-row">
       <span class="facet-name mobile-hide-label">Author/Cookbook</span>
-      <select class="tb-select" id="authorSelect"></select>
+      <div class="chip-row" id="authorSelectWrap">
+        <select class="tb-select" id="authorSelect"></select>
+      </div>
     </div>
     <div class="facet-row ing-row">
       <div class="ing-col">
