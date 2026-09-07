@@ -9,7 +9,14 @@
      or get crawled/archived. See also /robots.txt at the site root. -->
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="icon" href="icon-192.png">
+<!-- Same fork-and-knife icon used everywhere else (manifest.json, the
+     apple-touch-icon above) -- explicit type/sizes so browsers reliably
+     pick this over any favicon.ico guess. A browser that already cached a
+     different favicon for this origin from before this was set can keep
+     showing the old one for a while regardless of what's in the HTML --
+     that's the browser's favicon cache, not something this file controls. -->
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <meta name="theme-color" content="#14161c">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -197,10 +204,22 @@
   }
   button.clear-btn:hover{ color:var(--alert) !important; border-color:var(--alert) !important; }
 
+  /* was background:var(--line) with a matching 1px border -- that's a
+     common CSS Grid trick (grid background shows through the 1px gaps as
+     hairlines between cards), but it also paints the grid's own padding
+     box that color, plus the border draws an outline around the whole
+     thing -- together that reads as a visibly different grey panel sitting
+     under the filter controls rather than the same page surface continuing
+     underneath them. Cards already read as distinct from the page via
+     their own --card background, so the frame/tint isn't needed for
+     separation -- background matches the page now, gap shows page-color
+     hairlines (i.e. none, visually), and the border is gone. More top
+     padding also gives Show/Clear filters real breathing room before the
+     first row of cards on desktop, where 8px read as cramped. */
   .grid{
-    max-width:var(--maxw); margin:0 auto; padding:8px 24px 100px;
+    max-width:var(--maxw); margin:0 auto; padding:24px 24px 100px;
     display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 265px), 1fr));
-    gap:1px; background:var(--line); border:1px solid var(--line);
+    gap:1px; background:var(--paper);
   }
   .empty-state{
     grid-column:1/-1; text-align:center; padding:90px 20px; color:var(--ink-soft);
@@ -579,6 +598,17 @@
     #ingredientsSectionTitle{ display:none; }
     .modal-meta-grid{ margin-bottom:6px; }
     #modalScale .scale-bar{ margin:2px 0 8px; }
+  }
+  /* A regular iPhone's viewport (~390px or narrower) is tight enough that
+     the source pills ("Other" wrapping to its own line) and the Show
+     buttons ("Interested" wrapping below its row-mates) no longer fit on
+     one line each at the sizing above -- confirmed fine on an iPhone Max's
+     wider (~430px) viewport, broken below that. Shrinking just these two
+     compact-group rows a bit further reclaims enough width for both to
+     stay on one line at any phone size, without touching anything else. */
+  @media (max-width:400px){
+    .compact-group .tb-btn{ font-size:10px; padding:2px 5px; }
+    .compact-group{ gap:3px 4px; }
   }
   /* ---------- Phase 1: tracking + scaling ---------- */
   /* .toolbar now lives nested inside #filterPanel (itself inside .controls,
@@ -1306,24 +1336,25 @@
            chips, which have room to wrap and still show counts at a glance. -->
       <select id="cuisineSelect" class="tb-select cuisine-select-mobile"></select>
     </div>
-    <div class="facet-row">
-      <span class="facet-name mobile-hide-label">Diet</span>
-      <div id="dietChips" class="chip-row"></div>
-    </div>
-    <!-- Same facet-row markup as Course/Cuisine/Diet above. A bare <select>
-         as a direct flex item (what was here, and what #cuisineSelect still
-         is) has a known cross-browser sizing quirk that kept measuring
-         narrower than its siblings across several fix attempts, even with
-         matching CSS. Sidestepping it entirely: the flex item is a plain
-         .chip-row DIV (the exact mechanism already proven to size correctly
-         for Course/Cuisine/Diet's chip rows), and the select is just a
-         plain block child inside it -- never itself a flex item, so that
-         whole class of bug no longer applies. -->
+    <!-- Same facet-row markup as Course/Cuisine above. A bare <select>
+         as a direct flex item (what #cuisineSelect still is) has a known
+         cross-browser sizing quirk that kept measuring narrower than its
+         siblings across several fix attempts, even with matching CSS.
+         Sidestepping it entirely: the flex item is a plain .chip-row DIV
+         (the exact mechanism already proven to size correctly for
+         Course/Cuisine's chip rows), and the select is just a plain block
+         child inside it -- never itself a flex item, so that whole class
+         of bug no longer applies. Ordered right after Cuisine (ahead of
+         Diet) per request. -->
     <div class="facet-row">
       <span class="facet-name mobile-hide-label">Author/Cookbook</span>
       <div class="chip-row" id="authorSelectWrap">
         <select class="tb-select" id="authorSelect"></select>
       </div>
+    </div>
+    <div class="facet-row">
+      <span class="facet-name mobile-hide-label">Diet</span>
+      <div id="dietChips" class="chip-row"></div>
     </div>
     <div class="facet-row ing-row">
       <div class="ing-col">
