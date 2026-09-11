@@ -61763,10 +61763,9 @@ function renderSettings(){
       <div class="rday" style="margin-bottom:8px;">Submit a recipe</div>
       <div class="hint" style="margin:0 0 10px;">Goes in as a draft -- nobody sees it in the cookbook until someone publishes it below.</div>
       <input type="text" id="subTitle" placeholder="Recipe title">
-      <div style="display:flex; gap:8px; margin-top:8px;">
-        <select id="subCategory" style="flex:1;"><option value="">Course (optional)</option>${ALL_CATEGORIES.map(c=>`<option value="${escapeHTML(c)}">${escapeHTML(c)}</option>`).join('')}</select>
-        <input type="text" id="subCuisine" placeholder="Cuisine (optional)" style="flex:1;">
-      </div>
+      <input type="hidden" id="subCategory" value="">
+      <div id="subCategoryChips" class="picker-course-chips" style="margin-top:8px;"></div>
+      <input type="text" id="subCuisine" placeholder="Cuisine (optional)" style="margin-top:8px; width:100%; box-sizing:border-box;">
       <input type="text" id="subServings" placeholder="Servings (optional)" style="margin-top:8px;">
       <textarea id="subIngredients" placeholder="Ingredients, one per line" rows="4" style="margin-top:8px;"></textarea>
       <textarea id="subInstructions" placeholder="Steps, one per line" rows="4" style="margin-top:8px;"></textarea>
@@ -61792,6 +61791,16 @@ function renderSettings(){
   };
   host.querySelector('#hhUp').onclick   = ()=> setHH(p.household+1);
   host.querySelector('#hhDown').onclick = ()=> setHH(p.household-1);
+  const subCatChips = host.querySelector('#subCategoryChips');
+  subCatChips.innerHTML = ALL_CATEGORIES.map(cat=>
+    `<span class="facet-link" data-course="${escapeHTML(cat)}">${escapeHTML(cat)}</span>`).join('');
+  subCatChips.querySelectorAll('[data-course]').forEach(el=> el.onclick = ()=>{
+    const hidden = host.querySelector('#subCategory');
+    const wasActive = el.classList.contains('active');
+    subCatChips.querySelectorAll('.facet-link').forEach(x=> x.classList.remove('active'));
+    hidden.value = wasActive ? '' : el.dataset.course;
+    if(!wasActive) el.classList.add('active');
+  });
   host.querySelector('#subSave').onclick = async ()=>{
     const title = host.querySelector('#subTitle').value.trim();
     const msg = host.querySelector('#subMsg');
