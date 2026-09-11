@@ -1,0 +1,1355 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta name="robots" content="noindex, nofollow, noarchive"/>
+<title>Portugal 12-Day Scouting Itinerary</title>
+<link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="apple-touch-icon.png"/>
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png"/>
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png"/>
+<meta name="theme-color" content="#1a3a5c"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Portugal"/>
+<style>
+  :root {
+    /* Portugal palette:
+       --blue      = azulejo tile deep blue
+       --blue-light = azulejo mid-tone
+       --terracotta = rooftop orange-red
+       --terra-light = soft terracotta
+       --cream     = aged limestone wall
+       --sand      = warm parchment
+       --text      = dark ink
+       --muted     = faded stone
+       --border    = aged tile grout
+    */
+    --blue: #1a3a5c;
+    --blue-light: #2a5a8a;
+    --terracotta: #c04e2a;
+    --terra-light: #e07a50;
+    --cream: #fdf8f2;
+    --sand: #f5ede0;
+    --text: #1e1a17;
+    --muted: #6b5c50;
+    --border: #d4c4b0;
+    /* Tag families — condensed from 11 individual hues to 4 category
+       families + 1 status color. Category is readable from the label
+       text already, so members of a family share one color. */
+    --tag-recon: #e8f0f8;
+    --tag-recon-border: #2a5a8a;
+    --tag-transport: #eef1f4;
+    --tag-transport-border: #46586b;
+    --tag-food: #fff0e8;
+    --tag-food-border: #c04e2a;
+    --tag-sight: #e6f4f1;
+    --tag-sight-border: #1a6b5a;
+    --tag-car: #fff0f0;
+    --tag-car-border: #c04040;
+    --tag-booked: #e8f5e9;
+    --tag-booked-border: #1a5c2a;
+    /* Total sticky-nav height (2 rows). Every scroll-margin-top in this
+       file references this so jump-links never land under the nav. */
+    --nav-h: 62px;
+  }
+
+  /* ============================
+     RESET & BASE
+     ============================ */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: var(--cream); color: var(--text); line-height: 1.4; font-size: 14px; }
+  html { scroll-behavior: smooth; }
+
+  /* ============================
+     NAV
+     ============================ */
+  nav {
+    background: var(--blue); position: sticky; top: 0; z-index: 100;
+    display: flex; flex-direction: column; border-bottom: 3px solid var(--terracotta);
+  }
+  nav .nav-row { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; }
+  nav a { color: rgba(255,255,255,0.85); text-decoration: none; padding: 6px 8px; font-size: 0.76rem; transition: background 0.15s; letter-spacing: 0.03em; white-space: nowrap; }
+  nav a:hover { background: var(--terracotta); color: white; }
+  nav .divider { color: rgba(255,255,255,0.25); padding: 6px 4px; font-size: 0.76rem; }
+  nav .nav-row:first-child a:first-child svg { width: 15px; height: 15px; display: block; }
+  nav .nav-row:last-child a { padding: 7px 10px; }
+  nav .nav-row:last-child a svg { width: 16px; height: 16px; display: block; }
+
+  /* ============================
+     CONTAINER
+     ============================ */
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 18px; }
+
+  /* ============================
+     SECTION TITLES
+     ============================ */
+  h3.sec-title {
+    font-size: 1.15rem; color: var(--blue); border-bottom: 3px solid var(--terracotta);
+    padding-bottom: 5px; margin: 22px 0 8px; scroll-margin-top: var(--nav-h);
+  }
+  h4.sub { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--blue-light); margin: 10px 0 5px; }
+
+  /* ============================
+     TABLES
+     ============================ */
+  table { width: max-content; min-width: 100%; border-collapse: collapse; margin: 6px 0 8px; font-size: 0.8rem; }
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; border-radius: 4px; }
+  th { background: var(--blue); color: white; padding: 6px 8px; text-align: left; font-size: 0.72rem; font-weight: normal; letter-spacing: 0.04em; }
+  td { padding: 5px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:nth-child(even) td { background: rgba(245,237,224,0.5); }
+  tr:last-child td { border-bottom: none; }
+  .total-row td { background: var(--blue) !important; color: white; font-weight: bold; }
+
+  /* Responsive tables: below 640px, rows become stacked label/value
+     cards instead of a wide scrolling table — nothing to swipe sideways
+     for. Each cell carries a data-label attribute (added programmatically,
+     matching its column header) that CSS turns into the row label. */
+  @media (max-width: 640px) {
+    .table-scroll { overflow-x: visible; }
+    table { width: 100%; min-width: 0; margin: 4px 0 10px; }
+    thead { display: none; }
+    tbody, tr { display: block; }
+    tr { border: 1px solid var(--border); border-radius: 6px; margin-bottom: 8px; padding: 6px 8px; background: white; }
+    tr:nth-child(even) { background: rgba(245,237,224,0.5); }
+    tr:nth-child(even) td { background: transparent; }
+    td { display: flex; gap: 8px; padding: 3px 0; border-bottom: none; align-items: baseline; }
+    td[data-label]::before {
+      content: attr(data-label); font-weight: bold; color: var(--blue-light);
+      font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.03em;
+      flex: 0 0 32%; flex-shrink: 0;
+    }
+    .total-row { background: var(--blue) !important; border-color: var(--blue); }
+    .total-row td::before { color: rgba(255,255,255,0.8); }
+  }
+
+  /* ============================
+     LISTS
+     ============================ */
+  ul { padding-left: 18px; margin: 4px 0 6px; }
+  ul li { margin-bottom: 2px; }
+  ul li::marker { color: var(--terracotta); }
+
+  /* ============================
+     CALLOUTS
+     ============================ */
+  .callout { background: var(--tag-recon); border-left: 4px solid var(--blue-light); padding: 7px 10px; border-radius: 0 6px 6px 0; margin: 6px 0; font-size: 0.8rem; line-height: 1.35; }
+  .callout strong { color: var(--blue); }
+  .callout-change { background: #fff5ee; border-left: 4px solid var(--terracotta); padding: 7px 10px; border-radius: 0 6px 6px 0; margin: 6px 0; font-size: 0.8rem; line-height: 1.35; }
+  .callout-change strong { color: #8a3010; }
+  .callout-car { background: var(--tag-car); border-left: 4px solid var(--tag-car-border); padding: 7px 10px; border-radius: 0 6px 6px 0; margin: 6px 0; font-size: 0.8rem; line-height: 1.35; }
+  .callout-car strong { color: var(--tag-car-border); }
+
+  /* ============================
+     DAY CARDS
+     ============================ */
+  .day-card {
+    background: white; border: 1px solid var(--border); border-radius: 6px;
+    margin-bottom: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(26,58,92,0.08); scroll-margin-top: var(--nav-h);
+  }
+  .day-header {
+    background: linear-gradient(135deg, var(--blue) 0%, var(--blue-light) 100%);
+    color: white; padding: 8px 14px; display: flex; align-items: baseline; gap: 8px;
+    border-bottom: 3px solid var(--terracotta); flex-wrap: wrap;
+  }
+  .day-number { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.75; white-space: nowrap; }
+  .day-title { font-size: 0.98rem; font-weight: normal; }
+  .day-sleep { margin-left: auto; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.28); border-radius: 14px; padding: 2px 9px; font-size: 0.7rem; }
+  .day-body { padding: 10px 14px; }
+
+  /* ============================
+     TIME BLOCKS & ACTIVITIES
+     ============================ */
+  .time-block { margin-bottom: 10px; }
+  .time-block-header { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 5px; padding-bottom: 3px; border-bottom: 1px dashed var(--border); scroll-margin-top: calc(var(--nav-h) + 26px); }
+
+  .activity { display: flex; gap: 8px; margin-bottom: 4px; align-items: flex-start; }
+  .activity-time { font-size: 0.7rem; color: var(--muted); white-space: nowrap; min-width: 74px; padding-top: 2px; border-right: 1px solid var(--border); padding-right: 7px; flex-shrink: 0; }
+  .activity-content { flex: 1; font-size: 0.82rem; line-height: 1.3; }
+  .activity-content strong { color: var(--text); }
+  .activity-detail { font-size: 0.75rem; color: var(--muted); margin-top: 1px; line-height: 1.28; }
+
+  /* ============================
+     TAGS
+     ============================ */
+  .tag { display: inline-block; border-radius: 3px; padding: 1px 5px; font-size: 0.62rem; font-weight: bold; letter-spacing: 0.03em; text-transform: uppercase; margin-right: 5px; margin-left: 0; vertical-align: middle; white-space: nowrap; }
+  .tag-recon { background: var(--tag-recon); color: var(--tag-recon-border); border: 1px solid var(--tag-recon-border); }
+  .tag-booked { background: var(--tag-booked); color: var(--tag-booked-border); border: 1px solid var(--tag-booked-border); }
+  /* Getting Around family */
+  .tag-transit, .tag-walk, .tag-bolt { background: var(--tag-transport); color: var(--tag-transport-border); border: 1px solid var(--tag-transport-border); }
+  /* Food, Drink & Nightlife family */
+  .tag-food, .tag-night, .tag-nightlife, .tag-fado { background: var(--tag-food); color: var(--tag-food-border); border: 1px solid var(--tag-food-border); }
+  /* Sights & Experiences */
+  .tag-sight { background: var(--tag-sight); color: var(--tag-sight-border); border: 1px solid var(--tag-sight-border); }
+
+  /* ============================
+     PRICE
+     ============================ */
+  .price { font-size: 0.72rem; color: var(--muted); font-weight: bold; }
+
+  /* ============================
+     OVERVIEW LIST
+     ============================ */
+  .overview-list { margin: 6px 0; border: 1px solid var(--border); border-radius: 5px; overflow: hidden; }
+  .overview-row { display: flex; align-items: center; border-bottom: 1px solid var(--border); background: white; }
+  .overview-row:last-child { border-bottom: none; }
+  .overview-row:nth-child(even) { background: rgba(245,237,224,0.4); }
+  .overview-daynum { flex: 0 0 82px; padding: 2px 6px; font-size: 0.68rem; font-weight: bold; color: var(--blue); border-right: 1px solid var(--border); white-space: nowrap; }
+  .overview-desc { flex: 1; padding: 2px 6px; font-size: 0.68rem; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .overview-sleep { flex: 0 0 180px; padding: 2px 6px; font-size: 0.64rem; color: var(--muted); border-left: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ============================
+     RECON GRID
+     ============================ */
+  .recon-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; margin: 8px 0; }
+  .recon-item { background: var(--tag-recon); border: 1px solid var(--tag-recon-border); border-radius: 5px; padding: 8px 10px; }
+  .recon-item h5 { color: var(--blue); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+  .recon-item ul { padding-left: 16px; font-size: 0.76rem; }
+  .recon-item ul li { margin-bottom: 2px; }
+
+  /* ============================
+     APP GRID
+     ============================ */
+  .app-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 6px; margin: 8px 0; }
+  .app-item { background: white; border: 1px solid var(--border); border-radius: 5px; padding: 7px 9px; font-size: 0.78rem; }
+  .app-item strong { color: var(--blue); display: block; margin-bottom: 2px; }
+  .app-item span { color: var(--muted); font-size: 0.72rem; }
+
+  /* ============================
+     DAY QUICK-JUMP (in-card nav)
+     ============================ */
+  .day-jump { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; padding: 5px 14px 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .day-jump .dj-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); flex-shrink: 0; margin-right: 1px; }
+  .day-jump a { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--blue-light); background: var(--sand); border: 1px solid var(--border); border-radius: 10px; padding: 2px 6px; text-decoration: none; white-space: nowrap; flex-shrink: 0; }
+  .day-jump a:hover { background: var(--terracotta); color: white; border-color: var(--terracotta); }
+
+  /* ============================
+     STICKY BOOKING TRACKER
+     ============================ */
+  #booking-tracker-toggle { position: fixed; bottom: calc(18px + env(safe-area-inset-bottom)); right: calc(18px + env(safe-area-inset-right)); z-index: 200; background: var(--terracotta); color: white; border: none; border-radius: 24px; padding: 12px 18px; font-size: 0.85rem; font-weight: bold; box-shadow: 0 3px 12px rgba(0,0,0,0.25); cursor: pointer; }
+  #booking-tracker-panel { display: none; position: fixed; bottom: calc(70px + env(safe-area-inset-bottom)); right: calc(18px + env(safe-area-inset-right)); z-index: 200; width: min(320px, calc(100vw - 36px)); max-height: 60vh; overflow-y: auto; background: white; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,0.25); padding: 14px 16px; }
+  #booking-tracker-panel li.bt-done { opacity: 0.5; text-decoration: line-through; }
+  #booking-tracker-panel label { display: flex; align-items: flex-start; gap: 7px; cursor: pointer; }
+  #booking-tracker-panel input[type="checkbox"] { margin-top: 3px; flex-shrink: 0; }
+  #booking-tracker-panel .bt-reset { display: block; margin-top: 10px; background: none; border: 1px solid var(--border); border-radius: 4px; color: var(--muted); font-size: 0.75rem; padding: 4px 8px; cursor: pointer; }
+  #booking-tracker-panel.open { display: block; }
+  #booking-tracker-panel h5 { color: var(--blue); font-size: 0.8rem; margin-bottom: 6px; }
+  #booking-tracker-panel ul { padding-left: 16px; font-size: 0.76rem; margin-bottom: 0; }
+  #booking-tracker-panel li { margin-bottom: 5px; line-height: 1.3; }
+  #booking-tracker-panel .bt-close { float: right; background: none; border: none; color: var(--muted); font-size: 0.75rem; cursor: pointer; }
+
+  /* ============================
+     FOOTER
+     ============================ */
+  footer { background: var(--blue); color: rgba(255,255,255,0.7); text-align: center; padding: 12px; margin-top: 20px; font-size: 0.72rem; border-top: 3px solid var(--terracotta); }
+  footer strong { color: white; }
+
+  /* ============================
+     BREAKPOINT: 1400px — large screens
+     ============================ */
+  @media (min-width: 1400px) {
+    .container { max-width: 1100px; }
+    body { font-size: 15px; }
+  }
+
+  /* ============================
+     BREAKPOINT: 900px
+     ============================ */
+  @media (max-width: 900px) {
+    .container { padding: 0 16px; }
+    .recon-grid { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  }
+
+  /* ============================
+     BREAKPOINT: 800px — day header wrap
+     ============================ */
+  @media (max-width: 800px) {
+    .day-header { flex-wrap: wrap; }
+    .day-sleep { margin-left: 0; }
+  }
+
+  /* ============================
+     BREAKPOINT: 700px — overview drops the sleep column
+     ============================ */
+  @media (max-width: 700px) {
+    .overview-sleep { display: none; }
+    .overview-daynum { flex: 0 0 70px; }
+  }
+
+  /* ============================
+     BREAKPOINT: 600px — mobile
+     ============================ */
+  @media (max-width: 600px) {
+    .container { padding: 0 10px; width: 100%; }
+    .day-header { flex-direction: column; align-items: flex-start; gap: 3px; padding: 7px 12px; }
+    .day-sleep { margin-left: 0; white-space: normal; }
+    .day-body { padding: 8px 12px; }
+    .activity-time { min-width: 56px; font-size: 0.64rem; padding-right: 5px; }
+    .activity-content { font-size: 0.78rem; }
+    .activity-detail { font-size: 0.71rem; }
+    nav a { padding: 5px 6px; font-size: 0.68rem; }
+    nav .divider { padding: 5px 3px; font-size: 0.68rem; }
+    table { font-size: 0.72rem; }
+    th { padding: 4px 6px; }
+
+    .callout, .callout-change, .callout-car { font-size: 0.74rem; padding: 6px 9px; }
+    .recon-grid { grid-template-columns: 1fr; }
+    .app-grid { grid-template-columns: 1fr 1fr; }
+    h3.sec-title { font-size: 1rem; }
+    .tag { font-size: 0.58rem; padding: 1px 4px; }
+    .overview-daynum { flex: 0 0 56px; font-size: 0.62rem; padding: 2px 5px; }
+    .overview-desc { font-size: 0.62rem; padding: 2px 5px; }
+    .day-jump { padding: 5px 10px 0; }
+    #booking-tracker-toggle { bottom: calc(12px + env(safe-area-inset-bottom)); right: calc(12px + env(safe-area-inset-right)); padding: 10px 14px; font-size: 0.8rem; }
+    #booking-tracker-panel { bottom: calc(58px + env(safe-area-inset-bottom)); right: calc(12px + env(safe-area-inset-right)); width: calc(100vw - 24px); }
+  }
+
+  /* ============================
+     BREAKPOINT: 400px — small mobile
+     ============================ */
+  @media (max-width: 400px) {
+    nav a { padding: 5px 5px; font-size: 0.64rem; }
+    .app-grid { grid-template-columns: 1fr; }
+    .day-number { font-size: 0.62rem; }
+    .day-title { font-size: 0.88rem; }
+  }
+
+  /* ============================
+     PRINT
+     ============================ */
+  @media print {
+    nav, .day-jump, #booking-tracker-toggle, #booking-tracker-panel { display: none !important; }
+    body { background: white; font-size: 10px; }
+
+    /* Every day and major section starts on its own fresh page. A busy
+       day can still run to 2-3 pages (that's real content, not padding),
+       but its blue header banner is what you spot when scanning the
+       PDF's thumbnail grid, so it's still findable by sight either way. */
+    .day-card { box-shadow: none; border: 1px solid #999; break-before: page; margin-bottom: 0; }
+    .day-card:first-of-type { break-before: avoid; }
+    #overview, #accommodations, #logistics, #food, #recon, #budget, #apps, #todo {
+      break-before: page;
+    }
+
+    .day-header { padding: 6px 12px; gap: 8px; }
+    .day-title { font-size: 12px; }
+    .day-number, .day-sleep { font-size: 9px; }
+    .day-body { padding: 6px 12px; }
+    .time-block { margin-bottom: 5px; }
+    .time-block-header { font-size: 9px; margin-bottom: 3px; padding-bottom: 2px; }
+    .activity { margin-bottom: 3px; gap: 7px; }
+    .activity-time { font-size: 9px; min-width: 54px; padding-right: 5px; }
+    .activity-content { font-size: 10px; line-height: 1.25; }
+    .activity-detail { font-size: 9px; line-height: 1.2; }
+    .tag { font-size: 7px; padding: 0 3px; margin-right: 3px; }
+    .price { font-size: 9px; }
+    .callout, .callout-change, .callout-car { padding: 4px 8px; margin: 4px 0; font-size: 9px; line-height: 1.2; }
+  }
+</style>
+</head>
+<body>
+<nav>
+<div class="nav-row">
+<a href="#overview" title="Overview"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" viewbox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><polygon points="12,7 14.5,12 12,17 9.5,12"></polygon></svg></a>
+<span class="divider">|</span>
+<a href="#day0">0</a>
+<a href="#day1">1</a>
+<a href="#day2">2</a>
+<a href="#day3">3</a>
+<a href="#day4">4</a>
+<a href="#day5">5</a>
+<a href="#day6">6</a>
+<a href="#day7">7</a>
+<a href="#day8">8</a>
+<a href="#day9">9</a>
+<a href="#day10">10</a>
+<a href="#day11">11</a>
+<a href="#day12">12</a>
+</div>
+<div class="nav-row">
+<a href="#accommodations" title="Stays"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" viewbox="0 0 24 24"><circle cx="8" cy="12" r="4"></circle><line x1="12" x2="21" y1="12" y2="12"></line><line x1="17" x2="17" y1="12" y2="16"></line><line x1="20" x2="20" y1="12" y2="15"></line></svg></a>
+<a href="#logistics" title="Transit"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" viewbox="0 0 24 24"><rect height="14" rx="3" width="12" x="6" y="3"></rect><line x1="6" x2="18" y1="10" y2="10"></line><circle cx="9" cy="19" r="1.3"></circle><circle cx="15" cy="19" r="1.3"></circle></svg></a>
+<a href="#food" title="Food"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" viewbox="0 0 24 24"><line x1="8" x2="8" y1="2" y2="22"></line><path d="M5 2v6a3 3 0 0 0 6 0V2"></path><path d="M17 2c-2 0-3.5 2-3.5 5.5S15 11 17 11"></path><line x1="17" x2="17" y1="2" y2="22"></line></svg></a>
+<a href="#recon" title="Recon Checklist"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" viewbox="0 0 24 24"><circle cx="10" cy="10" r="6"></circle><line x1="14.5" x2="21" y1="14.5" y2="21"></line></svg></a>
+<a href="#budget" title="Budget"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" viewbox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M15.5 8.5a5 5 0 1 0 0 7"></path><line x1="8" x2="13" y1="11" y2="11"></line><line x1="8" x2="12" y1="13.5" y2="13.5"></line></svg></a>
+<a href="#apps" title="Apps"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" viewbox="0 0 24 24"><rect height="20" rx="2" width="10" x="7" y="2"></rect><line x1="11" x2="13" y1="18" y2="18"></line></svg></a>
+<a href="#todo" title="To Book"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" viewbox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M8 12.5l2.5 2.5L16 9"></path></svg></a>
+</div>
+</nav>
+<div class="container">
+<!-- OVERVIEW -->
+<div id="overview" style="scroll-margin-top:var(--nav-h); margin-bottom:12px;">
+<h3 class="sec-title" style="margin:16px 0 8px; font-size:1.1rem;">Trip Overview</h3>
+<div class="overview-list">
+<div class="overview-row">
+<div class="overview-daynum">D0 · 9/27</div>
+<div class="overview-desc"><strong>Flight Day</strong> — IAD departs 5:40pm · Overnight · Arrives Porto 9am Mon</div>
+<div class="overview-sleep">Overnight flight</div>
+</div>
+<div class="overview-row">
+<div class="overview-daynum">D1 · 9/28</div>
+<div class="overview-desc"><strong>Porto Arrival + Douro River Boat</strong> — Bonfim check-in · Neighborhood walk · Confirmed boat tour 6–8pm</div>
+<div class="overview-sleep">Porto — Bonfim (night 1 of 2)</div>
+</div>
+<div class="overview-row">
+<div class="overview-daynum">D2 · 9/29</div>
+<div class="overview-desc"><strong>Porto: Full Sightseeing + Recon</strong> — Cedofeita · Foz · Matosinhos · Nightlife</div>
+<div class="overview-sleep">Porto — Bonfim (night 2 of 2)</div>
+</div>
+<div class="overview-row">
+<div class="overview-daynum">D3 · 9/30</div>
+<div class="overview-desc"><strong>Porto → Nazaré → Lisbon</strong> — Direct Rede Expressos routing, Obidos dropped · Check in Campo de Ourique 9/30</div>
+<div class="overview-sleep">Lisbon — Campo de Ourique (night 1 of 3)</div>
+</div>
+<div class="overview-row">
+<div class="overview-daynum">D4 · 10/1</div>
+<div class="overview-desc"><strong>Lisbon: Campo de Ourique + Estrela + Arroios</strong> — Residential deep-dive · Skip the monuments</div>
+<div class="overview-sleep">Lisbon — Campo de Ourique (night 2 of 3)</div>
+</div>
+<div class="overview-row">
+<div class="overview-daynum">D5 · 10/2</div>
+<div class="overview-desc"><strong>Lisbon: Príncipe Real + Mouraria + Nightlife</strong> — Premium recon · Real estate · Late night out</div>
+<div class="overview-sleep">Lisbon — Campo de Ourique (night 3 of 3)</div>
+</div>
+<div class="overview-row">
+<div class="overview-daynum">D6 · 10/3</div>
+<div class="overview-desc"><strong>Lisbon → Cascais (coastal train)</strong> — Sleep in · Direct train from Cais do Sodré · Full day recon</div>
+<div class="overview-sleep">Cascais (night 1 of 2)</div>
+</div>
+<div class="overview-row">
+<div class="overview-daynum">D7 · 10/4</div>
+<div class="overview-desc"><strong>Cascais: Full Overnight Recon Day</strong> — Guincho · Real estate deep dive · Estoril</div>
+<div class="overview-sleep">Cascais (night 2 of 2)</div>
+</div>
+<div class="overview-row">
+<div class="overview-daynum">D8 · 10/5</div>
+<div class="overview-desc"><strong>Cascais → Lisbon → Faro (half-day) → Tavira</strong> — Faro Cidade Velha walk · No overnight · Train to Tavira</div>
+<div class="overview-sleep">Tavira (night 1 of 2)</div>
+</div>
+<div class="overview-row">
+<div class="overview-daynum">D9 · 10/6</div>
+<div class="overview-desc"><strong>Tavira: Full Day</strong> — Ria Formosa island · River walk · Deep recon</div>
+<div class="overview-sleep">Tavira (night 2 of 2)</div>
+</div>
+<div class="overview-row">
+<div class="overview-daynum">D10 · 10/7</div>
+<div class="overview-desc"><strong>Tavira Morning → Lagos</strong> — Morning market · Train west · Lagos + 10pm nightlife check</div>
+<div class="overview-sleep">Lagos (night 1 of 2)</div>
+</div>
+<div class="overview-row">
+<div class="overview-daynum">D11 · 10/8</div>
+<div class="overview-desc"><strong>Lagos: Full Recon + Beach Day</strong> — Ponta da Piedade · Praia Dona Ana · Final evening</div>
+<div class="overview-sleep">Lagos (night 2 of 2)</div>
+</div>
+<div class="overview-row">
+<div class="overview-daynum">D12 · 10/9</div>
+<div class="overview-desc"><strong>Lagos Morning + Fly Home</strong> — ⚠ Tight timing — see passport control note</div>
+<div class="overview-sleep">Fly home</div>
+</div>
+</div>
+<div style="background:var(--sand); border:1px solid var(--border); border-radius:5px; padding:6px 10px; margin-top:4px; font-size:0.7rem;">
+<strong>2 people · 1 couple.</strong> Accommodation costs shown per night for the unit. Bolt fares shown as total for 2.
+    </div>
+</div>
+<!-- DAY 0 -->
+<div class="day-card" id="day0">
+<div class="day-header">
+<span class="day-number">Day 0 — Sun, 9/27</span>
+<span class="day-title">Flight Day — IAD → Porto</span>
+<span class="day-sleep">Overnight flight · Arrive Porto Mon, 9/28</span>
+</div>
+<div class="day-body">
+<div class="time-block">
+<div class="time-block-header">Flight</div>
+<div class="activity"><span class="activity-time">5:40p</span><div class="activity-content"><span class="tag tag-booked">Booked</span> <strong>IAD → LIS → OPO</strong><div class="activity-detail">
+<strong>Pre-flight timing:</strong> For a 5:40pm international departure at IAD, plan to arrive by 2:30pm. TAP check-in counter at Terminal A — allow extra time for international bag drop.<br/><br/>
+<strong>Leg 1:</strong> TAP Air Portugal TP 232 · Airbus A321neo · Departs IAD Sun, 9/27 at 5:40pm · Arrives Lisbon (LIS) Mon, 9/28 at 6:05am · 7 hr 25 min overnight<br/>
+<strong>Lisbon layover: 1 hr 55 min</strong> (6:05am → 8:00am) · Same terminal, both TAP flights — protected connection, but don't dawdle at LIS<br/>
+<strong>Leg 2:</strong> TAP Air Portugal TP 1922 · Embraer 190 · Operated by Portugalia · Departs LIS 8:00am · Arrives Porto (OPO) 9:00am · 1 hr<br/>
+<strong>Bags:</strong> 1 free carry-on · 1st checked bag <strong>$131</strong> on this leg · $645/person total<br/><br/>
+<strong>Note on LIS connection:</strong> The 1hr 55min layover is tight. Both flights are TAP on the same booking — protected connection. If you misconnect, TAP will rebook you on the next LIS→OPO flight (runs every 1–2 hrs). Don't linger at LIS passport control.<br/><br/>
+<strong>Payment status: unconfirmed — flagging for you to verify.</strong> These are marked Booked, but this document doesn't have a paid-in-full figure or confirmation number the way every accommodation does. Worth double-checking whether the full fare is settled or a balance remains.
+        </div></div></div>
+</div>
+</div>
+</div>
+<!-- DAY 1 -->
+<div class="day-card" id="day1">
+<div class="day-header">
+<span class="day-number">Day 1 — Mon, 9/28</span>
+<span class="day-title">Porto Arrival + Bonfim + Douro River</span>
+<span class="day-sleep">Sleep: Porto — Bonfim (night 1 of 2)</span>
+</div>
+<div class="day-body"><div class="day-jump"><span class="dj-label">Jump to:</span><a href="#day1-arrival">Arrival</a><a href="#day1-accommodation-confirmed">Stay</a><a href="#day1-afternoon">Afternoon</a><a href="#day1-evening">Evening</a></div>
+<div class="time-block">
+<div class="time-block-header" id="day1-arrival">Arrival</div>
+<div class="activity"><span class="activity-time">9:00–9:20a</span><div class="activity-content"><strong>Bolt direct to Airbnb</strong> <span class="price">€10–14 for 2 · 20 min</span><div class="activity-detail"><strong>Use Bolt on arrival — do not take the metro with full bags.</strong> Porto metro Line E has no lifts at most stations and tight cars. Bolt drops you at the door.<br/><br/><strong>Check-in not until 3pm:</strong> Host Daniel may accommodate an early bag drop — message in advance. If not: <strong>Radical Storage</strong> or <strong>Bounce</strong> near Bonfim (~€5–6/bag/day), or São Bento station coin lockers (~€4–6) a 10-min walk away.</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day1-accommodation-confirmed">Accommodation — Confirmed</div>
+<div class="activity"><span class="activity-time"></span><div class="activity-content"><span class="tag tag-booked">Booked</span> <strong>Bonfim Garden Apartment Near Metro &amp; City Center</strong><div class="activity-detail"><strong>Address:</strong> Rua do Bonfim 174 2º Traseiras, Porto 4300-096 · <strong>Host:</strong> Daniel · <strong>Confirmation:</strong> HMQ3R9YATT · <strong>Check-in:</strong> Mon, 9/28 at 3:00 PM · <strong>Checkout:</strong> Wed, 9/30 at 11:00 AM · Bonfim neighborhood — exactly the target area for recon.</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day1-afternoon">Afternoon</div>
+<div class="activity"><span class="activity-time">Post-checkin</span><div class="activity-content"><span class="tag tag-recon">Recon</span> <strong>Bonfim Neighborhood Walk</strong><div class="activity-detail">~1 hr. Note grocery stores (Minipreço, local mercearias), cafes, post offices, street quality. This is what daily life looks like.</div></div></div>
+<div class="activity"><span class="activity-time"></span><div class="activity-content"><strong>Lidl or Minipreço</strong> — wine and snacks <span class="price">€20–30 total</span><div class="activity-detail">Calibrate grocery prices vs. US equivalents</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day1-evening">Evening</div>
+<div class="activity"><span class="activity-time">5:40–5:50p</span><div class="activity-content"><span class="tag tag-bolt">Bolt</span> <strong>Rua do Bonfim → Marina do Freixo</strong> <span class="price">€8–10 for 2 · ~10 min</span><div class="activity-detail">3–4km; Bolt drops you at the marina entrance — be on the water by 5:50pm for the 6pm departure.</div></div></div>
+<div class="activity"><span class="activity-time">6:00–8:00p</span><div class="activity-content"><span class="tag tag-booked">Booked</span> <strong>Explore the Douro River with locals</strong> <span class="price">Confirmed · 2 guests</span><div class="activity-detail"><strong>Host:</strong> Paulo · <strong>Meeting point:</strong> Marina do Freixo, 4300-316, Porto · Boat tour on the Douro — confirmed for 9/28, 6:00–8:00 PM (WEST). Be at the marina by 5:50pm.<br/><br/><strong>Payment status: unclear — flagging for you to verify.</strong> No price or paid-in-full figure appears anywhere for this activity (it's not itemized in the Budget table either). Worth confirming whether it's fully paid, a deposit, or pay-on-the-day.</div></div></div>
+<div class="activity"><span class="activity-time">8:00–8:10p</span><div class="activity-content"><span class="tag tag-bolt">Bolt</span> <strong>Marina do Freixo → Bonfim</strong> <span class="price">€5–8 for 2 · ~8 min</span><div class="activity-detail">Short hop back to the neighborhood for dinner — no metro serves Marina do Freixo.</div></div></div>
+<div class="activity"><span class="activity-time">8:30–10:00p</span><div class="activity-content"><span class="tag tag-food">Dinner</span> <strong>Taberna Santo António or Cozinha da Residência</strong> <span class="price">€30–40 for 2</span><div class="activity-detail">Neighborhood spots, not tourist traps · Early night — big sightseeing day tomorrow</div></div></div>
+</div>
+</div>
+</div>
+<!-- DAY 2 -->
+<div class="day-card" id="day2">
+<div class="day-header">
+<span class="day-number">Day 2 — Tue, 9/29</span>
+<span class="day-title">Porto: Full Sightseeing + Neighborhood Recon</span>
+<span class="day-sleep">Sleep: Porto — Bonfim (night 2 of 2)</span>
+</div>
+<div class="day-body"><div class="day-jump"><span class="dj-label">Jump to:</span><a href="#day2-morning">Morning</a><a href="#day2-lunch">Lunch</a><a href="#day2-afternoon">Afternoon</a><a href="#day2-evening">Evening</a></div>
+<div class="time-block">
+<div class="time-block-header" id="day2-morning">Morning</div>
+<div class="activity"><span class="activity-time">8:00–8:45a</span><div class="activity-content"><span class="tag tag-food">Breakfast</span> <strong>Floresta Café / Hungry Biker / Café Candelabro</strong> <span class="price">€3–5/person</span></div></div>
+<div class="activity"><span class="activity-time">9:00–9:30a</span><div class="activity-content"><span class="tag tag-sight">Sight</span> <strong>São Bento Train Station</strong> <span class="price">Free</span><div class="activity-detail">Walk through even if not catching a train — the azulejo tile panels inside the main hall are among the finest in Portugal. 20,000 hand-painted tiles depicting Portuguese history. Free to enter, 10 minutes well spent.</div></div></div>
+<div class="activity"><span class="activity-time">9:30–10:30a</span><div class="activity-content"><span class="tag tag-recon">Recon</span> <strong>Cedofeita Neighborhood Walk</strong><div class="activity-detail">Porto's most livable neighborhood. Rua de Cedofeita (boutiques, galleries, coffee shops), Rua Miguel Bombarda (gallery street). Pop into Remax/ERA/Century 21 if open — ask what €350–500k buys.</div></div></div>
+<div class="activity"><span class="activity-time">10:30–11:15a</span><div class="activity-content"><span class="tag tag-sight">Sight</span> <strong>Igreja do Carmo + Igreja dos Carmelitas</strong> <span class="price">€5/free</span><div class="activity-detail">Azulejo-covered exterior · Neighbor churches side by side · <strong>Miradouro da Vitória</strong> is a 5-min walk from here — small, local, zero tourists, sweeping view over the Douro and Gaia. Far better than the crowded Clérigos tower. Don't skip it.</div></div></div>
+<div class="activity"><span class="activity-time">11:15–11:45a</span><div class="activity-content"><span class="tag tag-sight">Sight</span> <strong>Livraria Lello</strong> <span class="price">€10 (deducted from purchase)</span><div class="activity-detail">Book ticket online in advance · Most beautiful bookshop in the world</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day2-lunch">Lunch</div>
+<div class="activity"><span class="activity-time">12:00–1:30p</span><div class="activity-content"><span class="tag tag-food">Lunch</span> <strong>Mercado do Bolhão</strong> <span class="price">€20–30 for 2</span><div class="activity-detail">Renovated 19th-century market hall · Bacalhau, bifana sandwiches, fresh produce and fish stalls, regional cheeses · This is the real Porto daily market — not a food court, an actual working mercado. Worth at least 30 minutes wandering even if you're not hungry.</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day2-afternoon">Afternoon</div>
+<div class="activity"><span class="activity-time">1:30–2:00p</span><div class="activity-content"><span class="tag tag-sight">Sight</span> <strong>Ribeira Riverside Walk</strong> <span class="price">Free</span><div class="activity-detail">Touristy but genuinely beautiful · Get the photo, watch the boats, move on</div></div></div>
+<div class="activity"><span class="activity-time">2:00p</span><div class="activity-content"><span class="tag tag-bolt">Bolt</span> <strong>Ribeira → Foz do Douro</strong> <span class="price">€5–7 for 2 · ~15 min</span><div class="activity-detail">Bus 500 runs but is indirect. Bolt drops you at the promenade in 15 min for €2.50–3.50/pp — worth it.</div></div></div>
+<div class="activity"><span class="activity-time">2:15–3:45p</span><div class="activity-content"><span class="tag tag-recon">Recon</span> <strong>Foz do Douro</strong><div class="activity-detail">Porto's upscale coastal neighborhood. Walk the Atlantic promenade, check real estate windows (€4,500–6,000/sqm). "What does premium Porto look like?" calibration.</div></div></div>
+<div class="activity"><span class="activity-time">3:30–4:30p</span><div class="activity-content"><span class="tag tag-sight">Sight</span> <strong>Jardins do Palácio de Cristal</strong> <span class="price">Free</span><div class="activity-detail">Stunning garden with city and river views</div></div></div>
+<div class="activity"><span class="activity-time">4:30–4:45p</span><div class="activity-content"><span class="tag tag-walk">Walk</span> <strong>Jardins do Palácio de Cristal → Trindade Metro</strong> <span class="price">Free · ~15 min</span><div class="activity-detail">~1.2km walk downhill toward the city center to Trindade station for Line A to Matosinhos.</div></div></div>
+<div class="activity"><span class="activity-time">4:50–5:10p</span><div class="activity-content"><span class="tag tag-transit">Transit</span> <strong>Metro Line A → Matosinhos Sul</strong> <span class="price">€1.60/person · 20 min</span><div class="activity-detail">Depart from Trindade or Bolhão on Line A (blue/red). Arrives Matosinhos Sul in ~20 min. Day bags only — the ride itself is useful recon, experiencing the daily commute from Matosinhos.</div></div></div>
+<div class="activity"><span class="activity-time">5:10–5:55p</span><div class="activity-content"><span class="tag tag-recon">Recon</span> <strong>Matosinhos</strong><div class="activity-detail">Beach suburb: excellent metro access, beach, seafood, slightly cheaper than center. Walk Rua Heróis de França (restaurant row). Note the metro-accessible beach lifestyle as a retirement scenario.</div></div></div>
+<div class="activity"><span class="activity-time">5:55–6:15p</span><div class="activity-content"><span class="tag tag-transit">Metro</span> <strong>Matosinhos Sul → Trindade (center)</strong> <span class="price">€1.60/person · 20 min</span><div class="activity-detail">Same Line A back to center — use the ride to decompress and review notes before the evening.</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day2-evening">Evening</div>
+<div class="activity"><span class="activity-time">7:30–8:30p</span><div class="activity-content"><span class="tag tag-night">Drinks</span> <strong>Piano B, Maus Hábitos, or Fabrik Bar</strong> <span class="price">€16–24 for 2</span><div class="activity-detail">Piano B: underground, intimate cocktails · Maus Hábitos: rooftop bar + gallery terrace · Fabrik Bar: Porto's main gay bar — starts as cocktails, gets louder later, a good data point on Porto's (smaller but real) LGBTQ+ scene vs. Lisbon's. It's part of a walkable cluster with Move Club and Bar Labirintho around Rua da Alegria/Rua de Sá da Bandeira if you want to see more than one.<br/><br/><strong>Sauna Thermas 205</strong> (gay sauna, open since 1991 — the most complete men's sauna in Porto): Sun–Thu 2pm–4am, Fri/Sat/holiday-eve 2pm–6am · €10 entry, cash only, includes 2 towels + flip-flops · wet &amp; dry saunas, private cabins, darkroom, video room, lounge, smoking area. No set time needed given the long hours — an option to fold in after dinner if it appeals, not a scheduled stop.</div></div></div>
+<div class="activity"><span class="activity-time">8:30–10:00p</span><div class="activity-content"><span class="tag tag-food">Dinner</span> <strong>Taberna dos Mercadores or O Paparico</strong> <span class="price">€60–90 for 2</span><div class="activity-detail">Reserve ahead · Budget option: Brasão cervejaria ~€20–25/person</div></div></div>
+<div class="activity"><span class="activity-time">10:00p+</span><div class="activity-content"><span class="tag tag-nightlife">Nightlife</span> <strong>Bar de Sabão or Rua de Cedofeita bar-hop</strong></div></div>
+</div>
+</div>
+</div>
+<!-- DAY 3 -->
+<div class="day-card" id="day3">
+<div class="day-header">
+<span class="day-number">Day 3 — Wed, 9/30</span>
+<span class="day-title">Porto → Nazaré → Lisbon</span>
+<span class="day-sleep">Sleep: Lisbon — Campo de Ourique (night 1 of 3)</span>
+</div>
+<div class="day-body"><div class="day-jump"><span class="dj-label">Jump to:</span><a href="#day3-morning-porto-departure">Morning</a><a href="#day3-midday-nazar">Midday</a><a href="#day3-afternoon-free-block-in-nazar">Afternoon</a><a href="#day3-evening-nazar-lisbon-direct">Evening</a></div>
+<div class="callout-change" style="margin-bottom:8px;"><strong>Routing note:</strong> Óbidos is dropped from this day. Two direct Rede Expressos legs instead of three: Porto → Nazaré, then Nazaré → Lisbon direct (roughly hourly service, ~1h45m, arrives Sete Rios). This frees up ~2 hours in Nazaré — the first genuinely unscheduled block in the whole trip.<br/><br/><strong>Luggage logistics — simpler now:</strong> Each leg is still a separate bus on a separate ticket. When you get off at Nazaré, you <em>must</em> pull all bags from the hold — the bus leaves without you. The sequence:<br/><br/>① <strong>Porto → board bus, bags in hold</strong> → arrive Nazaré, pull your bags off the bus<br/>② <strong>Nazaré (~4.5 hrs):</strong> Store bags before sightseeing — ask your lunch restaurant to hold them for the day. Standard practice, but confirm they're fine with the longer window now that Óbidos is out (it was a ~2 hr ask, now closer to 4.5). <strong>Backup if they say no:</strong> Nazaré has several 24/7 paid lockers — Radical Storage, Bounce, and Nannybag all have locations around town (~€3.50–6/day, no advance booking required, one is right by the bus stop at Estádio do Viveiro). Don't let the restaurant ask be the only plan.<br/>③ <strong>Board Nazaré → Lisbon bus, reload bags</strong> → arrive Sete Rios, retrieve bags, Bolt to Airbnb</div>
+<div class="time-block">
+<div class="time-block-header" id="day3-morning-porto-departure">Morning — Porto Departure</div>
+<div class="activity"><span class="activity-time">6:30a</span><div class="activity-content"><strong>Wake up — pack bags, prepare for checkout</strong><div class="activity-detail">You're leaving before the 11am checkout deadline — that's fine. The checkout time is a maximum, not a required time. Key goes in the lockbox.</div></div></div>
+<div class="activity"><span class="activity-time">7:15a</span><div class="activity-content"><strong>Checkout of Airbnb — key in lockbox</strong><div class="activity-detail">Bags packed and out by 7:15am. Leave the key in the lockbox as instructed by Daniel.</div></div></div>
+<div class="activity"><span class="activity-time">7:15–8:00a</span><div class="activity-content"><span class="tag tag-food">Breakfast</span> <strong>Café Majestic or Manteigaria Silva</strong><div class="activity-detail">Roll bags there — both are ~500m from Bonfim. You can leave bags outside or against the wall while eating. Manageable at this hour.</div></div></div>
+<div class="activity"><span class="activity-time">8:15a</span><div class="activity-content"><strong>Leave breakfast — walk/roll bags to Campo 24 de Agosto</strong><div class="activity-detail">~600m from breakfast spots, ~10 min walk rolling bags. Flat route.</div></div></div>
+<div class="activity"><span class="activity-time">8:30a</span><div class="activity-content"><span class="tag tag-transit">Transit</span> <strong>Arrive terminal — load bags into coach hold</strong><div class="activity-detail">Allow time to check in, locate your bus bay, and load bags into the hold before the 9am departure.</div></div></div>
+<div class="callout-car" style="margin:10px 0;"><strong>⚠️ Confirm this before the trip:</strong> the exact departure address at rede-expressos.pt — some services leave from Campanhã station, others from a stop on Rua das Carmelitas near Campo 24 de Agosto metro. Showing up at the wrong one means missing the 9am bus outright. Allow 15 min at the terminal to load bags into the coach hold.</div>
+<div class="activity"><span class="activity-time">9:00–11:30a</span><div class="activity-content"><span class="tag tag-transit">Transit</span> <strong>Rede Expressos: Porto → Nazaré (direct)</strong> <span class="price">~€15–17/person · ~2.5 hrs</span><div class="activity-detail">Book at rede-expressos.pt · Direct service avoids Caldas da Rainha rail transfer · Arrives Nazaré ~11:30am.</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day3-midday-nazar">Midday — Nazaré</div>
+<div class="activity"><span class="activity-time">11:30a–12:15p</span><div class="activity-content"><span class="tag tag-food">Lunch</span> <strong>Lunch on the promenade</strong> <span class="price">€24–36 for 2</span><div class="activity-detail">Several good grilled fish spots right on Rua Mouzinho de Albuquerque · Order the caldeirada or grilled dourada · <strong>Ask the restaurant to hold your bags during and after lunch</strong> — you'll be back before 2:45pm to collect before the next bus. Standard practice, almost never refused.</div></div></div>
+<div class="activity"><span class="activity-time">12:30–1:00p</span><div class="activity-content"><span class="tag tag-sight">Sight</span> <strong>Sítio Funicular + Clifftop Walk</strong> <span class="price">€2.40 for 2</span><div class="activity-detail">The clifftop is the essential Nazaré experience — Praia do Norte (world-record big wave beach) visible below; Atlantic views</div></div></div>
+<div class="activity"><span class="activity-time">1:00–2:00p</span><div class="activity-content"><span class="tag tag-recon">Recon</span> <strong>Beach Promenade + Quick Recon Walk</strong><div class="activity-detail">Walk the beach promenade and one or two residential streets. Gut check: could you live here?</div></div></div>
+<div class="activity"><span class="activity-time">2:00–2:15p</span><div class="activity-content"><span class="tag tag-food">Snack</span> <strong>Pastry + coffee</strong> <span class="price">€3/person</span></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day3-afternoon-free-block-in-nazar">Afternoon — Free Block in Nazaré</div>
+<div class="activity"><span class="activity-time">2:15–3:45p</span><div class="activity-content"><span class="tag tag-recon">Free time</span> <strong>Unscheduled — first open block of the trip</strong><div class="activity-detail">No fixed plan. Options: extend beach time, walk up into the Pederneira hillside neighborhood above town for a quieter residential look, or just sit at a café and decompress. Worth using this as an actual rest block rather than filling it — most of the trip runs close to wall-to-wall. The other two deliberately unscheduled stretches are Cascais Day 7 (4:30–5:30p) and Tavira Day 9 (3:30–5:00p) — between the three, every "slower" candidate town gets its own dose of genuinely empty time.</div></div></div>
+<div class="activity"><span class="activity-time">3:45–4:00p</span><div class="activity-content"><span class="tag tag-recon">Recon</span> <strong>Recon note</strong><div class="activity-detail">Honest gut check on Nazaré. How quiet is it? Could you live here? The likely answer: beautiful place to visit, too small for daily life — but worth confirming in person.</div></div></div>
+<div class="activity"><span class="activity-time">4:00–4:15p</span><div class="activity-content"><strong>Collect bags from restaurant, walk to bus stop</strong><div class="activity-detail">Retrieve bags before boarding — allow 10–15 min to get to the Nazaré bus stop</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day3-evening-nazar-lisbon-direct">Evening — Nazaré → Lisbon (Direct)</div>
+<div class="activity"><span class="activity-time">4:30–6:15p</span><div class="activity-content"><span class="tag tag-transit">Transit</span> <strong>Rede Expressos: Nazaré → Lisbon (direct)</strong> <span class="price">~€12–16/person · ~1h45m</span><div class="activity-detail">Direct service runs roughly hourly — confirm the exact departure closest to 4:30p when you book at rede-expressos.pt. Arrives Sete Rios ~6:15–6:30p. Bags ride in the coach hold the whole way.</div></div></div>
+<div class="activity"><span class="activity-time">6:30p</span><div class="activity-content"><strong>Bolt to Campo de Ourique Airbnb from bus station</strong> <span class="price">€5–7 for 2</span><div class="activity-detail">Campo de Ourique from Sete Rios is ~10 min by Bolt. <strong>Use Bolt here</strong> — full luggage after a long transit day. Metro from Sete Rios to Campo de Ourique requires at least one transfer. Worth it.</div></div></div>
+<div class="activity"><span class="activity-time">7:30–8:30p</span><div class="activity-content"><span class="tag tag-food">Dinner</span> <strong>Dinner near Airbnb</strong> <span class="price">€24–36 for 2</span><div class="activity-detail">Zé da Mouraria (Mouraria; local wine bar; cheap; excellent) · Or any neighborhood tasca · You'll arrive with more breathing room than the old Óbidos routing — settle in before heading out.</div></div></div>
+</div>
+</div>
+</div>
+<!-- DAY 4 -->
+<div class="day-card" id="day4">
+<div class="day-header">
+<span class="day-number">Day 4 — Thu, 10/1</span>
+<span class="day-title">Lisbon: Campo de Ourique + Estrela + Arroios Recon</span>
+<span class="day-sleep">Sleep: Lisbon — Campo de Ourique (night 2 of 3)</span>
+</div>
+<div class="day-body"><div class="day-jump"><span class="dj-label">Jump to:</span><a href="#day4-accommodation-confirmed">Stay</a><a href="#day4-morning">Morning</a><a href="#day4-lunch">Lunch</a><a href="#day4-afternoon">Afternoon</a><a href="#day4-evening">Evening</a></div>
+<div class="callout-change" style="margin-bottom:8px;"><strong>Neighborhood swap:</strong> Mouraria moved to Day 5 as a single evening walk (it's better at night anyway). Arroios added to the afternoon as the up-and-coming comparison point — Campo de Ourique vs. Estrela vs. Arroios is a cleaner three-way comparison than including Mouraria here.</div>
+<div class="time-block">
+<div class="time-block-header" id="day4-accommodation-confirmed">Accommodation — Confirmed</div>
+<div class="activity"><span class="activity-time"></span><div class="activity-content"><span class="tag tag-booked">Booked</span> <strong>Ourique Photography House (AC and fast Wifi)</strong><div class="activity-detail"><strong>Host:</strong> Maria João &amp; Filipe · <strong>Address:</strong> Rua 1 da Vila Maia 9-1D, Lisbon · <strong>Confirmation:</strong> HMMS99DZXK · <strong>Check-in:</strong> Wed, 9/30 at 4:00 PM · <strong>Checkout:</strong> Sat, 10/3 at 12:00 PM · Location: Campo de Ourique — one of your three recon neighborhoods, walking distance to Mercado de Campo de Ourique. You arrive from Sete Rios bus terminal 9/30 evening — Bolt to Campo de Ourique ~€5–7 for 2 (~10 min).</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day4-morning">Morning</div>
+<div class="activity"><span class="activity-time">8:00–8:30a</span><div class="activity-content"><span class="tag tag-food">Breakfast</span> <strong>Local café near Airbnb</strong> <span class="price">€3–5/person</span></div></div>
+<div class="activity"><span class="activity-time">8:30–10:00a</span><div class="activity-content"><span class="tag tag-recon">Recon</span> <strong>Campo de Ourique Recon Walk</strong><div class="activity-detail">Best-kept secret for Lisbon expat retirees. Quiet, residential, excellent food services (Mercado de Campo de Ourique). Not touristy. Walk every block: note café density, grocery options, parks, scale of streets. 2BR: €1,500–1,900/mo.</div></div></div>
+<div class="activity"><span class="activity-time">10:00–10:30a</span><div class="activity-content"><span class="tag tag-food">Coffee/snack</span> <strong>Mercado de Campo de Ourique</strong> <span class="price">€8–12 for 2</span><div class="activity-detail">The food hall at the heart of the neighborhood — your potential weekly shop and Tuesday lunch spot</div></div></div>
+<div class="activity"><span class="activity-time">10:30–11:30a</span><div class="activity-content"><span class="tag tag-recon">Recon</span> <strong>Estrela Neighborhood Walk</strong><div class="activity-detail">Most livable Lisbon neighborhood for retirees: Jardim da Estrela park, Basílica da Estrela, quiet streets, embassies nearby. Walk from Campo de Ourique — they bleed into each other. 2BR: €1,700–2,200/mo, €480–620k to buy.</div></div></div>
+<div class="activity"><span class="activity-time">11:30a–12:30p</span><div class="activity-content"><span class="tag tag-recon">Recon</span> <strong>Real Estate Stop — Estrela/Campo de Ourique</strong><div class="activity-detail">Both neighborhoods have agencies on the main streets. Ask: what does €450–600k get here? What's the rental yield? How long do properties sit? Compare prices seen in windows vs. Idealista.pt live.</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day4-lunch">Lunch</div>
+<div class="activity"><span class="activity-time">12:30–12:40p</span><div class="activity-content"><span class="tag tag-bolt">Bolt</span> <strong>Estrela → Largo de São Paulo</strong> <span class="price">€4–6 for 2 · ~5 min</span><div class="activity-detail">~1km; Bolt makes sense with the time gap — saves the walk so you arrive at Afonso before the queue builds.</div></div></div>
+<div class="activity"><span class="activity-time">12:30–1:30p</span><div class="activity-content"><strong>The Bifanas of Afonso</strong> (Largo de São Paulo) <span class="tag tag-food">Lunch</span> <span class="price">€5–8/person</span><div class="activity-detail">Standing institution — Lisbon's most famous bifana (pork sandwich in seasoned broth). Tiny, cash only, no frills, always a queue. If the queue is too long: <strong>A Merendinha do Arco</strong> near Estrela is a solid sit-down backup at €12–15/person.</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day4-afternoon">Afternoon</div>
+<div class="activity"><span class="activity-time">1:45–1:55p</span><div class="activity-content"><span class="tag tag-bolt">Bolt</span> <strong>Lunch → Arroios</strong> <span class="price">€4–6 for 2 · ~10 min</span><div class="activity-detail">Metro/bus takes ~20 min with a transfer. Bolt saves ~10 min and the connection for ~€1/pp extra — use Bolt here.</div></div></div>
+<div class="activity"><span class="activity-time">2:00–3:30p</span><div class="activity-content"><span class="tag tag-recon">Recon</span> <strong>Arroios Neighborhood Walk</strong><div class="activity-detail">Up-and-coming, diverse, multicultural. Best value in central Lisbon. Mercado de Arroios open afternoons. Open Idealista.pt and search live — you'll see why the price-to-livability ratio is unusually good. 2BR: €1,200–1,700/mo.</div></div></div>
+<div class="activity"><span class="activity-time">3:30–4:30p</span><div class="activity-content"><span class="tag tag-recon">Recon</span> <strong>Real Estate Stop — Arroios</strong><div class="activity-detail">Compare prices with Estrela — the gap is meaningful. Arroios: 30% cheaper per sqm for similar apartment size, closer to Intendente/Anjos creative scene.</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day4-evening">Evening</div>
+<div class="activity"><span class="activity-time">6:15–6:25p</span><div class="activity-content"><span class="tag tag-bolt">Bolt</span> <strong>Arroios → Miradouro da Graça</strong> <span class="price">€4–5 for 2 · ~10 min</span><div class="activity-detail">Graça is on a hill — Bolt up, walk back down to Chiado after sunset.</div></div></div>
+<div class="activity"><span class="activity-time">6:30–7:30p</span><div class="activity-content"><strong>Miradouro da Graça</strong> for sunset <span class="tag tag-sight">Viewpoint</span> <span class="price">Free</span><div class="activity-detail">Best sunset viewpoint in Lisbon · Bring wine from Minipreço nearby · Walk down to Chiado/Bairro Alto afterward — easy and pleasant downhill.</div></div></div>
+<div class="activity"><span class="activity-time">8:00–9:00p</span><div class="activity-content"><strong>PARK Bar</strong> (rooftop, Chiado) <span class="tag tag-night">Drinks</span> <span class="price">€10–12/person</span><div class="activity-detail">Go at opening for a seat · Good for a group</div></div></div>
+<div class="activity"><span class="activity-time">9:00–10:30p</span><div class="activity-content"><strong>Cervejaria Ramiro</strong> or <span class="tag tag-food">Dinner</span> <strong>Restaurant Odaan</strong> <span class="price">€35–50/person · Odaan ~€36–50 for 2</span><div class="activity-detail"><strong>Ramiro:</strong> No reservations · Arrive 8:45p · Piri piri shrimp, clams, garlic bread · Essential Lisbon seafood experience · <strong>Odaan (Indian/Nepalese, Intendente):</strong> Excellent alternative if you want a change of pace — consistently rated one of Lisbon's best Indian/Nepalese restaurants, run by a Nepalese family, in the middle of the Arroios neighborhood you reconned this afternoon. Reserve ahead.</div></div></div>
+<div class="activity"><span class="activity-time">10:30p+</span><div class="activity-content"><strong>A Ginjinha</strong> (Largo de São Domingos) + <strong>Ginjinha Sem Rival</strong> (nearby) <span class="tag tag-night">Drinks</span> <span class="price">€1.50/shot</span><div class="activity-detail">Two competing ginjinha institutions 50 meters apart on the same square — try both and pick a side. A Ginjinha (est. 1840) is the original; Sem Rival is its chief rival. Shots served with or without the sour cherry. €1.50 each, standing room, maximum 15 minutes. A Lisbon ritual that costs almost nothing.</div></div></div>
+<div class="activity"><span class="activity-time">11:00p+</span><div class="activity-content"><span class="tag tag-night">Drinks</span> <strong>Tasca Mastai</strong> (wine bar, Bairro Alto)</div></div>
+</div>
+</div>
+</div>
+<!-- DAY 5 -->
+<div class="day-card" id="day5">
+<div class="day-header">
+<span class="day-number">Day 5 — Fri, 10/2</span>
+<span class="day-title">Lisbon: Príncipe Real + Mouraria Evening + Nightlife</span>
+<span class="day-sleep">Sleep: Lisbon — Campo de Ourique (night 3 of 3)</span>
+</div>
+<div class="day-body"><div class="day-jump"><span class="dj-label">Jump to:</span><a href="#day5-morning">Morning</a><a href="#day5-lunch">Lunch</a><a href="#day5-afternoon">Afternoon</a><a href="#day5-evening">Evening</a></div>
+<div class="callout-change" style="margin-bottom:8px;"><strong>Schedule note:</strong> Mouraria moved from Day 4 afternoon to Day 5 early evening walk (~6–7pm) — it's a different neighborhood at night than in the afternoon and genuinely worth seeing after dark. Gives Príncipe Real the full morning it deserves.</div>
+<div class="time-block">
+<div class="time-block-header" id="day5-morning">Morning</div>
+<div class="activity"><span class="activity-time">8:00–8:30a</span><div class="activity-content"><strong>Manteigaria</strong> (Chiado) <span class="tag tag-food">Breakfast</span> <span class="price">€1.30/nata</span><div class="activity-detail">Lisbon's best pastéis de nata · Queue at opening</div></div></div>
+<div class="activity"><span class="activity-time">8:30–9:30a</span><div class="activity-content"><span class="tag tag-sight">Sight</span> <strong>Chiado Morning Walk</strong><div class="activity-detail">Rua Garrett, Largo do Chiado, Livraria Bertrand (world's oldest operating bookshop, 1732 · Free) · Note tourist density at 9am vs noon</div></div></div>
+<div class="activity"><span class="activity-time">9:30–9:45a</span><div class="activity-content"><span class="tag tag-walk">Walk</span> <strong>Chiado → Príncipe Real</strong> <span class="price">Free · ~10–15 min</span><div class="activity-detail">Uphill walk (~600m) via Rua Dom Pedro V — the walk itself previews the neighborhood character.</div></div></div>
+<div class="activity"><span class="activity-time">9:45–11:00a</span><div class="activity-content"><span class="tag tag-recon">Recon</span> <strong>Príncipe Real Deep Recon</strong><div class="activity-detail">THE premium Lisbon expat neighborhood. Rua Dom Pedro V, Jardim do Príncipe Real. Pop into Porta da Frente/Savills/Sotheby's — ask what €500–600k buys. (Renovated 2BR, ~70–90sqm.) Walk every block: street quality, café options, proximity to Chiado. This is the benchmark everything else is measured against.</div></div></div>
+<div class="activity"><span class="activity-time">11:00–11:30a</span><div class="activity-content"><span class="tag tag-sight">Sight</span> <strong>Elevador da Glória → Miradouro de São Pedro de Alcântara</strong> <span class="price">€2/person funicular</span></div></div>
+<div class="activity"><span class="activity-time">11:30–11:45a</span><div class="activity-content"><span class="tag tag-walk">Walk</span> <strong>Miradouro → Chiado/Bairro Alto</strong> <span class="price">Free · ~10–15 min</span><div class="activity-detail">Walk down from the miradouro through Bairro Alto streets — a pleasant downhill route to the lunch area.</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day5-lunch">Lunch</div>
+<div class="activity"><span class="activity-time">12:30–1:45p</span><div class="activity-content"><span class="tag tag-food">Lunch</span> <strong>Taberna da Rua das Flores</strong> <span class="price">€50–70 for 2</span><div class="activity-detail">Lisbon institution · Reserve ahead · Seasonal Portuguese cuisine</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day5-afternoon">Afternoon</div>
+<div class="activity"><span class="activity-time">1:45–2:00p</span><div class="activity-content"><span class="tag tag-transit">Tram</span> <strong>Chiado → Belém</strong> <span class="price">€2/person · ~25 min</span><div class="activity-detail">Tram 15E from Cais do Sodré/Chiado is the scenic option; Bolt ~€5–7 for 2 (~10 min) if you'd rather skip the slow tram.</div></div></div>
+<div class="activity"><span class="activity-time">2:00–4:30p</span><div class="activity-content"><span class="tag tag-sight">Sight</span> <strong>Belém Circuit</strong> <span class="price">€5–16/person depending on entries</span><div class="activity-detail">Three stops in order:<br/><br/>① <strong>Pastéis de Belém</strong> (Rua de Belém 84–92) — the original, est. 1837. Queue is part of it. Eat inside for the azulejo-tiled rooms. ~€1.30/nata.<br/>② <strong>Torre de Belém</strong> (€6/person) — 16th-century Manueline tower on the Tagus. Exterior is spectacular; interior is a tight spiral stair. Worth the entry for the river views from the top, but skip if queues are over 30 min.<br/>③ <strong>Padrão dos Descobrimentos</strong> — Monument to the Discoveries (€6/person or free to view from outside). The riverside sculpture of Vasco da Gama, Magellan, and the Age of Exploration figures. Elevator to the top for sweeping Tagus views. The mosaic map on the plaza is one of Lisbon's most photographed things.</div></div></div>
+<div class="activity"><span class="activity-time">4:30–5:15p</span><div class="activity-content"><span class="tag tag-sight">Sight</span> <strong>LX Factory</strong> <span class="price">Free</span><div class="activity-detail">Industrial-chic complex · Independent shops, restaurants, concept stores · Good feel for Lisbon's creative class · 45 min is enough to walk through, have a drink, take it in.</div></div></div>
+<div class="activity"><span class="activity-time">5:15–5:30p</span><div class="activity-content"><span class="tag tag-bolt">Bolt</span> <strong>LX Factory → Mouraria</strong> <span class="price">€7–9 for 2 · ~15 min</span><div class="activity-detail">No direct transit; Bolt is the practical option for this cross-city hop.</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day5-evening">Evening</div>
+<div class="activity"><span class="activity-time">6:00–7:00p</span><div class="activity-content"><span class="tag tag-recon">Recon</span> <strong>Mouraria Evening Walk</strong><div class="activity-detail">Rua da Mouraria, Largo do Intendente, Rua dos Cavaleiros. Best experienced at dusk — fado music leaking from windows, diverse street life, a completely different energy than the tourist Lisbon. Quick comparison: Mouraria vs. Arroios (yesterday) — same price range, different vibe.</div></div></div>
+<div class="activity"><span class="activity-time">7:15–7:30p</span><div class="activity-content"><span class="tag tag-bolt">Bolt</span> <strong>Mouraria → Foxtrot (Príncipe Real)</strong> <span class="price">€5–7 for 2 · ~10 min</span><div class="activity-detail">Mouraria to Príncipe Real is uphill and a 20-min walk — Bolt is the sensible choice before an evening out.</div></div></div>
+<div class="activity"><span class="activity-time">7:30–8:30p</span><div class="activity-content"><strong>Foxtrot</strong> (Príncipe Real) <span class="tag tag-night">Drinks</span> <span class="price">~€20 for 2</span><div class="activity-detail">Legendary Lisbon bar · Low-key, excellent cocktails, very local</div></div></div>
+<div class="activity"><span class="activity-time">9:00–10:30p</span><div class="activity-content"><span class="tag tag-food">Dinner</span> <span class="tag tag-fado">Fado</span> <strong>Tasca do Chico</strong> (Bairro Alto, Rua do Diário de Notícias) <span class="price">€25–35 for 2, no minimum spend</span><div class="activity-detail"><strong>Picked as the primary choice</strong> — tiny, no-frills wine bar, resident fadista, local crowd, no cover, no dinner-theater feel. Only 20 seats, so reserve ahead now. This is the casual/local pick over a formal fado dinner, which fits better than repeating the more staged experience from a past trip.<br/><br/><strong>Backup if it's full or the vibe's off:</strong> A Baiuca (Alfama, Rua de São Miguel) — same spirit, family-run, neighborhood regulars, fadistas rotate through. Also reserve ahead.</div></div></div>
+<div class="activity"><span class="activity-time">10:30–10:35p</span><div class="activity-content"><span class="tag tag-walk">Walk</span> <strong>Tasca do Chico → Purex</strong> <span class="price">Free · ~5–10 min</span><div class="activity-detail">Short walk within Bairro Alto to Purex.</div></div></div>
+<div class="activity"><span class="activity-time">10:30p+</span><div class="activity-content"><strong>Purex</strong> (gay bar, Bairro Alto; walk-in, no reservation) → <span class="tag tag-nightlife">Nightlife</span> <strong>Finalmente</strong><div class="activity-detail">Rua da Palmeira · ⚠️ <strong>Reservation required</strong> for the ~11pm Café Concerto drag show (runs Tue–Sat) — that's the slot this timing lines up with. Book directly with the venue ahead of time. If you'd rather skip the reservation, the later club scene (after midnight, walk-in with cover charge, another show around 3am) needs no booking but makes for a very late night. Fallback if Finalmente doesn't pan out: TR3S, a well-regarded walk-in bar a few minutes away in Príncipe Real.</div></div></div>
+<div class="activity"><span class="activity-time">late/optional</span><div class="activity-content"><span class="tag tag-nightlife">Nightlife</span> <strong>After-hours options — Príncipe Real / Bairro Alto cluster</strong><div class="activity-detail">All three within a few minutes of Purex/Finalmente, and Friday's hours line up well with a late finish to the night:<br/><br/><strong>Woof X</strong> (Príncipe Real, Rua Manuel Bernardes 2) — small cruise &amp; fetish bar, darkroom, bears/leather crowd, skews late 20s–50s. Open daily 10pm–4am, walk-in, no cover mentioned. Known as a smoker's bar.<br/><br/><strong>Trombeta Bath</strong> (Bairro Alto sauna) — Mon–Thu 12pm–6am, and continuously Fri 12pm through Mon 6am (so it never closes over the weekend). €15 entry (€9 under 26), includes towel/locker/flip-flops/condoms/lube · dry sauna, steam room, jacuzzi, private cabins, darkroom, maze, bar, resident DJs. Consistently ranked among southern Europe's best.<br/><br/><strong>Drako Club</strong> (150m² cruise &amp; fetish club, largest of its kind in Portugal) — Sun–Thu 5pm–2am, Fri–Sat 5pm–3am · €7–10 entry (incl. a drink) · cruising areas, slings, BDSM zone, darkroom, cocktail bar. Male only, 18+. Weekly themed/naked nights — check their site before going since dress code varies by night.</div></div></div>
+</div>
+</div>
+</div>
+<!-- DAY 6 -->
+<div class="day-card" id="day6">
+<div class="day-header">
+<span class="day-number">Day 6 — Sat, 10/3</span>
+<span class="day-title">Lisbon → Cascais (Coastal Train)</span>
+<span class="day-sleep">Sleep: Cascais (night 1 of 2)</span>
+</div>
+<div class="day-body"><div class="day-jump"><span class="dj-label">Jump to:</span><a href="#day6-morning-relaxed-lisbon-departure">Morning</a><a href="#day6-cascais-arrival-11-00a-drop-bags-at-airbnb-or-storage">Cascais Arrival</a><a href="#day6-evening">Evening</a></div>
+<div class="time-block">
+<div class="time-block-header" id="day6-morning-relaxed-lisbon-departure">Morning — Relaxed Lisbon Departure</div>
+<div class="activity"><span class="activity-time">9:00–9:30a</span><div class="activity-content"><span class="tag tag-food">Breakfast</span> <strong>Breakfast near Airbnb</strong> <span class="price">€8–12 for 2</span><div class="activity-detail">Checkout is noon but you're leaving ~9:30am with bags — confirm with Maria João &amp; Filipe the night before that leaving keys by 9:30am works.</div></div></div>
+<div class="activity"><span class="activity-time">9:30–9:50a</span><div class="activity-content"><span class="tag tag-walk">Walk</span> <strong>Campo de Ourique → Cais do Sodré</strong> <span class="price">Free · 20 min downhill</span><div class="activity-detail">Flat, downhill toward the river — manageable with luggage. Bolt ~€4–5 for 2 (~8 min) if bags are heavy or weather is bad. Lifts at Cais do Sodré platform.</div></div></div>
+<div class="activity"><span class="activity-time">10:15–10:55a</span><div class="activity-content"><span class="tag tag-transit">Transit</span> <strong>Train: Cais do Sodré → Cascais (with luggage)</strong> <span class="price">€2.35/person · 40 min</span><div class="activity-detail">Cais do Sodré station is flat and easy to navigate with bags — lifts to the platform. The Cascais line trains have overhead racks and end-carriage space for luggage. Not crowded mid-morning on a weekday. This is the one train on the whole trip where bags genuinely aren't a problem.</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day6-cascais-arrival-11-00a-drop-bags-at-airbnb-or-storage">Cascais Arrival (~11:00a) — Drop Bags at Airbnb or Storage</div>
+<div class="activity"><span class="activity-time">11:00–11:20a</span><div class="activity-content"><span class="tag tag-booked">Booked</span> <strong>Bag drop, then start recon</strong><div class="activity-detail"><strong>Accommodation:</strong> "Charming Studio Near the Beach" · Host: Gina · <strong>Confirmation:</strong> HM4A84E3DJ · Beco dos Inválidos 49, 1st floor, door 1D · Postal code 2750-376 · Self check-in via lockbox.<br/><br/><strong>Check-in is 3pm</strong> — you arrive ~11am. Contact Gina in advance to ask about early bag drop or early access. If not available: <strong>Radical Storage / Bounce</strong> have Cascais locations (~€5–6/bag, book on the app on the train) · or ask at Cascais station ticket window.</div></div></div>
+<div class="activity"><span class="activity-time">11:20a–1:00p</span><div class="activity-content"><span class="tag tag-recon">Recon</span> <strong>Cascais Neighborhood Recon Walk</strong><div class="activity-detail">Station → pedestrian center → harbor (Baía de Cascais) → promenade → residential streets north of center. Check real estate agencies on Rua Frederico Arouca. Day bags only from here.</div></div></div>
+<div class="activity"><span class="activity-time">1:00–2:15p</span><div class="activity-content"><strong>O Pescador</strong> or <span class="tag tag-food">Lunch</span> <strong>Mar do Inferno</strong> <span class="price">€50–80 for 2</span><div class="activity-detail">O Pescador: Rua das Flores 10; reserve ahead · Mar do Inferno: ocean terrace, grilled fish</div></div></div>
+<div class="activity"><span class="activity-time">2:15–2:30p</span><div class="activity-content"><span class="tag tag-walk">Walk</span> <strong>O Pescador → Boca do Inferno</strong> <span class="price">Free · ~15 min</span><div class="activity-detail">~1.5km west along the coastal path — a pleasant flat walk with sea views en route.</div></div></div>
+<div class="activity"><span class="activity-time">2:30–3:30p</span><div class="activity-content"><span class="tag tag-sight">Sight</span> <strong>Boca do Inferno Walk + Praia da Rainha</strong> <span class="price">Free</span></div></div>
+<div class="activity"><span class="activity-time">3:30–3:45p</span><div class="activity-content"><span class="tag tag-walk">Walk</span> <strong>Boca do Inferno → Cascais center (Airbnb)</strong> <span class="price">Free · ~15 min</span><div class="activity-detail">Walk back along the coast path toward the Airbnb to check in at 3pm (already past), drop bags and freshen up.</div></div></div>
+<div class="activity"><span class="activity-time">3:45–4:45p</span><div class="activity-content"><span class="tag tag-recon">Recon</span> <strong>Check into Airbnb + real estate deep dive</strong><div class="activity-detail">Beco dos Inválidos 49, 1st floor, door 1D, Cascais 2750-376 · confirmation HM4A84E3DJ · lockbox entry. Ask agencies: what does €400–550k get, rental market for furnished 1–2BR, how long properties sit.<br/><br/><strong>Saturday afternoon caveat:</strong> agencies are often closed or open mornings-only on Saturday. If doors are shut, photograph window listings and cross-check Idealista.pt live instead — same intel, no meeting required.</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day6-evening">Evening</div>
+<div class="activity"><span class="activity-time">6:30–7:30p</span><div class="activity-content"><span class="tag tag-night">Drinks</span> <strong>Drinks at a harbor bar</strong></div></div>
+<div class="activity"><span class="activity-time">8:00–9:30p</span><div class="activity-content"><span class="tag tag-food">Dinner</span> <strong>Dinner in Cascais center</strong> <span class="price">€40–60 for 2</span><div class="activity-detail">Many good options on Rua Frederico Arouca · Ask accommodation for current local recommendation</div></div></div>
+</div>
+</div>
+</div>
+<!-- DAY 7 -->
+<div class="day-card" id="day7">
+<div class="day-header">
+<span class="day-number">Day 7 — Sun, 10/4</span>
+<span class="day-title">Cascais: Full Retirement Recon Day</span>
+<span class="day-sleep">Sleep: Cascais (night 2 of 2)</span>
+</div>
+<div class="day-body"><div class="day-jump"><span class="dj-label">Jump to:</span><a href="#day7-morning">Morning</a><a href="#day7-afternoon">Afternoon</a><a href="#day7-evening">Evening</a></div>
+<div class="time-block">
+<div class="time-block-header" id="day7-morning">Morning</div>
+<div class="activity"><span class="activity-time">8:00–8:30a</span><div class="activity-content"><span class="tag tag-food">Breakfast</span> <strong>Pastry café in center</strong> <span class="price">€4–6/person</span></div></div>
+<div class="activity"><span class="activity-time">8:30–10:30a</span><div class="activity-content"><span class="tag tag-recon">Recon</span> <strong>Deep Retirement Recon Walk</strong><div class="activity-detail">Walk residential streets north of center (Bairro Saloia, Rua da Palmeira area) then south toward Monte Estoril. Note: quality of streets, café density, grocery options (Pingo Doce and Aldi both in Cascais), scale of town.</div></div></div>
+<div class="activity"><span class="activity-time">10:30–11:30a</span><div class="activity-content"><span class="tag tag-sight">Sight</span> <strong>Museu Condes de Castro Guimarães</strong> <span class="price">€5/person</span></div></div>
+<div class="activity"><span class="activity-time">11:30–11:50a</span><div class="activity-content"><span class="tag tag-walk">Walk</span> <strong>Cascais → Estoril</strong> <span class="price">Free · 20 min flat waterfront</span><div class="activity-detail">800m along the promenade — the walk itself is the point. Train option: 1 stop, €1.20/pp, 3 min (pointless for this distance).</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day7-afternoon">Afternoon</div>
+<div class="activity"><span class="activity-time">12:30–2:00p</span><div class="activity-content"><span class="tag tag-food">Lunch</span> <strong>Lunch + Estoril walk</strong><div class="activity-detail"><strong>Walk (20 min flat, free) or one train stop</strong> to Monte Estoril (~€1.20/pp, 3 min). Walking takes 20 min but is pleasant along the waterfront; train is trivial. Bolt is ~€4–5 for 2 but pointless for 800m — walk or train only.</div></div></div>
+<div class="activity"><span class="activity-time">2:00–2:15p</span><div class="activity-content"><span class="tag tag-bolt">Bolt</span> <strong>Cascais → Guincho Beach</strong> <span class="price">€7–9 for 2 · ~15 min</span><div class="activity-detail">No useful bus to Guincho. Book the return Bolt before you leave — it’s remote and you don’t want to wait.</div></div></div>
+<div class="activity"><span class="activity-time">2:15–4:15p</span><div class="activity-content"><span class="tag tag-sight">Sight</span> <strong>Guincho Beach</strong> <span class="price">Free</span><div class="activity-detail">Wild Atlantic beach west of Cascais; undeveloped dunes. Bolt ~€7–9 for 2 each way — no useful bus. Even 45 min out and back is worth it.</div></div></div>
+<div class="activity"><span class="activity-time">4:15–4:30p</span><div class="activity-content"><span class="tag tag-bolt">Bolt</span> <strong>Guincho → Cascais</strong> <span class="price">€7–9 for 2 · ~15 min</span></div></div>
+<div class="activity"><span class="activity-time">4:30–5:30p</span><div class="activity-content"><span class="tag tag-recon">Free time</span> <strong>Rest + pack — deliberately unscheduled</strong><div class="activity-detail">No plan on purpose. Sit at the apartment, in a café, or on a bench and just be in Cascais for an hour with nothing to do — that idleness is itself the data point for what living here at a slower pace feels like.</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day7-evening">Evening</div>
+<div class="activity"><span class="activity-time">6:00–7:00p</span><div class="activity-content"><span class="tag tag-night">Drinks</span> <strong>Drinks at a wine bar in center</strong></div></div>
+<div class="activity"><span class="activity-time">7:30–9:00p</span><div class="activity-content"><span class="tag tag-food">Dinner</span> <strong>Dinner where residents eat</strong> <span class="price">€40–60 for 2</span><div class="activity-detail">Avoid tourist waterfront tonight — understand the real Cascais dining scene</div></div></div>
+</div>
+</div>
+</div>
+<!-- DAY 8 -->
+<div class="day-card" id="day8">
+<div class="day-header">
+<span class="day-number">Day 8 — Mon, 10/5</span>
+<span class="day-title">Cascais → Lisbon → Faro (half-day) → Tavira</span>
+<span class="day-sleep">Sleep: Tavira (night 1 of 2)</span>
+</div>
+<div class="day-body"><div class="day-jump"><span class="dj-label">Jump to:</span><a href="#day8-morning-cascais-checkout">Morning</a><a href="#day8-faro-arrival-1-31p-half-day-stop">Faro</a><a href="#day8-tavira-arrival-evening-choose-one-dinner-option">Tavira Evening</a></div>
+<div class="time-block">
+<div class="time-block-header" id="day8-morning-cascais-checkout">Morning — Cascais Checkout</div>
+<div class="activity"><span class="activity-time">8:00–8:30a</span><div class="activity-content"><span class="tag tag-food">Breakfast</span> <strong>Final Cascais coffee + pastry</strong><div class="activity-detail">Checkout morning — bags ready. Contact Gina the night before to confirm checkout logistics.</div></div></div>
+<div class="activity"><span class="activity-time">8:30–8:40a</span><div class="activity-content"><span class="tag tag-walk">Walk</span> <strong>Beco dos Inválidos 49 → Cascais Station</strong> <span class="price">Free · ~5–8 min</span><div class="activity-detail">The Airbnb is a short flat walk to Cascais station — no Bolt needed.</div></div></div>
+<div class="activity"><span class="activity-time">8:45–9:25a</span><div class="activity-content"><span class="tag tag-transit">Transit</span> <strong>Train: Cascais → Cais do Sodré (Lisbon)</strong> <span class="price">€2.35/person · 40 min</span></div></div>
+<div class="activity"><span class="activity-time">9:25–9:45a</span><div class="activity-content"><span class="tag tag-transit">Transit</span> <strong>Metro or Bolt to Lisboa Oriente</strong> <span class="price">€4 for 2 metro · or Bolt ~€5–7 for 2</span><div class="activity-detail"><strong>Use Bolt, and move fast off the platform.</strong> Full luggage. Cais do Sodré to Oriente requires a transfer at Alameda with stairs/escalators. Bolt drops you at the Oriente entrance — worth it, and more important than before: <strong>the actual booked train departs 10:02a, not the originally planned 10:30a</strong>, so this only leaves ~17 min of buffer at Oriente instead of the old 40 min. Have Bolt requested before you even step off the Cascais train if possible.</div></div></div>
+<div class="activity"><span class="activity-time">10:02a–1:31p</span><div class="activity-content"><span class="tag tag-booked">Booked</span> <strong>Intercidades: Lisboa Oriente → Faro</strong> <span class="price">€19.50/person · 1st class · 3h29m</span><div class="activity-detail">Train 570, Carriage 11, seats 14 &amp; 16 · Booked (Promo fare) · Actual duration runs longer than the 2.5 hrs originally estimated — arrival is ~30 min later than planned, at 1:31p.<br/><br/><strong>If you miss it:</strong> Lisboa Oriente–Faro Intercidades runs only about every 4 hours (10:02a, 2:02p, 6:32p) — missing this one means a ~4-hour wait for the next departure, not a quick rebook. With only ~17 min of buffer getting from the Cascais train to this one, treat that connection as non-negotiable: have the Bolt requested before you even step off the Cascais train.</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day8-faro-arrival-1-31p-half-day-stop">Faro Arrival (1:31p) — Half-Day Stop</div>
+<div class="activity"><span class="activity-time">1:31p</span><div class="activity-content"><strong>Bag lockers at Faro station</strong> <span class="price">~€4–6/locker</span><div class="activity-detail">Faro station has coin-operated lockers in two sizes: small (~€3–4, fits a daypack) and large (~€5–6, fits a full rolling suitcase). For 2 bags you'll need 1–2 large lockers. Coins required — have change ready or break a note at the café inside the station. Lockers are near the main entrance, left of the ticket windows.<br/><br/><strong>If lockers are full:</strong> the Faro tourist office on Rua da Misericórdia offers paid bag storage (~€3/bag), or try the Pousada de Faro reception which sometimes accommodates non-guests for a fee.</div></div></div>
+<div class="activity"><span class="activity-time">1:31–1:46p</span><div class="activity-content"><span class="tag tag-walk">Walk</span> <strong>Faro Station → Cidade Velha</strong> <span class="price">Free · 15 min flat</span><div class="activity-detail">Flat, scenic walk from the station to the old walled town — no Bolt needed.</div></div></div>
+<div class="activity"><span class="activity-time">1:46–2:16p</span><div class="activity-content"><span class="tag tag-food">Lunch</span> <strong>Quick lunch in Cidade Velha area</strong> <span class="price">€20–30 for 2</span></div></div>
+<div class="activity"><span class="activity-time">2:16–3:00p</span><div class="activity-content"><span class="tag tag-sight">Sight</span> <strong>Faro Cidade Velha</strong> <span class="price">Free (cathedral interior €3)</span><div class="activity-detail">Walk through the Roman arch (Arco da Vila), see the Sé de Faro, stroll the walled streets. The most underrated sight in the Algarve — remarkably quiet and beautiful.</div></div></div>
+<div class="activity"><span class="activity-time">3:00–4:00p</span><div class="activity-content"><span class="tag tag-recon">Recon</span> <strong>Faro Retirement Recon Walk</strong><div class="activity-detail">Walk from Cidade Velha north through city center. Faro feels like a real city — university, hospital, airport, real infrastructure. Check real estate windows: 2BR rent €1,000–1,500/mo; buy €250–400k.<br/><br/><strong>LGBTQ+ data point:</strong> Faro has The Prestige, a gay club — not on the schedule since you leave by train this evening, but worth knowing Faro has more of a scene than its size suggests, unlike some of the smaller Algarve stops.</div></div></div>
+<div class="activity"><span class="activity-time">4:00–4:30p</span><div class="activity-content"><span class="tag tag-sight">Sight</span> <strong>Ria Formosa Boardwalk</strong> <span class="price">Free</span><div class="activity-detail">Short walk east of historic center · Flamingos in the shallows</div></div></div>
+<div class="activity"><span class="activity-time">4:30–4:45p</span><div class="activity-content"><span class="tag tag-walk">Walk</span> <strong>Ria Formosa → Faro Station (bag lockers)</strong> <span class="price">Free · ~15 min</span><div class="activity-detail">Walk back to retrieve bags from the station lockers before the Tavira train.</div></div></div>
+<div class="activity"><span class="activity-time">4:45p</span><div class="activity-content"><strong>Retrieve bags from Faro station lockers</strong><div class="activity-detail">Allow ~30 min to collect, reorganize, and get to the platform before boarding.</div></div></div>
+<div class="activity"><span class="activity-time">5:15–5:51p</span><div class="activity-content"><span class="tag tag-booked">Booked</span> <strong>Regional train: Faro → Tavira</strong> <span class="price">€3.60/person · 36 min</span><div class="activity-detail">Train 5713 · Booked. With the corrected 1:31p arrival, the whole half-day now runs 1:31p–5:15p (~3h44m) — the same length originally planned, just starting and ending ~45 min later.</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day8-tavira-arrival-evening-choose-one-dinner-option">Tavira Arrival Evening — choose one dinner option</div>
+<div class="activity"><span class="activity-time">6:00–6:45p</span><div class="activity-content"><span class="tag tag-booked">Booked</span> <strong>Check into Central Studio Tavira</strong><div class="activity-detail"><strong>Host:</strong> Carla · <strong>Address:</strong> Praceta Eduardo Félix Franco 3, Tavira, Faro 8800 · <strong>Confirmation:</strong> HMMD2A5JJ4 · <strong>Check-in:</strong> Mon, 10/5 after 4:00 PM (lockbox) · <strong>Checkout:</strong> Wed, 10/7 before 11:00 AM · Then: first walk — Roman bridge, Gilão river, Praça da República</div></div></div>
+<div class="activity"><span class="activity-time">7:00–7:45p</span><div class="activity-content"><span class="tag tag-night">Drinks</span> <strong>Café Âncora</strong> (riverside) <span class="price">€2–3/person</span></div></div>
+<div class="activity"><span class="activity-time">8:00–9:30p</span><div class="activity-content"><span class="tag tag-food">Dinner</span> <strong>Option A: Restaurante Bica</strong> (historic center) <span class="price">€36–60 for 2</span><div class="activity-detail">Walk from Âncora — 5 min. Local tasca, no Bolt needed.</div></div></div>
+<div class="activity"><span class="activity-time">7:45–7:55p</span><div class="activity-content"><span class="tag tag-bolt">Bolt</span> <strong>Option B: Tavira → Quatro Águas</strong> <span class="price">€4–5 for 2 · ~10 min</span><div class="activity-detail">Skip Âncora if choosing Quatro Águas — leave Airbnb at 7:45p instead. Quatro Águas is 3km outside town on the Ria Formosa, Bolt only. Book the return before you leave.</div></div></div>
+<div class="activity"><span class="activity-time">8:00–9:30p</span><div class="activity-content"><span class="tag tag-food">Dinner</span> <strong>Option B: Quatro Águas</strong> <span class="price">€36–60 for 2</span><div class="activity-detail">Best setting in the Eastern Algarve — directly on the Ria Formosa. Reserve well ahead.</div></div></div>
+<div class="activity"><span class="activity-time">9:30–9:40p</span><div class="activity-content"><span class="tag tag-bolt">Bolt</span> <strong>Quatro Águas → Tavira</strong> <span class="price">€4–5 for 2 · ~10 min</span><div class="activity-detail">Return Bolt — book before leaving for dinner.</div></div></div>
+</div>
+</div>
+</div>
+<!-- DAY 9 -->
+<div class="day-card" id="day9">
+<div class="day-header">
+<span class="day-number">Day 9 — Tue, 10/6</span>
+<span class="day-title">Tavira: Full Recon Day</span>
+<span class="day-sleep">Sleep: Tavira (night 2 of 2)</span>
+</div>
+<div class="day-body"><div class="day-jump"><span class="dj-label">Jump to:</span><a href="#day9-morning">Morning</a><a href="#day9-midday">Midday</a><a href="#day9-afternoon">Afternoon</a><a href="#day9-evening">Evening</a></div>
+<div class="time-block">
+<div class="time-block-header" id="day9-morning">Morning</div>
+<div class="activity"><span class="activity-time">8:00–8:30a</span><div class="activity-content"><span class="tag tag-food">Breakfast</span> <strong>Pastelaria Tavira</strong> (Rua Almirante) <span class="price">€1.50–2.50/person</span></div></div>
+<div class="activity"><span class="activity-time">8:30–10:00a</span><div class="activity-content"><span class="tag tag-recon">Recon</span> <strong>Tavira Retirement Recon Walk</strong><div class="activity-detail">Roman bridge, Gilão river walk, Praça da República, market building, residential streets north of center. Less English signage than Lagos — more authentically Portuguese. Real estate stop: ask about 2BR options €250–380k.</div></div></div>
+<div class="activity"><span class="activity-time">10:00–10:30a</span><div class="activity-content"><span class="tag tag-recon">Recon</span> <strong>Mercado de Tavira</strong><div class="activity-detail">Morning market · Fresh fish, vegetables, local produce · Closes by noon</div></div></div>
+<div class="activity"><span class="activity-time">10:30–11:00a</span><div class="activity-content"><span class="tag tag-sight">Sight</span> <strong>Tavira Castle</strong> <span class="price">€2/person</span></div></div>
+<div class="activity"><span class="activity-time">11:00–11:15a</span><div class="activity-content"><span class="tag tag-walk">Walk</span> <strong>Tavira Castle → Riverside Ferry Dock</strong> <span class="price">Free · ~10 min</span><div class="activity-detail">Walk down from the hilltop castle to the riverboat dock for the Ilha de Tavira ferry.</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day9-midday">Midday</div>
+<div class="activity"><span class="activity-time">11:15a–12:30p</span><div class="activity-content"><strong>Ilha de Tavira</strong> (Ria Formosa island ferry) <span class="tag tag-sight">Sight</span> <span class="price">€2 each way/person</span><div class="activity-detail">Ferry from riverboat dock · 5-min crossing · Vast, wild barrier island beach: no development, no cars, extraordinary. <strong>This is the lifestyle you're buying into.</strong><br/><br/><strong>Bags:</strong> Day bags only — leave passports, laptop, and valuables at the accommodation. You're taking a small open ferry and walking on a beach. A light bag with sunscreen, water, and a towel is all you need. The beach has no facilities beyond a seasonal café.</div></div></div>
+<div class="activity"><span class="activity-time">12:30–1:30p</span><div class="activity-content"><span class="tag tag-food">Lunch</span> <strong>Lunch at a riverside café</strong> <span class="price">€14–20/person</span></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day9-afternoon">Afternoon</div>
+<div class="activity"><span class="activity-time">2:00–3:30p</span><div class="activity-content"><span class="tag tag-recon">Recon</span> <strong>Residential Streets Recon</strong><div class="activity-detail">Rua dos Pelames area, streets north of market — where locals actually live. Open Idealista.pt live.</div></div></div>
+<div class="activity"><span class="activity-time">3:30–5:00p</span><div class="activity-content"><strong>Afternoon rest or slow walk</strong><div class="activity-detail">Sit in a café, watch the Gilão river. This is the pace of life you're evaluating.</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day9-evening">Evening</div>
+<div class="activity"><span class="activity-time">7:00–8:00p</span><div class="activity-content"><span class="tag tag-night">Drinks</span> <strong>Café Âncora</strong> (riverside)<div class="activity-detail"><strong>LGBTQ+ alternative:</strong> Arco Bar, gay-friendly with themed nights, is also in Tavira — swap in if you'd rather get that data point tonight. Tavira also sits near Barril Naturist Beach, which draws an LGBTQ+ crowd, as a fact worth knowing even though it's not on this itinerary.</div></div></div>
+<div class="activity"><span class="activity-time">8:00–9:30p</span><div class="activity-content"><span class="tag tag-food">Dinner</span> <strong>Restaurante Bica or tasca in historic center</strong> <span class="price">€18–25/person</span></div></div>
+</div>
+</div>
+</div>
+<!-- DAY 10 -->
+<div class="day-card" id="day10">
+<div class="day-header">
+<span class="day-number">Day 10 — Wed, 10/7</span>
+<span class="day-title">Tavira Morning → Lagos + Nightlife Check</span>
+<span class="day-sleep">Sleep: Lagos (night 1 of 2)</span>
+</div>
+<div class="day-body"><div class="day-jump"><span class="dj-label">Jump to:</span><a href="#day10-morning-in-tavira">Morning</a><a href="#day10-tavira-lagos-direct-booked">Tavira → Lagos</a><a href="#day10-lagos-arrival-bag-drop-first">Lagos Arrival</a><a href="#day10-evening">Evening</a><a href="#day10-accommodation-confirmed">Stay</a></div>
+<div class="time-block">
+<div class="time-block-header" id="day10-morning-in-tavira">Morning in Tavira</div>
+<div class="activity"><span class="activity-time">7:30–8:00a</span><div class="activity-content"><span class="tag tag-food">Breakfast</span> <strong>Pastelaria Tavira</strong><div class="activity-detail">⚠️ Whole morning shifted 30 min earlier — the actual booked train departs 10:00a, not the originally planned 10:30a.</div></div></div>
+<div class="activity"><span class="activity-time">8:00–9:00a</span><div class="activity-content"><span class="tag tag-recon">Recon</span> <strong>Final Residential Streets Recon</strong></div></div>
+<div class="activity"><span class="activity-time">9:00–9:30a</span><div class="activity-content"><span class="tag tag-recon">Recon</span> <strong>Mercado de Tavira</strong></div></div>
+<div class="activity"><span class="activity-time">9:30–9:45a</span><div class="activity-content"><strong>Collect bags → walk or Bolt to Tavira station</strong><div class="activity-detail">Praceta Eduardo Félix Franco 3 to Tavira station is ~10 min on foot or quick Bolt (~€4–5 for 2). Bags should be packed before the Mercado — grab them and go. Boarding by 9:45a leaves a tight ~15 min buffer before the 10:00a departure.</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day10-tavira-lagos-direct-booked">Tavira → Lagos (Direct — Booked)</div>
+<div class="activity"><span class="activity-time">10:00–11:53a</span><div class="activity-content"><span class="tag tag-booked">Booked</span> <strong>InterRegional: Tavira → Lagos</strong> <span class="price">€11.60/person · 1h53m</span><div class="activity-detail">Train 880 · Booked. <strong>This is a single direct train</strong> — no change at Faro or Tunes needed, unlike the two-leg routing the itinerary originally assumed. Simpler and faster: arrives Lagos 11:53a, nearly 1.5 hours earlier than the ~1:00–1:30p originally planned. Bags stay with you — overhead or end-carriage.</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day10-lagos-arrival-bag-drop-first">Lagos Arrival — Bag Drop First</div>
+<div class="activity"><span class="activity-time">12:00p</span><div class="activity-content"><span class="tag tag-booked">Booked</span> <strong>Bolt to Celia's + bag drop</strong><div class="activity-detail"><strong>Historic Centre Luxury Apartment Fibre Optic WiFi</strong> · Host: Celia · <strong>Address:</strong> Rua dos Peixeiros 3, Lagos, Faro 8600-728 · <strong>Confirmation:</strong> HMAWMMEB58 · Check-in after 4:00 PM · Checkout before 10:00 AM · Inside old city walls, historic center.<br/><br/>Lagos station → Celia is 1.3km / 18-min walk with bags — <strong>Bolt it</strong> (~€4–5 for 2, 5 min). Check-in isn't until 4pm and you'll now arrive around noon — a ~4 hour gap instead of the ~2.5 hours originally planned, so messaging Celia about early bag drop matters even more. If not available: Radical Storage / Bounce in the historic center (~€5–6/bag), which also means significantly more free time in Lagos this afternoon than the original plan accounted for.</div></div></div>
+<div class="activity"><span class="activity-time">12:30–1:30p</span><div class="activity-content"><span class="tag tag-food">Lunch</span> <strong>Lunch in Lagos historic center</strong> <span class="price">€20–30 for 2</span><div class="activity-detail">Worth flagging on its own: the original plan had no lunch anywhere between 8am breakfast and 8:30pm dinner. The earlier arrival opens up the time to fix that — any casual spot near Praça Gil Eanes works.</div></div></div>
+<div class="activity"><span class="activity-time">2:00–3:00p</span><div class="activity-content"><span class="tag tag-recon">Recon</span> <strong>Lagos Center Recon Walk</strong><div class="activity-detail">Rua 25 de Abril, Praça Gil Eanes, Rua Cândido dos Reis. Very walkable. Immediately notice: menus in English first everywhere. Most "expat" of the Algarve towns.</div></div></div>
+<div class="activity"><span class="activity-time">3:00–4:00p</span><div class="activity-content"><span class="tag tag-recon">Recon</span> <strong>Real Estate Stop</strong><div class="activity-detail">Several agencies on Rua 25 de Abril · Ask about 2BR €280–420k · Open Idealista.pt live</div></div></div>
+<div class="activity"><span class="activity-time">4:00p</span><div class="activity-content"><strong>Check in to Celia's</strong> — drop bags properly, freshen up</div></div>
+<div class="activity"><span class="activity-time">4:30–5:30p</span><div class="activity-content"><span class="tag tag-sight">Sight</span> <strong>Ponta da Piedade</strong> <span class="price">Free</span><div class="activity-detail">Walk from center: 2.5km, ~30 min, mostly flat with some gentle incline — very doable. Bolt: ~€4–5 for 2, ~8 min. <strong>Walk there if you have energy</strong> — the headland path approach is scenic. <strong>Bolt back</strong> after golden hour if your feet are done.</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day10-evening">Evening</div>
+<div class="activity"><span class="activity-time">7:00–7:30p</span><div class="activity-content"><span class="tag tag-night">Drinks</span> <strong>Adega Marques</strong> <span class="price">Cheap wine</span><div class="activity-detail">Old wine cave bar · Portuguese locals · Rua de São Gonçalo de Lagos</div></div></div>
+<div class="activity"><span class="activity-time">7:30–8:30p</span><div class="activity-content"><span class="tag tag-night">Drinks</span> <strong>Stevie Ray's Jazz &amp; Blues Bar</strong><div class="activity-detail">Long-running Lagos expat institution · Tells you everything about the expat social scene here</div></div></div>
+<div class="activity"><span class="activity-time">8:30–10:00p</span><div class="activity-content"><span class="tag tag-food">Dinner</span> <strong>Dom Sebastião</strong> <span class="price">€50–70 for 2</span><div class="activity-detail">Lagos institution · Cataplana · Reserve ahead · Alt: Casinha do Petisco ~€15–20</div></div></div>
+<div class="activity"><span class="activity-time">10:00–11:00p</span><div class="activity-content"><span class="tag tag-nightlife">Nightlife</span> <span class="tag tag-recon">Recon</span> <strong>Rua Cândido dos Reis — 10pm Nightlife Recon</strong><div class="activity-detail"><strong>Recommendation:</strong> Walk the full length of Rua Cândido dos Reis at 10pm on arrival night. At this hour you see the real social scene: who's out, energy level, mix of locals vs. tourists, noise level. This is actionable retirement intelligence — if the street energy bothers you at 10pm, it'll bother you at home. If it excites you, factor that in.</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day10-accommodation-confirmed">Accommodation — Confirmed</div>
+<div class="activity"><span class="activity-time"></span><div class="activity-content"><span class="tag tag-booked">Booked</span> <strong>Historic Centre Luxury Apartment Fibre Optic WiFi</strong><div class="activity-detail"><strong>Host:</strong> Celia · <strong>Address:</strong> Rua dos Peixeiros 3, Lagos, Faro 8600-728 · <strong>Confirmation:</strong> HMAWMMEB58 · Inside old city walls, historic center of Lagos · <strong>Check-in:</strong> Wed, 10/7 after 4:00 PM · <strong>Checkout:</strong> Fri, 10/9 before 10:00 AM · Rua Cândido dos Reis is steps away. Lagos train station is 1.3km / 18 min walk — Bolt on arrival and departure (€4–5 for 2).</div></div></div>
+</div>
+</div>
+</div>
+<!-- DAY 11 -->
+<div class="day-card" id="day11">
+<div class="day-header">
+<span class="day-number">Day 11 — Thu, 10/8</span>
+<span class="day-title">Lagos: Full Recon + Beach Day</span>
+<span class="day-sleep">Sleep: Lagos (night 2 of 2)</span>
+</div>
+<div class="day-body"><div class="day-jump"><span class="dj-label">Jump to:</span><a href="#day11-morning">Morning</a><a href="#day11-afternoon">Afternoon</a><a href="#day11-final-evening">Evening</a></div>
+<div class="time-block">
+<div class="time-block-header" id="day11-morning">Morning</div>
+<div class="activity"><span class="activity-time">8:00–9:00a</span><div class="activity-content"><span class="tag tag-food">Breakfast</span> <strong>A Celeste</strong> (local café) <span class="price">€5–7/person</span></div></div>
+<div class="activity"><span class="activity-time">9:00–10:30a</span><div class="activity-content"><span class="tag tag-recon">Recon</span> <strong>Lagos Residential Recon</strong><div class="activity-detail">Walk north and west of historic center. Mercado de Lagos: covered market with local produce, fish, cheese. Sit at a café, open Idealista.pt, search live.</div></div></div>
+<div class="activity"><span class="activity-time">10:30–11:30a</span><div class="activity-content"><span class="tag tag-sight">Sight</span> <strong>Meia Praia</strong> <span class="price">Free</span><div class="activity-detail">10-min walk · Flat beach, calm water, locals with dogs · Daily beach life, not tourist beach life</div></div></div>
+<div class="activity"><span class="activity-time">11:30–11:45a</span><div class="activity-content"><span class="tag tag-walk">Walk</span> <strong>Meia Praia → Lagos Center</strong> <span class="price">Free · ~10–15 min</span><div class="activity-detail">Short flat walk back to the historic center for lunch.</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day11-afternoon">Afternoon</div>
+<div class="activity"><span class="activity-time">11:55–12:00p</span><div class="activity-content"><span class="tag tag-bolt">Bolt</span> <strong>Lagos Center → Praia Dona Ana</strong> <span class="price">€4–5 for 2 · ~6 min</span><div class="activity-detail">2km south with a steep descent — Bolt there saves your legs for the beach and cliff path. Walk back along the cliff for the views.</div></div></div>
+<div class="activity"><span class="activity-time">12:00–1:30p</span><div class="activity-content"><span class="tag tag-food">Lunch</span> <strong>Lunch near Praia Dona Ana</strong> <span class="price">€15–22/person</span><div class="activity-detail">Praia Dona Ana is 2km south, with a steep descent. Walk: ~25 min, tiring on the way down. Bolt: ~€4–5 for 2, ~6 min. <strong>Bolt there</strong> — save your legs for the beach and cliff exploration. <strong>Walk back</strong> — the return path along the cliff edge at your own pace with the views is the best part of the excursion.</div></div></div>
+<div class="activity"><span class="activity-time">1:30–3:30p</span><div class="activity-content"><span class="tag tag-sight">Sight</span> <strong>Beach afternoon at Praia Dona Ana</strong> <span class="price">Free</span><div class="activity-detail">Understand what "living near this beach" actually means</div></div></div>
+<div class="activity"><span class="activity-time">3:30–4:00p</span><div class="activity-content"><span class="tag tag-walk">Walk</span> <strong>Praia Dona Ana → Lagos Center (cliff path)</strong> <span class="price">Free · ~25–30 min</span><div class="activity-detail">Walk back along the cliff path at your own pace — this is the best part of the excursion; the headland views are extraordinary.</div></div></div>
+<div class="activity"><span class="activity-time">4:00–5:00p</span><div class="activity-content"><strong>Rest + pack for tomorrow's early departure</strong></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day11-final-evening">Final Evening</div>
+<div class="activity"><span class="activity-time">6:30–7:30p</span><div class="activity-content"><span class="tag tag-night">Drinks</span> <strong>Rua Cândido dos Reis bar strip</strong><div class="activity-detail">Compare tonight to your 10pm recon on Day 10 — same street, one night later, different time of day</div></div></div>
+<div class="activity"><span class="activity-time">8:00–9:30p</span><div class="activity-content"><span class="tag tag-food">Dinner</span> <strong>Final Portugal dinner</strong> <span class="price">€50–80 for 2</span><div class="activity-detail"><strong>No Pátio</strong> (garden courtyard; reserve ahead) · Or a return to Dom Sebastião for the cataplana</div></div></div>
+<div class="activity"><span class="activity-time">10:00p+</span><div class="activity-content"><span class="tag tag-nightlife">Nightlife</span> <strong>Early night — early morning tomorrow</strong><div class="activity-detail">The Lagos → Tunes → Lisbon → airport leg carries the trip's biggest overall stakes — international flight, Schengen exit, a delay-prone carrier — though the booked train departs earlier than planned, giving more buffer than expected. See Day 12 warning.</div></div></div>
+</div>
+</div>
+</div>
+<!-- DAY 12 -->
+<div class="day-card" id="day12">
+<div class="day-header">
+<span class="day-number">Day 12 — Fri, 10/9</span>
+<span class="day-title">Lagos Morning → Lisbon → Fly Home</span>
+<span class="day-sleep">Fly home</span>
+</div>
+<div class="day-body"><div class="day-jump"><span class="dj-label">Jump to:</span><a href="#day12-morning">Morning</a><a href="#day12-lagos-lisbon-airport-booked">Airport</a><a href="#day12-departure">Departure</a></div>
+<div class="callout-car" style="margin-bottom:8px;">
+<strong>⚠️ Timing risk — compounded by TP 233's delay history:</strong> The Lagos → Lisbon Oriente → LIS Airport → 5:15pm departure is already tight, and <strong>TP 233 is flagged "often delayed 30+ min" on Google Flights.</strong> If the departure slips to 5:45pm, that's fine — you just land later. But if you're still clearing Schengen passport control at 4:45pm, you may be running. The risk factors:<br/><br/>
+<strong>1. Train schedule (now booked):</strong> Lagos → Lisboa Oriente is ~4.5 hrs via a change at Tunes, not Faro. Actual booked departure is 8:22am — even earlier than the 9am originally recommended — arriving Oriente 12:56pm.<br/>
+<strong>2. Schengen exit processing:</strong> US passport holders leaving Schengen at LIS on a Friday afternoon: expect 20–45 min at passport control. Fall peak season makes this worse.<br/>
+<strong>3. TP 233 delay pattern:</strong> "Often delayed 30+ min" means the gate may not open until 5:30–5:45pm — which helps if you're cutting it close on arrival, but doesn't help if the delay compounds with your own late arrival at the airport.<br/><br/>
+<strong>The booked 8:22am train beats the recommendation.</strong> Arrive Lisbon 12:56pm, airport by ~1:40pm — a 3.5+ hr buffer before a potentially-delayed 5:15pm departure. Of everything on this high-stakes day, the train connection itself is the best-protected part — it's the airport margin on the far end that needs the buffer.
+      </div>
+<div class="time-block">
+<div class="time-block-header" id="day12-morning">Morning</div>
+<div class="activity"><span class="activity-time">7:00–7:45a</span><div class="activity-content"><span class="tag tag-food">Breakfast</span> <strong>Quick final Mercado de Lagos visit + coffee</strong><div class="activity-detail">Morning market · Final mental picture of daily life here · ⚠️ Shorter and earlier than originally planned — the actual booked train departs 8:22am, not 9am, so this needs to wrap by 7:45am, not 9am.</div></div></div>
+<div class="activity"><span class="activity-time">8:10–8:15a</span><div class="activity-content"><span class="tag tag-bolt">Bolt</span> <strong>Rua dos Peixeiros 3 → Lagos Station</strong> <span class="price">€4–5 for 2 · ~5 min</span><div class="activity-detail">1.3km with luggage — Bolt is the right call. Don't walk it with bags on departure day. Board with a few minutes to spare before 8:22am.</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day12-lagos-lisbon-airport-booked">Lagos → Lisbon Airport (Booked)</div>
+<div class="activity"><span class="activity-time">8:22–9:14a</span><div class="activity-content"><span class="tag tag-booked">Booked</span> <strong>Regional: Lagos → Tunes</strong> <span class="price">€11.60/person (combined with next leg) · 52 min</span><div class="activity-detail">Train 5903 · Bags stay with you — overhead or end-carriage.</div></div></div>
+<div class="activity"><span class="activity-time">9:44a–12:56p</span><div class="activity-content"><span class="tag tag-booked">Booked</span> <strong>Intercidades: Tunes → Lisboa Oriente</strong> <span class="price">€31.45/person · 1st class · 3h12m</span><div class="activity-detail">Train 670, Carriage 11 · Booked. ~30 min layover at Tunes between trains. Route runs via Tunes, not Faro. Arrives Oriente 12:56pm — close to the original ~1pm estimate, giving the same strong buffer.<br/><br/><strong>If you miss it:</strong> this Algarve–Lisbon line only runs about 5 trains a day total (a mix of Alfa Pendular and Intercidades) — there is no "next one in 20 minutes." Missing the connection at Tunes could mean a multi-hour wait, which on flight day is the whole ballgame. The 30-min layover isn't generous, it's the plan — don't dawdle getting off the first train.<br/><br/><strong>At Oriente with bags:</strong> Lifts throughout the station — the most luggage-friendly major station in Portugal. Red Line metro is directly below; Bolt pickup is on the upper departures level.</div></div></div>
+<div class="activity"><span class="activity-time">1:45–2:05p</span><div class="activity-content"><span class="tag tag-transit">Transit</span> <strong>Metro or Bolt to Lisbon airport (LIS)</strong> <span class="price">€4 for 2 metro · 20 min</span><div class="activity-detail">Metro: Red Line Oriente → Aeroporto, €2/pp, 20 min, lifts available for luggage. Bolt: €6–8 for 2, ~15 min. <strong>On a normal day: metro.</strong> Same time, €10 cheaper. <strong>On flight day with Schengen pressure: Bolt</strong> — 5 min faster, door to departures, no transfer, and €6–8 total is nothing when you're catching a transatlantic flight.</div></div></div>
+</div>
+<div class="time-block">
+<div class="time-block-header" id="day12-departure">Departure</div>
+<div class="activity"><span class="activity-time">5:15p</span><div class="activity-content"><span class="tag tag-booked">Booked</span> <strong>LIS → IAD Nonstop — TP 233</strong><div class="activity-detail">TAP Air Portugal TP 233 · Airbus A321neo · Departs LIS 5:15pm · Arrives IAD 8:35pm · 8 hr 20 min<br/><strong>⚠️ TP 233 is flagged "often delayed 30+ min" on Google Flights.</strong> This reinforces the case for the 9am Lagos departure — you want to be at LIS by 2pm, not 3pm, to absorb both the Schengen queue and a potential gate delay.<br/>1 free carry-on · 1st checked bag <strong>$81</strong> on this return leg. Same booking/payment status question as the outbound leg (see Day 0) — worth confirming.<br/><br/>
+<strong>If you're going to miss it:</strong> TAP doesn't guarantee automatic same-day rebooking — outcomes depend on fare type. You can typically list for same-day standby on a later flight if you reach the gate within ~2 hours of the original departure, or a gate agent may rebook you under the "flat tire rule" for a last-minute, non-your-fault miss. Restrictive fares can mean a change fee or a new ticket. The practical takeaway: call TAP the moment you know you'll be late, don't just show up — and this is exactly why the buffer built into the Day 12 morning matters.</div></div></div>
+</div>
+</div>
+</div>
+<!-- ACCOMMODATIONS — CONFIRMED BOOKINGS -->
+<div id="accommodations" style="scroll-margin-top:var(--nav-h); margin-top:16px;">
+<h3 class="sec-title">Accommodations — Confirmed Bookings</h3>
+<div style="background:var(--sand); border:1px solid var(--border); border-radius:5px; padding:7px 10px; margin-bottom:8px; font-size:0.76rem;">
+<strong>5 properties · 11 nights · $1,685.18 total confirmed.</strong> Check-in method: lockbox for all properties except Lagos (host greets you). As of 9/11, only Lisbon (through 9/16) and Lagos (through 10/2) are still fully free-cancellable — Porto, Cascais, and Tavira have moved into partial-refund-only territory. Deadlines noted per property below.
+    </div>
+<div class="recon-grid" style="grid-template-columns:1fr;">
+<div class="recon-item" style="background:white;">
+<h5>Porto · 9/28–30 · 2 nights</h5>
+<ul>
+<li><strong>Bonfim Garden Apartment Near Metro &amp; City Center</strong></li>
+<li><strong>Host:</strong> Daniel</li>
+<li><strong>Address:</strong> Rua do Bonfim 174 2º Traseiras, Porto 4300-096</li>
+<li><strong>Check-in:</strong> Mon, 9/28 at 3:00 PM  ·  <strong>Checkout:</strong> Wed, 9/30 at 11:00 AM</li>
+<li><strong>Confirmation:</strong> HMQ3R9YATT</li>
+<li><strong>Total paid:</strong> $309.47 · $154.74/night</li>
+<li><strong>Check-in method:</strong> Lockbox</li>
+<li><strong>Cancellation:</strong> Free-cancel window has passed. Partial refund still available before 9/21.</li>
+</ul>
+</div>
+<div class="recon-item" style="background:white;">
+<h5>Lisbon · 9/30–10/3 · 3 nights</h5>
+<ul>
+<li><strong>Ourique Photography House (AC and fast Wifi)</strong></li>
+<li><strong>Host:</strong> Maria João &amp; Filipe</li>
+<li><strong>Address:</strong> Rua 1 da Vila Maia 9-1D, Lisbon</li>
+<li><strong>Neighborhood:</strong> Campo de Ourique — near Mercado de Campo de Ourique</li>
+<li><strong>Check-in:</strong> Wed, 9/30 at 4:00 PM  ·  <strong>Checkout:</strong> Sat, 10/3 at 12:00 PM</li>
+<li><strong>Confirmation:</strong> HMMS99DZXK</li>
+<li><strong>Total paid:</strong> $458.80 · $152.93/night</li>
+<li><strong>Check-in method:</strong> Lockbox</li>
+<li><strong>Cancellation:</strong> Still free-cancellable — but only until 9/16. Partial refund after that, before 9/23.</li>
+</ul>
+</div>
+<div class="recon-item" style="background:white;">
+<h5>Cascais · 10/3–5 · 2 nights</h5>
+<ul>
+<li><strong>Charming Studio Near the Beach</strong></li>
+<li><strong>Host:</strong> Gina</li>
+<li><strong>Address:</strong> Beco dos Inválidos 49, 1st floor, door 1D, Cascais 2750-376</li>
+<li><strong>Check-in:</strong> Sat, 10/3 at 3:00 PM  ·  <strong>Checkout:</strong> Mon, 10/5 at 11:00 AM</li>
+<li><strong>Confirmation:</strong> HM4A84E3DJ</li>
+<li><strong>Total paid:</strong> $372.25 · $186.13/night</li>
+<li><strong>Check-in method:</strong> Lockbox</li>
+<li><strong>Cancellation:</strong> Free-cancel window has passed. Partial refund still available before 9/26.</li>
+</ul>
+</div>
+<div class="recon-item" style="background:white;">
+<h5>Tavira · 10/5–7 · 2 nights</h5>
+<ul>
+<li><strong>Central Studio Tavira</strong></li>
+<li><strong>Host:</strong> Carla</li>
+<li><strong>Address:</strong> Praceta Eduardo Félix Franco 3, Tavira, Faro 8800</li>
+<li><strong>Check-in:</strong> Mon, 10/5 at 4:00 PM  ·  <strong>Checkout:</strong> Wed, 10/7 at 11:00 AM</li>
+<li><strong>Confirmation:</strong> HMMD2A5JJ4</li>
+<li><strong>Total paid:</strong> $202.52 · $101.26/night</li>
+<li><strong>Check-in method:</strong> Lockbox</li>
+<li><strong>Cancellation:</strong> Free-cancel window has passed. Partial refund still available before 9/28.</li>
+</ul>
+</div>
+<div class="recon-item" style="background:white;">
+<h5>Lagos · 10/7–9 · 2 nights</h5>
+<ul>
+<li><strong>Historic Centre Luxury Apartment Fibre Optic WiFi</strong></li>
+<li><strong>Host:</strong> Celia</li>
+<li><strong>Address:</strong> Rua dos Peixeiros 3, Lagos, Faro 8600-728</li>
+<li><strong>Check-in:</strong> Wed, 10/7 at 4:00 PM  ·  <strong>Checkout:</strong> Fri, 10/9 at 10:00 AM</li>
+<li><strong>Confirmation:</strong> HMAWMMEB58</li>
+<li><strong>Total paid:</strong> $342.14 · $171.07/night</li>
+<li><strong>Check-in method:</strong> Host greets you</li>
+<li><strong>Cancellation:</strong> Free cancel before 10/2 · Partial refund before 10/7</li>
+</ul>
+</div>
+</div>
+</div>
+<!-- LOGISTICS -->
+<div id="logistics" style="scroll-margin-top:var(--nav-h); margin-top:16px; margin-bottom:24px;">
+<h3 class="sec-title">Practical Logistics</h3>
+<h4 class="sub">Bolt vs. Train/Bus — Every Leg (2 people)</h4>
+<p style="font-size:0.78rem; color:var(--muted); margin-bottom:6px;">Bolt fares shown as total for 2 people. For a couple, Bolt is more expensive per person than for a group of 4 — the math shifts slightly toward transit on short hops. Three rules: <strong>(1) Long legs &gt;60km: always train</strong> — Bolt never competes on distance. <strong>(2) Luggage days: Bolt is still worth it</strong> — €5–8 total for door-to-door with bags beats metro transfers. <strong>(3) Short local hops, no luggage: metro/bus often wins</strong> — at 2 people, splitting a Bolt is €6–10 for 2 vs. €1.60–2 on transit.</p>
+<div class="table-scroll"><table>
+<thead><tr><th>Leg</th><th>Train/Bus</th><th>Bolt (2 people total)</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr><td data-label="Leg"><strong>OPO Airport → Porto center</strong></td><td data-label="Train/Bus">Metro €2/pp · 30 min · stairs + luggage drag</td><td data-label="Bolt (2 people total)">€10–14 · €5–7/pp · 20 min door-to-door</td><td data-label="Verdict"><strong>Bolt.</strong> Luggage on Porto metro is miserable. €3–5/pp extra is worth it on arrival day.</td></tr>
+<tr><td data-label="Leg"><strong>Center → Foz do Douro</strong></td><td data-label="Train/Bus">Bus 500 €1.60/pp · indirect</td><td data-label="Bolt (2 people total)">€5–7 · €2.50–3.50/pp · 15 min</td><td data-label="Verdict"><strong>Bolt.</strong> No direct transit worth taking. Small premium, door to promenade.</td></tr>
+<tr><td data-label="Leg"><strong>Center → Matosinhos</strong></td><td data-label="Train/Bus">Metro Line A €1.60/pp · 20 min</td><td data-label="Bolt (2 people total)">€6–8 · €3–4/pp · 20 min</td><td data-label="Verdict"><strong>Metro.</strong> Day bags only. At 2 people Bolt costs twice the metro per person — metro wins here, plus it's useful recon.</td></tr>
+<tr><td data-label="Leg"><strong>Porto → Nazaré</strong></td><td data-label="Train/Bus">Rede Expressos €16/pp · 2.5 hrs · luggage hold</td><td data-label="Bolt (2 people total)">€55–70 · €28–35/pp</td><td data-label="Verdict"><strong>Bus clearly.</strong> Bolt is prohibitively expensive for 180km. Bus always.</td></tr>
+<tr><td data-label="Leg"><strong>Nazaré → Lisbon</strong></td><td data-label="Train/Bus">Rede Expressos €12–16/pp · ~1h45m</td><td data-label="Bolt (2 people total)">€90–110 · €45–55/pp</td><td data-label="Verdict"><strong>Bus clearly.</strong> Distance far too long for Bolt to compete.</td></tr>
+<tr><td data-label="Leg"><strong>Bus station → Lisbon Airbnb</strong></td><td data-label="Train/Bus">Metro — 1+ transfer, stairs, bags</td><td data-label="Bolt (2 people total)">€5–7 · €2.50–3.50/pp</td><td data-label="Verdict"><strong>Bolt.</strong> Full luggage after a long day. Small total, big convenience.</td></tr>
+<tr><td data-label="Leg"><strong>Lisbon neighborhood hops</strong> (Estrela→Arroios, etc.)</td><td data-label="Train/Bus">Metro/bus €2/pp · ~20 min with transfer</td><td data-label="Bolt (2 people total)">€4–6 · €2–3/pp · ~10 min direct</td><td data-label="Verdict"><strong>Bolt saves ~10 min and the transfer for ~€1/pp extra.</strong> Metro when you want the transit recon; Bolt when you're tired or carrying anything.</td></tr>
+<tr><td data-label="Leg"><strong>To Miradouro da Graça</strong></td><td data-label="Train/Bus">Bus + steep walk up</td><td data-label="Bolt (2 people total)">€4–5 · €2–2.50/pp</td><td data-label="Verdict"><strong>Bolt up, walk back.</strong> It's on a hill. Small total.</td></tr>
+<tr><td data-label="Leg"><strong>To Belém</strong> (if you go)</td><td data-label="Train/Bus">Tram 15E €2/pp · ~25 min · scenic</td><td data-label="Bolt (2 people total)">€5–7 · €2.50–3.50/pp · ~10 min</td><td data-label="Verdict"><strong>Tram if you want the experience (scenic, slow); Bolt to get there in half the time for €1/pp extra.</strong></td></tr>
+<tr><td data-label="Leg"><strong>Airbnb → Oriente (checkout, luggage)</strong></td><td data-label="Train/Bus">Metro — transfer at Alameda, stairs</td><td data-label="Bolt (2 people total)">€5–7 · €2.50–3.50/pp</td><td data-label="Verdict"><strong>Bolt.</strong> Full luggage + metro transfer = unnecessary friction on checkout day.</td></tr>
+<tr><td data-label="Leg"><strong>Lisbon → Cascais</strong></td><td data-label="Train/Bus">Train €2.35/pp · 40 min · coastal scenic · every 20 min</td><td data-label="Bolt (2 people total)">€18–25 · €9–12/pp · 45 min highway</td><td data-label="Verdict"><strong>Train easily.</strong> Cheaper, more frequent, beautiful coastal ride. No reason to Bolt this.</td></tr>
+<tr><td data-label="Leg"><strong>Cascais → Estoril</strong></td><td data-label="Train/Bus">Walk 20 min flat · or train 1 stop €1.20/pp · 3 min</td><td data-label="Bolt (2 people total)">€4–5 · ~5 min</td><td data-label="Verdict"><strong>Walk (free, 20 min, pleasant waterfront) or train (€1.20, 3 min).</strong> Bolt for 800m makes no sense.</td></tr>
+<tr><td data-label="Leg"><strong>Cascais → Guincho Beach</strong></td><td data-label="Train/Bus">No useful transit</td><td data-label="Bolt (2 people total)">€7–9 · €3.50–4.50/pp each way</td><td data-label="Verdict"><strong>Bolt only option.</strong> Book return before you leave — Guincho is remote.</td></tr>
+<tr><td data-label="Leg"><strong>Faro station → Cidade Velha</strong></td><td data-label="Train/Bus">15-min flat walk</td><td data-label="Bolt (2 people total)">€4–5 · €2–2.50/pp</td><td data-label="Verdict"><strong>Walk.</strong> Flat and close. Bolt only if very hot.</td></tr>
+<tr><td data-label="Leg"><strong>Faro → Tavira</strong></td><td data-label="Train/Bus">Regional train €4/pp · 30 min · luggage fine</td><td data-label="Bolt (2 people total)">€15–18 · €7.50–9/pp · 35 min</td><td data-label="Verdict"><strong>Train.</strong> Same time, half the cost. Luggage is fine on this train.</td></tr>
+<tr><td data-label="Leg"><strong>Tavira → Quatro Águas restaurant</strong></td><td data-label="Train/Bus">No transit (3km outside town)</td><td data-label="Bolt (2 people total)">€4–5 · €2–2.50/pp</td><td data-label="Verdict"><strong>Bolt.</strong> Only option. Book both directions before going.</td></tr>
+<tr><td data-label="Leg"><strong>Tavira → Lagos (Day 10)</strong></td><td data-label="Train/Bus">CP train €11.60/pp · 1h53m, direct</td><td data-label="Bolt (2 people total)">€35–45 · €18–22/pp</td><td data-label="Verdict"><strong>Train clearly.</strong> Single direct train, no change needed — cheaper and simpler than Bolt.</td></tr>
+<tr><td data-label="Leg"><strong>Lagos → Ponta da Piedade</strong></td><td data-label="Train/Bus">Walk 2.5km · ~30 min · gentle hills</td><td data-label="Bolt (2 people total)">€4–5 · €2–2.50/pp · ~8 min</td><td data-label="Verdict"><strong>Walk there (scenic approach, 30 min); Bolt back</strong> if feet are tired after golden hour (~€4–5 total). Or walk both ways if you have energy — the whole headland path is the point.</td></tr>
+<tr><td data-label="Leg"><strong>Lagos → Praia Dona Ana</strong></td><td data-label="Train/Bus">Walk 2km · ~25 min · steep descent</td><td data-label="Bolt (2 people total)">€4–5 · €2–2.50/pp · ~6 min</td><td data-label="Verdict"><strong>Bolt there (~6 min, saves the steep descent); walk back along the cliff path</strong> (~25 min, best views of the trip). €4–5 total for Bolt one way is the right split.</td></tr>
+<tr><td data-label="Leg"><strong>Lagos → Tunes → Lisbon (Day 12)</strong></td><td data-label="Train/Bus">CP train €31.45+11.60/pp · ~4.5 hrs</td><td data-label="Bolt (2 people total)">Not viable — distance</td><td data-label="Verdict"><strong>Train, no contest.</strong> Booked already; departs 8:22am, earlier than planned.</td></tr>
+<tr><td data-label="Leg"><strong>Oriente → LIS Airport</strong></td><td data-label="Train/Bus">Metro Red Line €2/pp · 20 min · lifts at Oriente</td><td data-label="Bolt (2 people total)">€6–8 · €3–4/pp · ~15 min</td><td data-label="Verdict"><strong>Metro saves €10 and is only 5 min slower.</strong> Take the metro unless you're running tight — on Schengen departure day with luggage, Bolt for €6–8 total eliminates all friction.</td></tr>
+</tbody>
+</table></div>
+<h4 class="sub">Train Booking Guide — Line, Service, Reservation</h4>
+<div class="table-scroll"><table>
+<thead><tr><th>Leg</th><th>Service / Line</th><th>Book at</th><th>Reservation required?</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td data-label="Leg"><strong>OPO Airport → Porto center</strong></td><td data-label="Service / Line">Metro Line E (Violet)</td><td data-label="Book at">Machine at airport</td><td data-label="Reservation required?">No</td><td data-label="Notes">Andante card or contactless · €4 for 2</td></tr>
+<tr><td data-label="Leg"><strong>Porto → Matosinhos</strong></td><td data-label="Service / Line">Metro Line A (Red)</td><td data-label="Book at">Machine</td><td data-label="Reservation required?">No</td><td data-label="Notes">Same Andante card · €1.60</td></tr>
+<tr><td data-label="Leg"><strong>Porto → Nazaré</strong></td><td data-label="Service / Line">Rede Expressos coach (not CP rail)</td><td data-label="Book at">rede-expressos.pt</td><td data-label="Reservation required?">Yes — book online</td><td data-label="Notes">Direct service; luggage hold included; reserve seats when buying</td></tr>
+<tr><td data-label="Leg"><strong>Nazaré → Lisbon</strong></td><td data-label="Service / Line">Rede Expressos coach (direct)</td><td data-label="Book at">rede-expressos.pt</td><td data-label="Reservation required?">Yes — book online</td><td data-label="Notes">Roughly hourly service, ~1h45m · Arrives Lisbon Sete Rios or Campo Grande</td></tr>
+<tr><td data-label="Leg"><strong>Lisbon → Cascais</strong></td><td data-label="Service / Line">CP Linha de Cascais (suburban)</td><td data-label="Book at">Machine at Cais do Sodré · contactless</td><td data-label="Reservation required?">No</td><td data-label="Notes">Runs every 20 min · no advance booking needed · €2.35 · tap in/out</td></tr>
+<tr><td data-label="Leg"><strong>Cascais → Estoril</strong></td><td data-label="Service / Line">CP Linha de Cascais (suburban)</td><td data-label="Book at">Machine or contactless</td><td data-label="Reservation required?">No</td><td data-label="Notes">One stop · ~€1.20</td></tr>
+<tr><td data-label="Leg"><strong>Lisbon Oriente → Faro</strong></td><td data-label="Service / Line">CP Intercidades</td><td data-label="Book at">cp.pt</td><td data-label="Reservation required?"><span class="tag tag-booked">Booked</span></td><td data-label="Notes">Train 570, Carriage 11 · 10:02a–1:31p · 1st class · 3h29m · €19.50/person</td></tr>
+<tr><td data-label="Leg"><strong>Faro → Tavira</strong></td><td data-label="Service / Line">CP Regional (Algarve line)</td><td data-label="Book at">Machine at Faro station · contactless</td><td data-label="Reservation required?">No</td><td data-label="Notes">Frequent service · €4 · no reservation needed · luggage fine</td></tr>
+<tr><td data-label="Leg"><strong>Tavira → Faro</strong></td><td data-label="Service / Line">CP Regional (Algarve line)</td><td data-label="Book at">Machine or contactless</td><td data-label="Reservation required?">No</td><td data-label="Notes">Same line back · €4</td></tr>
+<tr><td data-label="Leg"><strong>Tavira → Lagos (Day 10)</strong></td><td data-label="Service / Line">CP InterRegional (direct, no change)</td><td data-label="Book at">cp.pt or machine</td><td data-label="Reservation required?"><span class="tag tag-booked">Booked</span></td><td data-label="Notes">Train 880 · 10:00a–11:53a · €11.60/person · single direct train, simpler than originally planned</td></tr>
+<tr><td data-label="Leg"><strong>Lagos → Tunes → Lisboa Oriente (Day 12)</strong></td><td data-label="Service / Line">CP Regional to Tunes, then CP Intercidades Tunes → Lisboa Oriente</td><td data-label="Book at">cp.pt</td><td data-label="Reservation required?"><span class="tag tag-booked">Booked</span></td><td data-label="Notes">8:22a–9:14a (Regional) + 9:44a–12:56p (Intercidades, 1st class) · €11.60 + €31.45/person · route is via Tunes, not Faro</td></tr>
+<tr><td data-label="Leg"><strong>Lisbon Oriente → LIS Airport</strong></td><td data-label="Service / Line">Metro Red Line (Linha Vermelha)</td><td data-label="Book at">Machine at Oriente · contactless</td><td data-label="Reservation required?">No</td><td data-label="Notes">Oriente → Aeroporto direct · 20 min · €2 · lifts available for luggage</td></tr>
+</tbody>
+</table></div>
+<div class="callout" style="margin-bottom:8px;">
+<strong>Booking status:</strong> All reserved-seat legs are booked — Lisboa Oriente → Faro (Intercidades, Day 8) and the Day 12 return via Tunes (Regional + Intercidades). Everything else in the table above (metro, Cascais line, Algarve regional trains) can be bought at the machine on the day or via contactless — no advance booking needed. These CP tickets are assumed paid-in-full at purchase, which is standard for cp.pt — flag if any of them were actually reserved without full payment.
+    </div>
+</div>
+<div id="food" style="scroll-margin-top:var(--nav-h); margin-top:16px;">
+<h3 class="sec-title">Restaurant &amp; Food Master List — Day by Day</h3>
+<p style="font-size:0.78rem; color:var(--muted); margin-bottom:6px;"><strong>RESERVE AHEAD</strong> venues are marked prominently. A couple is easier to seat than a group — same-week booking is usually fine for mid-range, but the flagged spots sell out weeks in advance.</p>
+<div class="table-scroll"><table>
+<thead><tr><th>Day</th><th>Date</th><th>Time</th><th>Meal</th><th>Venue</th><th>Book?</th><th>Est. Cost</th></tr></thead>
+<tbody>
+<tr><td data-label="Day"><strong>D1</strong></td><td data-label="Date">Mon, 9/28</td><td data-label="Time">6:00–8:00p</td><td data-label="Meal">Excursion</td><td data-label="Venue">Douro River Boat with Paulo · Marina do Freixo</td><td data-label="Book?">✓ Confirmed</td><td data-label="Est. Cost">Booked</td></tr>
+<tr><td data-label="Day"><strong>D1</strong></td><td data-label="Date">Mon, 9/28</td><td data-label="Time">8:30–10:00p</td><td data-label="Meal">Dinner</td><td data-label="Venue">Taberna Santo António or Cozinha da Residência (Porto · Bonfim)</td><td data-label="Book?">Walk-in OK</td><td data-label="Est. Cost">€15–20/pp</td></tr>
+<tr><td data-label="Day"><strong>D2</strong></td><td data-label="Date">Tue, 9/29</td><td data-label="Time">8:00a</td><td data-label="Meal">Breakfast</td><td data-label="Venue">Floresta Café / Hungry Biker or Café Candelabro (Porto)</td><td data-label="Book?">Walk-in</td><td data-label="Est. Cost">€3–5/pp</td></tr>
+<tr><td data-label="Day"><strong>D2</strong></td><td data-label="Date">Tue, 9/29</td><td data-label="Time">12:00–1:30p</td><td data-label="Meal">Lunch</td><td data-label="Venue">Mercado do Bolhão (Porto)</td><td data-label="Book?">Walk-in</td><td data-label="Est. Cost">€10–15/pp</td></tr>
+<tr><td data-label="Day"><strong>D2</strong></td><td data-label="Date">Tue, 9/29</td><td data-label="Time">8:30–10:00p</td><td data-label="Meal">Dinner</td><td data-label="Venue">Taberna dos Mercadores or <strong>O Paparico</strong> (Porto)</td><td data-label="Book?" style="color:#c04e2a; font-weight:bold;">⚠ RESERVE AHEAD</td><td data-label="Est. Cost">€30–45/pp</td></tr>
+<tr><td data-label="Day"><strong>D3</strong></td><td data-label="Date">Wed, 9/30</td><td data-label="Time">7:30–8:30a</td><td data-label="Meal">Breakfast</td><td data-label="Venue">Café Majestic or Manteigaria Silva (Porto, near São Bento)</td><td data-label="Book?">Walk-in</td><td data-label="Est. Cost">€4–6/pp</td></tr>
+<tr><td data-label="Day"><strong>D3</strong></td><td data-label="Date">Wed, 9/30</td><td data-label="Time">11:30a–12:15p</td><td data-label="Meal">Lunch</td><td data-label="Venue">Nazaré promenade — grilled fish on Rua Mouzinho de Albuquerque</td><td data-label="Book?">Walk-in</td><td data-label="Est. Cost">€12–18/pp</td></tr>
+<tr><td data-label="Day"><strong>D3</strong></td><td data-label="Date">Wed, 9/30</td><td data-label="Time">8:00–9:00p</td><td data-label="Meal">Dinner</td><td data-label="Venue">Zé da Mouraria or neighborhood tasca (Lisbon, near Campo de Ourique)</td><td data-label="Book?">Walk-in</td><td data-label="Est. Cost">€12–18/pp</td></tr>
+<tr><td data-label="Day"><strong>D4</strong></td><td data-label="Date">Thu, 10/1</td><td data-label="Time">8:00–8:30a</td><td data-label="Meal">Breakfast</td><td data-label="Venue">Local café near Campo de Ourique Airbnb</td><td data-label="Book?">Walk-in</td><td data-label="Est. Cost">€3–5/pp</td></tr>
+<tr><td data-label="Day"><strong>D4</strong></td><td data-label="Date">Thu, 10/1</td><td data-label="Time">10:00–10:30a</td><td data-label="Meal">Coffee/snack</td><td data-label="Venue">Mercado de Campo de Ourique</td><td data-label="Book?">Walk-in</td><td data-label="Est. Cost">€4–6/pp</td></tr>
+<tr><td data-label="Day"><strong>D4</strong></td><td data-label="Date">Thu, 10/1</td><td data-label="Time">12:30–1:30p</td><td data-label="Meal">Lunch</td><td data-label="Venue">The Bifanas of Afonso (Largo de São Paulo) · Alt: A Merendinha do Arco</td><td data-label="Book?">Walk-in</td><td data-label="Est. Cost">€5–8/pp (€12–15/pp alt)</td></tr>
+<tr><td data-label="Day"><strong>D4</strong></td><td data-label="Date">Thu, 10/1</td><td data-label="Time">9:00–10:30p</td><td data-label="Meal">Dinner</td><td data-label="Venue">Cervejaria Ramiro (no reservations · arrive 8:45p) or Restaurant Odaan (Intendente)</td><td data-label="Book?">Odaan: reserve ahead</td><td data-label="Est. Cost">€35–50/pp (€18–25/pp Odaan)</td></tr>
+<tr><td data-label="Day"><strong>D5</strong></td><td data-label="Date">Fri, 10/2</td><td data-label="Time">8:00–8:30a</td><td data-label="Meal">Breakfast</td><td data-label="Venue">Manteigaria (Chiado) — pastéis de nata</td><td data-label="Book?">Walk-in · queue at opening</td><td data-label="Est. Cost">€1.30/nata</td></tr>
+<tr><td data-label="Day"><strong>D5</strong></td><td data-label="Date">Fri, 10/2</td><td data-label="Time">12:30–1:45p</td><td data-label="Meal">Lunch</td><td data-label="Venue"><strong>Taberna da Rua das Flores</strong> (Lisbon institution)</td><td data-label="Book?" style="color:#c04e2a; font-weight:bold;">⚠ RESERVE AHEAD</td><td data-label="Est. Cost">€25–35/pp</td></tr>
+<tr><td data-label="Day"><strong>D5</strong></td><td data-label="Date">Fri, 10/2</td><td data-label="Time">9:00–10:30p</td><td data-label="Meal">Dinner + Fado</td><td data-label="Venue"><strong>Tasca do Chico</strong> (Bairro Alto) · backup: A Baiuca (Alfama)</td><td data-label="Book?" style="color:#c04e2a; font-weight:bold;">⚠ RESERVE AHEAD</td><td data-label="Est. Cost">€25–35 for 2</td></tr>
+<tr><td data-label="Day"><strong>D6</strong></td><td data-label="Date">Sat, 10/3</td><td data-label="Time">9:00–9:30a</td><td data-label="Meal">Breakfast</td><td data-label="Venue">Near Lisbon Airbnb (Campo de Ourique area)</td><td data-label="Book?">Walk-in</td><td data-label="Est. Cost">€4–6/pp</td></tr>
+<tr><td data-label="Day"><strong>D6</strong></td><td data-label="Date">Sat, 10/3</td><td data-label="Time">1:00–2:15p</td><td data-label="Meal">Lunch</td><td data-label="Venue"><strong>O Pescador</strong> (Rua das Flores 10, Cascais) or Mar do Inferno</td><td data-label="Book?" style="color:#c04e2a; font-weight:bold;">⚠ RESERVE AHEAD</td><td data-label="Est. Cost">€25–40/pp</td></tr>
+<tr><td data-label="Day"><strong>D6</strong></td><td data-label="Date">Sat, 10/3</td><td data-label="Time">8:00–9:30p</td><td data-label="Meal">Dinner</td><td data-label="Venue">Dinner in Cascais center (Rua Frederico Arouca)</td><td data-label="Book?">Walk-in / ask host</td><td data-label="Est. Cost">€20–30/pp</td></tr>
+<tr><td data-label="Day"><strong>D7</strong></td><td data-label="Date">Sun, 10/4</td><td data-label="Time">8:00–8:30a</td><td data-label="Meal">Breakfast</td><td data-label="Venue">Pastry café in Cascais center</td><td data-label="Book?">Walk-in</td><td data-label="Est. Cost">€4–6/pp</td></tr>
+<tr><td data-label="Day"><strong>D7</strong></td><td data-label="Date">Sun, 10/4</td><td data-label="Time">12:30–2:00p</td><td data-label="Meal">Lunch</td><td data-label="Venue">Lunch in Estoril (walk or 1 train stop from Cascais)</td><td data-label="Book?">Walk-in</td><td data-label="Est. Cost">€12–20/pp</td></tr>
+<tr><td data-label="Day"><strong>D7</strong></td><td data-label="Date">Sun, 10/4</td><td data-label="Time">7:30–9:00p</td><td data-label="Meal">Dinner</td><td data-label="Venue">Dinner where residents eat — non-tourist Cascais</td><td data-label="Book?">Walk-in</td><td data-label="Est. Cost">€20–30/pp</td></tr>
+<tr><td data-label="Day"><strong>D8</strong></td><td data-label="Date">Mon, 10/5</td><td data-label="Time">8:00–8:30a</td><td data-label="Meal">Breakfast</td><td data-label="Venue">Final Cascais coffee + pastry (checkout morning)</td><td data-label="Book?">Walk-in</td><td data-label="Est. Cost">€3–5/pp</td></tr>
+<tr><td data-label="Day"><strong>D8</strong></td><td data-label="Date">Mon, 10/5</td><td data-label="Time">1:15–1:45p</td><td data-label="Meal">Lunch</td><td data-label="Venue">Quick lunch near Faro station or walk to old town</td><td data-label="Book?">Walk-in</td><td data-label="Est. Cost">€10–15/pp</td></tr>
+<tr><td data-label="Day"><strong>D8</strong></td><td data-label="Date">Mon, 10/5</td><td data-label="Time">7:00–8:00p</td><td data-label="Meal">Drinks</td><td data-label="Venue">Café Âncora (riverside, Tavira)</td><td data-label="Book?">Walk-in</td><td data-label="Est. Cost">€2 wine · €1.50 beer</td></tr>
+<tr><td data-label="Day"><strong>D8</strong></td><td data-label="Date">Mon, 10/5</td><td data-label="Time">8:00–9:30p</td><td data-label="Meal">Dinner</td><td data-label="Venue">Restaurante Bica or <strong>Quatro Águas</strong> (Ria Formosa, Tavira · taxi ~€4–5 for 2)</td><td data-label="Book?" style="color:#c04e2a; font-weight:bold;">⚠ RESERVE AHEAD</td><td data-label="Est. Cost">€18–30/pp</td></tr>
+<tr><td data-label="Day"><strong>D9</strong></td><td data-label="Date">Tue, 10/6</td><td data-label="Time">8:00–8:30a</td><td data-label="Meal">Breakfast</td><td data-label="Venue">Pastelaria Tavira (Rua Almirante)</td><td data-label="Book?">Walk-in</td><td data-label="Est. Cost">€0.80–1.20 coffee</td></tr>
+<tr><td data-label="Day"><strong>D9</strong></td><td data-label="Date">Tue, 10/6</td><td data-label="Time">12:30–1:30p</td><td data-label="Meal">Lunch</td><td data-label="Venue">Riverside café, Tavira</td><td data-label="Book?">Walk-in</td><td data-label="Est. Cost">€14–20/pp</td></tr>
+<tr><td data-label="Day"><strong>D9</strong></td><td data-label="Date">Tue, 10/6</td><td data-label="Time">8:00–9:30p</td><td data-label="Meal">Dinner</td><td data-label="Venue">Restaurante Bica or tasca in historic center (Tavira)</td><td data-label="Book?">Walk-in</td><td data-label="Est. Cost">€18–25/pp</td></tr>
+<tr><td data-label="Day"><strong>D10</strong></td><td data-label="Date">Wed, 10/7</td><td data-label="Time">8:00–8:30a</td><td data-label="Meal">Breakfast</td><td data-label="Venue">Pastelaria Tavira (final morning)</td><td data-label="Book?">Walk-in</td><td data-label="Est. Cost">€3–5/pp</td></tr>
+<tr><td data-label="Day"><strong>D10</strong></td><td data-label="Date">Wed, 10/7</td><td data-label="Time">7:00–7:30p</td><td data-label="Meal">Drinks</td><td data-label="Venue">Adega Marques · Rua de São Gonçalo de Lagos</td><td data-label="Book?">Walk-in</td><td data-label="Est. Cost">Cheap wine</td></tr>
+<tr><td data-label="Day"><strong>D10</strong></td><td data-label="Date">Wed, 10/7</td><td data-label="Time">8:30–10:00p</td><td data-label="Meal">Dinner</td><td data-label="Venue"><strong>Dom Sebastião</strong> (Lagos · Cataplana)</td><td data-label="Book?" style="color:#c04e2a; font-weight:bold;">⚠ RESERVE AHEAD</td><td data-label="Est. Cost">€25–35/pp</td></tr>
+<tr><td data-label="Day"><strong>D11</strong></td><td data-label="Date">Thu, 10/8</td><td data-label="Time">8:00–9:00a</td><td data-label="Meal">Breakfast</td><td data-label="Venue">A Celeste (local café, Lagos)</td><td data-label="Book?">Walk-in</td><td data-label="Est. Cost">€5–7/pp</td></tr>
+<tr><td data-label="Day"><strong>D11</strong></td><td data-label="Date">Thu, 10/8</td><td data-label="Time">12:00–1:30p</td><td data-label="Meal">Lunch</td><td data-label="Venue">Lunch near Praia Dona Ana (Lagos)</td><td data-label="Book?">Walk-in</td><td data-label="Est. Cost">€15–22/pp</td></tr>
+<tr><td data-label="Day"><strong>D11</strong></td><td data-label="Date">Thu, 10/8</td><td data-label="Time">8:00–9:30p</td><td data-label="Meal">Dinner</td><td data-label="Venue"><strong>No Pátio</strong> (garden courtyard) · or Dom Sebastião return</td><td data-label="Book?" style="color:#c04e2a; font-weight:bold;">⚠ RESERVE AHEAD</td><td data-label="Est. Cost">€25–40/pp</td></tr>
+<tr><td data-label="Day"><strong>D12</strong></td><td data-label="Date">Fri, 10/9</td><td data-label="Time">7:00–7:45a</td><td data-label="Meal">Breakfast</td><td data-label="Venue">Quick stop at Mercado de Lagos · coffee only — the booked train departs 8:22am, earlier than the 9am originally planned</td><td data-label="Book?">Walk-in</td><td data-label="Est. Cost">€3–5/pp</td></tr>
+</tbody>
+</table></div>
+<div style="background:#fff5ee; border-left:4px solid var(--terracotta); padding:7px 10px; border-radius:0 4px 4px 0; margin-top:6px; font-size:0.76rem;">
+<strong style="color:#8a3010;">Must-reserve list (book 2–4 weeks ahead):</strong> O Paparico (Porto D2) · Taberna da Rua das Flores (Lisbon D5) · Tasca do Chico, backup A Baiuca (D5 fado) · O Pescador (Cascais D6) · Quatro Águas (Tavira D8) · Dom Sebastião (Lagos D10) · No Pátio (Lagos D11) · <strong>Finalmente Club (Lisbon D5, nightlife)</strong> — the ~11pm Café Concerto show requires reservation, separate from restaurant bookings
+    </div>
+</div>
+<!-- RECON CHECKLIST -->
+<div id="recon" style="scroll-margin-top:var(--nav-h); margin-top:16px; margin-bottom:16px;">
+<h3 class="sec-title">Recon Checklist — Do This at Every Stop</h3>
+<div class="recon-grid">
+<div class="recon-item">
+<h5>9am Residential Walk</h5>
+<ul>
+<li>Who is out? Locals? Expats? Elderly? Dog walkers?</li>
+<li>Morning café culture? (A good one = livable neighborhood)</li>
+<li>Grocery options? Minipreço/Continente = chains; a good Mercado = real neighborhood</li>
+</ul>
+</div>
+<div class="recon-item">
+<h5>Real Estate Windows</h5>
+<ul>
+<li>All agencies post printed listings in windows — photograph prices even if closed</li>
+<li>Compare €/sqm, not just total price</li>
+<li>Note: floor, condition, elevator or not</li>
+</ul>
+</div>
+<div class="recon-item">
+<h5>Take a Bus Once</h5>
+<ul>
+<li>Frequency, reliability, who rides it, comfort level</li>
+<li>This is your potential daily transport</li>
+</ul>
+</div>
+<div class="recon-item">
+<h5>Eat at a Non-Tourist Restaurant</h5>
+<ul>
+<li>Tasca with handwritten menu + no English outside = on the right track</li>
+<li>Menu do dia (lunch): €9–14 with drink + coffee = what residents pay daily</li>
+<li>€40–60 for 2 for lunch = tourist pricing</li>
+</ul>
+</div>
+<div class="recon-item">
+<h5>Talk to Expats You Meet</h5>
+<ul>
+<li>"What do you wish you'd known before moving here?"</li>
+<li>"Where do expats actually live vs. what the blogs say?"</li>
+<li>"What's the biggest surprise about daily life?"</li>
+<li>"What's the LGBTQ+ community/scene actually like here?" — worth asking in every city; Lisbon and Porto both have a real answer, Cascais notably doesn't (small, quiet, little dedicated scene), which is itself a useful input if that matters to daily life, not just vacation nights out.</li>
+</ul>
+</div>
+<div class="recon-item">
+<h5>Open Idealista.pt Live</h5>
+<ul>
+<li>Search the neighborhood you're standing in</li>
+<li>Cross-reference blog/guide prices with actual listings</li>
+<li>Reality-check your buy budget on the spot</li>
+</ul>
+</div>
+</div>
+</div>
+<div id="budget" style="scroll-margin-top:var(--nav-h); margin-top:16px;">
+<h3 class="sec-title">Budget — Per Couple</h3>
+<p style="font-size:0.78rem; color:var(--muted); margin-bottom:6px;">Rate used below: €1 ≈ $1.16 (mid-Sept 2026) — rates move day to day, so treat the € lines as approximate in dollar terms.</p>
+<div class="table-scroll"><table>
+<thead><tr><th>Category</th><th>Per Couple</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td data-label="Category">Flights (2 people — IAD→OPO / LIS→IAD)</td><td data-label="Per Couple">$1,290</td><td data-label="Notes"><strong>Confirmed.</strong> TP 232/1922 IAD→OPO $645/pp · TP 233 LIS→IAD · carry-on included · checked bag $131 inbound / $81 return</td></tr>
+<tr><td data-label="Category">Accommodation (11 nights)</td><td data-label="Per Couple">$1,685.18</td><td data-label="Notes">Porto $309.47 ($154.74/nt) · Lisbon $458.80 ($152.93/nt) · Cascais $372.25 ($186.13/nt) · Tavira $202.52 ($101.26/nt) · Lagos $342.14 ($171.07/nt) · <strong>All confirmed</strong></td></tr>
+<tr><td data-label="Category">Ground transport (trains, buses, Bolt — couple’s share)</td><td data-label="Per Couple">~€330</td><td data-label="Notes">Confirmed: Lisboa Oriente→Faro Intercidades, Lagos→Tunes→Lisboa Oriente (Regional + Intercidades), Tavira→Lagos InterRegional, Porto→Lisbon Rede Expressos buses. Plus ~€100 Bolts + metros</td></tr>
+<tr><td data-label="Category">Food/drink</td><td data-label="Per Couple">~€800–1,000</td><td data-label="Notes">Breakfasts €8–15/day; lunches €20–40; dinners €40–90 (4–5 reserve-ahead spots at €60–100+)</td></tr>
+<tr><td data-label="Category">Activities/entrance fees</td><td data-label="Per Couple">~€120</td><td data-label="Notes">Livraria Lello €10/pp · Torre de Belém €6/pp · Padrão €6/pp · funicular €2/pp · Tavira Castle €2/pp · museums · fado at Tasca do Chico ~€25–35</td></tr>
+<tr><td data-label="Category">Miscellaneous/shopping</td><td data-label="Per Couple">~€150</td><td data-label="Notes">Wine, ceramics, gifts</td></tr>
+<tr class="total-row"><td data-label="Category">Total per couple (incl. flights)</td><td data-label="Per Couple">~$4,500–4,750</td><td data-label="Notes">Flights $1,290 + accommodation $1,685 confirmed · Ground/food/activities estimated</td></tr>
+</tbody>
+</table></div>
+</div>
+<div id="apps" style="scroll-margin-top:var(--nav-h); margin-top:16px;">
+<h4 class="sub">Apps — Download Before You Go</h4>
+<div class="app-grid">
+<div class="app-item"><strong>eSIM (Airalo / Holafly)</strong><span>Set up before departure — the whole itinerary assumes live data for Bolt, Idealista, and CP.</span></div>
+<div class="app-item"><strong>Bolt</strong><span>Ride-hailing, used throughout</span></div>
+<div class="app-item"><strong>CP</strong><span>Comboios de Portugal — train tickets &amp; schedules</span></div>
+<div class="app-item"><strong>Moovit</strong><span>Metro/bus routing in Porto &amp; Lisbon</span></div>
+<div class="app-item"><strong>Idealista</strong><span>Live real estate listings for recon stops</span></div>
+<div class="app-item"><strong>TheFork</strong><span>Restaurant reservations</span></div>
+<div class="app-item"><strong>Google Translate</strong><span>Offline Portuguese pack</span></div>
+<div class="app-item"><strong>Wise or XE</strong><span>Real-time EUR/USD for on-the-spot price checks</span></div>
+<div class="app-item"><strong>Grindr</strong><span>Biggest user base in Lisbon/Porto — best for finding what's actually happening night-of</span></div>
+<div class="app-item"><strong>Scruff</strong><span>Skews slightly older; "Venture" feature is good for scoping a city before you land</span></div>
+<div class="app-item"><strong>Romeo</strong><span>Very popular in Europe generally, less saturated than Grindr</span></div>
+</div>
+<p style="font-size:0.76rem; color:var(--muted); margin-top:6px;"><strong>Get this itinerary itself on your phone, offline:</strong> AirDrop or email the file to your iPhone, open it once in Safari to cache it, then Share → Add to Home Screen for one-tap access with no data connection needed.</p>
+</div>
+<div id="todo" style="scroll-margin-top:var(--nav-h); margin-top:16px;">
+<h3 class="sec-title">To Book &amp; Pre-Plan</h3>
+<h4 class="sub">Attractions — Book Ahead</h4>
+<div class="table-scroll"><table>
+<thead><tr><th>Attraction</th><th>Day</th><th>Where to Book</th><th>Priority</th><th>Cost</th></tr></thead>
+<tbody>
+<tr><td data-label="Attraction"><strong>Livraria Lello</strong> — Porto</td><td data-label="Day">D2 · 9/29 · 11:15a</td><td data-label="Where to Book">livrarialello.pt</td><td data-label="Priority" style="color:#c04e2a; font-weight:bold;">⚠ Book now</td><td data-label="Cost">€10/pp (deducted from purchase). Sells out days ahead.</td></tr>
+<tr><td data-label="Attraction"><strong>Torre de Belém</strong> — Lisbon</td><td data-label="Day">D5 · 10/2 · Belém circuit</td><td data-label="Where to Book">torrebelem.pt</td><td data-label="Priority">Recommended</td><td data-label="Cost">€6/pp. Timed entry avoids 30+ min queue.</td></tr>
+<tr><td data-label="Attraction"><strong>Padrão dos Descobrimentos</strong> — Lisbon</td><td data-label="Day">D5 · 10/2 · Belém circuit</td><td data-label="Where to Book">padraodosdescobrimentos.pt</td><td data-label="Priority">Optional</td><td data-label="Cost">€6/pp or free to view from outside.</td></tr>
+</tbody>
+</table></div>
+<p style="font-size:0.76rem; color:var(--muted); margin-bottom:6px;">All other sights (São Bento, miradouros, Faro Cidade Velha, Ponta da Piedade, Tavira Castle, Ria Formosa ferry) are walk-up or free.</p>
+<h4 class="sub">Restaurants — Reserve Ahead</h4>
+<div class="table-scroll"><table>
+<thead><tr><th>Venue</th><th>Day</th><th>How to Book</th><th>Lead Time</th></tr></thead>
+<tbody>
+<tr><td data-label="Venue"><strong>O Paparico</strong> — Porto</td><td data-label="Day">D2 · 9/29 · dinner</td><td data-label="How to Book">TheFork or direct</td><td data-label="Lead Time" style="color:#c04e2a; font-weight:bold;">2–3 weeks ahead</td></tr>
+<tr><td data-label="Venue"><strong>Taberna da Rua das Flores</strong> — Lisbon</td><td data-label="Day">D5 · 10/2 · lunch</td><td data-label="How to Book">TheFork</td><td data-label="Lead Time">1–2 weeks</td></tr>
+<tr><td data-label="Venue"><strong>Tasca do Chico</strong> — Fado (backup: A Baiuca)</td><td data-label="Day">D5 · 10/2 · evening</td><td data-label="How to Book">Direct (phone/website)</td><td data-label="Lead Time" style="color:#c04e2a; font-weight:bold;">2–3 weeks — only 20 seats</td></tr>
+<tr><td data-label="Venue"><strong>O Pescador</strong> — Cascais</td><td data-label="Day">D6 · 10/3 · lunch</td><td data-label="How to Book">TheFork or direct</td><td data-label="Lead Time">1 week</td></tr>
+<tr><td data-label="Venue"><strong>Quatro Águas</strong> — Tavira</td><td data-label="Day">D8 · 10/5 · dinner</td><td data-label="How to Book">Direct</td><td data-label="Lead Time">1–2 weeks</td></tr>
+<tr><td data-label="Venue"><strong>Dom Sebastião</strong> — Lagos</td><td data-label="Day">D10 · 10/7 · dinner</td><td data-label="How to Book">TheFork or direct</td><td data-label="Lead Time">1 week</td></tr>
+<tr><td data-label="Venue"><strong>No Pátio</strong> — Lagos</td><td data-label="Day">D11 · 10/8 · dinner</td><td data-label="How to Book">TheFork or direct</td><td data-label="Lead Time">1 week</td></tr>
+</tbody>
+</table></div>
+<h4 class="sub">Message Hosts — Early Bag Drop</h4>
+<p style="font-size:0.78rem; margin-bottom:5px;">Message ~1 week before each check-in asking if early bag drop is possible:</p>
+<div class="recon-grid" style="grid-template-columns:1fr 1fr 1fr;">
+<div class="recon-item" style="background:white;">
+<h5>Daniel — Porto</h5>
+<ul>
+<li>Arrive 9:00a, check-in 3:00p</li>
+<li>6-hour gap — ask for bag drop</li>
+<li>Fallback: Radical Storage / São Bento lockers</li>
+</ul>
+</div>
+<div class="recon-item" style="background:white;">
+<h5>Gina — Cascais</h5>
+<ul>
+<li>Arrive ~11:00a, check-in 3:00p</li>
+<li>Ask for early bag drop or access</li>
+<li>Fallback: Radical Storage / Bounce</li>
+</ul>
+</div>
+<div class="recon-item" style="background:white;">
+<h5>Celia — Lagos</h5>
+<ul>
+<li>Arrive ~1:30p, check-in 4:00p</li>
+<li>Ask for early bag drop</li>
+<li>Fallback: Radical Storage / Bounce</li>
+</ul>
+</div>
+</div>
+<div class="callout" style="margin-top:12px;"><strong>Lisbon hosts (Maria João &amp; Filipe):</strong> Confirm the pending reservation is now confirmed. Also confirm leaving keys by 9:30am on 10/3 (checkout is noon but you're catching the 10:15a train to Cascais).</div>
+<h4 class="sub">Cash — How Much &amp; When to Withdraw</h4>
+<div class="callout">
+<strong>Short answer:</strong> Bring €200–250 in cash total for the trip. Portugal is highly card-friendly — the only places you'll reliably need cash are a handful of small tascas, the Bifanas de Afonso, coin-operated bag lockers at Faro station, and the occasional market vendor or ginjinha stand.
+    </div>
+<p style="font-size:0.76rem; color:var(--muted); margin:4px 0 3px;"><strong>Where that number comes from</strong> — tallying every known cash-only item on this itinerary: Bifanas de Afonso ~€10–16 · Faro lockers ~€5–6 · ginjinha (both bars) ~€6–8 · Nazaré bag-holding tip ~€5–10 · Tavira ferry round trip ~€8 · market stalls/small tascas buffer ~€40–60. That's roughly €75–110 in identified needs — the €200 pull below leaves comfortable headroom for anything cash-only you run into that isn't on the list.</p>
+<div class="recon-grid" style="grid-template-columns:1fr 1fr;">
+<div class="recon-item" style="background:white;">
+<h5>Where Card Works Fine</h5>
+<ul>
+<li>All train/bus ticket machines — contactless or card</li>
+<li>Virtually all restaurants and cafés</li>
+<li>Supermarkets (Minipreço, Pingo Doce, Lidl, Aldi)</li>
+<li>Bolt/Uber — in-app, no cash</li>
+<li>All accommodation — paid via Airbnb</li>
+<li>Livraria Lello, Torre de Belém, all major attractions</li>
+<li>Most market stalls (increasingly card)</li>
+</ul>
+</div>
+<div class="recon-item" style="background:white;">
+<h5>Where You'll Need Cash</h5>
+<ul>
+<li><strong>Bifanas de Afonso</strong> (D4) — cash only, stated on listing</li>
+<li><strong>Faro station bag lockers</strong> (D8) — coins, ~€5–6</li>
+<li><strong>Ginjinha bars</strong> (D4 evening) — €1.50/shot, cash preferred</li>
+<li><strong>Nazaré restaurant</strong> holding bags for the day — tip in cash</li>
+<li><strong>Market produce/fish stalls</strong> — some cash-only vendors</li>
+<li><strong>Tavira Island ferry</strong> — cash likely (~€2/pp)</li>
+<li><strong>Small tascas</strong> — occasional cash-only spots</li>
+</ul>
+</div>
+</div>
+<h5 style="font-family:'Arial',sans-serif; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em; color:var(--blue); margin:8px 0 5px;">ATM Strategy</h5>
+<ul style="font-size:0.78rem; margin-bottom:8px;">
+<li><strong>Use Multibanco ATMs</strong> (Portugal's national network — the blue/orange machines everywhere). Avoid standalone "Euronet" ATMs in tourist areas — they charge dynamic currency conversion fees.</li>
+<li><strong>Withdraw in Porto on Day 1 or 2</strong> — take out €150–200 once. Multibanco at any Portuguese bank (CGD, BPI, Millennium BCP, Santander). Look for the "MB" logo.</li>
+<li><strong>Top up before Tavira if needed</strong> — smaller Algarve towns have fewer ATMs. €50 buffer is enough for Tavira + Lagos.</li>
+<li><strong>Card to use for purchases:</strong> Ideally a no-foreign-transaction-fee card (Charles Schwab, Capital One <em>credit</em> card, Wise). Standard Visa/Mastercard work everywhere — just decline dynamic currency conversion if asked ("charge in EUR, not USD"). See the ATM warning below before using a Capital One <em>debit</em> card for cash.</li>
+<li><strong>Don't exchange at the airport</strong> — rates are poor. Skip IAD exchange entirely; Multibanco in Porto on arrival is the right move.</li>
+</ul>
+<div class="callout-car">
+<strong>⚠️ Check which network your Capital One card is on before you rely on it at an ATM.</strong> Capital One moved its debit/ATM cards from Mastercard to Discover starting mid-2025. Discover has real acceptance gaps at European ATMs — travelers have reported entire countries where no ATM would take the new card. If your card shows the Discover logo (not Visa or Mastercard), don't plan on it for Multibanco withdrawals — bring a Visa- or Mastercard-network debit card as the primary cash source, and keep the Capital One card only as a backup to test, not the plan. (A Capital One <em>credit</em> card for purchases is unaffected — this is specifically a debit/ATM card + cash-withdrawal issue.)
+    </div>
+<div class="callout-change"><strong>Summary:</strong> Withdraw €200 from a Multibanco ATM in Porto on Day 1 or 2, using a Visa/Mastercard-network debit card. Use card for everything you can. Keep €50 in reserve going into the Algarve. You should finish the trip with minimal leftover cash.</div>
+<h4 class="sub">Weather &amp; Packing</h4>
+<div class="callout">
+      Late September/early October in Portugal is generally mild and dry, but Porto and the north see more rain than the Algarve — and several days here are outdoor-heavy with no rain fallback built in (Douro boat tour D1, Guincho D7, Boca do Inferno D6, Ponta da Piedade D10). <strong>Pack a compact umbrella and a light rain jacket</strong> for both of you — cheap insurance against losing one of the paid, non-refundable outdoor bookings to weather.
+    </div>
+<h4 class="sub">Travel Documents</h4>
+<div class="callout">
+<strong>ETIAS: not needed for this trip.</strong> The EU has pulled its Q4 2026 target and ETIAS remains inactive, with a 2027 launch now more likely — no application, no action required for 9/27–10/9 travel. Worth a quick re-check closer to departure in case that changes.<br/><br/>
+<strong>Passport validity:</strong> confirm 3+ months beyond the 10/9 return date (standard Schengen requirement).
+    </div>
+</div>
+</div>
+<footer>
+<strong>Portugal 12-Day Itinerary</strong> · 9/27 – 10/9, 2026 · IAD–OPO in / LIS–IAD out · 2 people · All prices EUR unless noted<br/>
+<a href="portugal_location_analysis.html" style="color:rgba(255,200,160,0.9); margin-top:8px; display:inline-block;">→ View the Retirement Location Analysis</a>
+</footer>
+<button id="booking-tracker-toggle" onclick="document.getElementById('booking-tracker-panel').classList.toggle('open')"><span id="bt-count">Still to book</span></button>
+<div id="booking-tracker-panel">
+<button class="bt-close" onclick="document.getElementById('booking-tracker-panel').classList.remove('open')">✕ close</button>
+<h5>Still Needs Booking</h5>
+<p style="font-size:0.72rem; color:var(--muted); margin-bottom:8px;">Check items off as you book them — saved on this device only (not shared, not synced to the file).</p>
+<ul>
+<li data-bt-id="lello"><label><input onchange="btToggle(this)" type="checkbox"/><span><strong>Livraria Lello</strong> — Porto, D2 Tue 9/29. Book now, sells out days ahead.</span></label></li>
+<li data-bt-id="paparico"><label><input onchange="btToggle(this)" type="checkbox"/><span><strong>O Paparico</strong> — Porto, D2 dinner. 2–3 weeks ahead.</span></label></li>
+<li data-bt-id="flores"><label><input onchange="btToggle(this)" type="checkbox"/><span><strong>Taberna da Rua das Flores</strong> — Lisbon, D5 lunch. 1–2 weeks.</span></label></li>
+<li data-bt-id="chico"><label><input onchange="btToggle(this)" type="checkbox"/><span><strong>Tasca do Chico</strong> (backup: A Baiuca) — Lisbon fado, D5 evening. 2–3 weeks — only 20 seats.</span></label></li>
+<li data-bt-id="finalmente"><label><input onchange="btToggle(this)" type="checkbox"/><span><strong>Finalmente Club</strong> — Lisbon, D5 nightlife. Café Concerto show needs its own reservation.</span></label></li>
+<li data-bt-id="pescador"><label><input onchange="btToggle(this)" type="checkbox"/><span><strong>O Pescador</strong> — Cascais, D6 lunch. 1 week.</span></label></li>
+<li data-bt-id="aguas"><label><input onchange="btToggle(this)" type="checkbox"/><span><strong>Quatro Águas</strong> — Tavira, D8 dinner. 1–2 weeks.</span></label></li>
+<li data-bt-id="sebastiao"><label><input onchange="btToggle(this)" type="checkbox"/><span><strong>Dom Sebastião</strong> — Lagos, D10 dinner. 1 week.</span></label></li>
+<li data-bt-id="patio"><label><input onchange="btToggle(this)" type="checkbox"/><span><strong>No Pátio</strong> — Lagos, D11 dinner. 1 week.</span></label></li>
+</ul>
+<button class="bt-reset" onclick="btReset()">Reset all checkmarks</button>
+</div>
+<script>
+(function(){
+  var STORAGE_KEY = 'portugal-itinerary-booking-tracker';
+  var items = document.querySelectorAll('#booking-tracker-panel li[data-bt-id]');
+  function getChecked(){
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+    catch(e){ return {}; }
+  }
+  function setChecked(state){
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e){}
+  }
+  function updateCount(){
+    var remaining = 0;
+    items.forEach(function(li){ if (!li.classList.contains('bt-done')) remaining++; });
+    var label = document.getElementById('bt-count');
+    label.textContent = remaining === 0 ? 'All booked' : 'Still to book (' + remaining + ')';
+  }
+  function applyState(){
+    var state = getChecked();
+    items.forEach(function(li){
+      var id = li.getAttribute('data-bt-id');
+      var cb = li.querySelector('input[type="checkbox"]');
+      var done = !!state[id];
+      cb.checked = done;
+      li.classList.toggle('bt-done', done);
+    });
+    updateCount();
+  }
+  window.btToggle = function(cb){
+    var li = cb.closest('li');
+    var id = li.getAttribute('data-bt-id');
+    var state = getChecked();
+    state[id] = cb.checked;
+    setChecked(state);
+    li.classList.toggle('bt-done', cb.checked);
+    updateCount();
+  };
+  window.btReset = function(){
+    setChecked({});
+    applyState();
+  };
+  applyState();
+})();
+</script>
+<script>
+/* register the app-shell service worker so the page itself loads with no
+   network at all once it's been visited once -- see sw.js. */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(e=> console.error('sw registration failed', e));
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "Portugal 12-Day Itinerary",
+  "short_name": "Portugal",
+  "description": "Day-by-day itinerary, bookings, and logistics for the Portugal trip.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fdf8f2",
+  "theme_color": "#1a3a5c",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
