@@ -1,0 +1,40 @@
+name: Build index.html
+
+# index.html is generated from src/ (see build.py's docstring for why) --
+# this keeps the deployed single-file artifact in sync with source edits
+# without anyone having to remember to run the build locally. Runs on every
+# push to main; a push that only touches index.html directly (shouldn't
+# happen, but just in case) is a no-op since the rebuild would match what's
+# already there.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'build.py'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build index.html from src/
+        run: python3 build.py
+
+      - name: Commit if changed
+        run: |
+          git config user.name "cookbook-build-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "index.html already up to date."
+            exit 0
+          fi
+          git commit -m "Rebuild index.html from src/"
+          git push

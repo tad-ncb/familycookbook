@@ -1,0 +1,1537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Generated file -- do not edit directly. Source lives in src/ (head.html,
+     data.js, app.js, foot.html); run build.py or push a change to src/ and
+     .github/workflows/build.yml regenerates this. -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>The Deemer-Berdux Family Cookbook</title>
+<meta name="robots" content="noindex, nofollow, noarchive">
+<!-- Reachable by direct link only -- deliberately not meant to show up in search results
+     or get crawled/archived. See also /robots.txt at the site root. -->
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<!-- Same fork-and-knife icon used everywhere else (manifest.json, the
+     apple-touch-icon above) -- explicit type/sizes so browsers reliably
+     pick this over any favicon.ico guess. A browser that already cached a
+     different favicon for this origin from before this was set can keep
+     showing the old one for a while regardless of what's in the HTML --
+     that's the browser's favicon cache, not something this file controls. -->
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<meta name="theme-color" content="#14161c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cookbook">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;600;700&family=Nunito+Sans:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+<style>
+  /* Dark is the default -- navy/silver, deliberately dark-first.
+     [data-theme="light"] swaps in the cool-grey/silver counterpart. */
+  :root{
+    --paper: #14161c;
+    --card: #1c1f27;
+    --card-hover: #23262f;
+    --ink: #e9ebef;
+    --ink-soft: #9aa0ac;
+    --ink-faint: #565b66;
+    --line: #2b2f3a;
+    --hair: #23262f;
+    --stamp: #7c93ba;
+    --stamp-soft: #212736;
+    --alert: #d98f7c;
+    --alert-soft: #2f231f;
+    --gold: #d6a94b;
+    --today: #1b2230;
+    --past: #191b21;
+    --scrim: rgba(0,0,0,0.62);
+    --shadow: 0 1px 3px rgba(0,0,0,0.4);
+    --maxw: 1440px;
+    --recipe-font: 13.5px;
+    --step-font: 14px;
+  }
+  :root[data-theme="light"]{
+    --paper: #eef0f3;
+    --card: #ffffff;
+    --card-hover: #f7f8fa;
+    /* was #171a20, then #16203a -- both still read as "black" at a glance
+       (dark enough that the navy tint barely shows), so every heading/
+       button/border in the light theme just looked like plain black text.
+       Lightened further while keeping full readability against --paper. */
+    --ink: #23335a;
+    --ink-soft: #5b616c;
+    --ink-faint: #9aa0ab;
+    --line: #d7dbe1;
+    --hair: #e7e9ed;
+    --stamp: #3b5980;
+    --stamp-soft: #e4e9f0;
+    --alert: #a3402c;
+    --alert-soft: #f3e2dd;
+    --gold: #b8860b;
+    --today: #ffffff;
+    --past: #f6f7f8;
+    --scrim: rgba(22,19,15,0.45);
+    --shadow: 0 1px 3px rgba(22,19,15,0.06);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0; overflow-x:hidden; width:100%;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Nunito Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  ::selection{background:var(--stamp); color:#fff;}
+
+  .masthead{ border-bottom:1px solid var(--line); }
+  .masthead-inner{
+    max-width:var(--maxw); margin:0 auto; padding:clamp(10px,1.6vw,16px) clamp(12px,2.6vw,32px) clamp(6px,1vw,10px);
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px 16px;
+  }
+  h1.title{
+    /* removed per request to reclaim vertical space -- kept in the DOM
+       (rather than deleted) so #homeTitle's existing "back to cookbook"
+       click handler still has an element to attach to; the nav dropdown
+       already covers that navigation anyway. */
+    display:none;
+  }
+
+  .controls{ max-width:var(--maxw); margin:0 auto; padding:clamp(6px,1vw,10px) clamp(12px,2.6vw,32px) 0; }
+  /* Search sits as just another labeled row, same shape as Course/Cuisine
+     below it -- not a separate oversized hero bar -- and the input itself
+     is sized to the text, half-width, like the Must-include/exclude boxes. */
+  .search-row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; flex:1 1 0%; min-width:0; }
+  .search-row input{
+    background:var(--card); border:1px solid var(--line); border-radius:6px;
+    font-family:'Nunito Sans',sans-serif;
+    font-size:13px; line-height:1.3; color:var(--ink);
+    flex:1 1 auto; min-width:160px; max-width:900px;
+    padding:4px 8px;
+  }
+  .search-row input:focus{ outline:none; border-color:var(--stamp); }
+  .search-row input::placeholder{color:var(--ink-faint);}
+  .result-count{
+    font-family:'Nunito Sans', sans-serif; font-size:12px; font-variant-numeric:tabular-nums;
+    color:var(--ink-soft); white-space:nowrap; flex-shrink:0;
+    /* fixed width, not just tabular-nums -- "955 / 955" vs "35 / 955" still
+       differ in total DIGIT COUNT, so this box's own intrinsic width was
+       still changing as you filtered. Since the search input right before
+       it flex-grows to fill whatever space is left over, a shrinking count
+       here freed up room for the input to expand into, which pushed the
+       Filters button (between them) sideways every time the count changed. */
+    min-width:88px; text-align:right;
+  }
+  .loading-spin{ display:inline-block; animation:loadingSpin 0.8s linear infinite; }
+  @keyframes loadingSpin{ from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
+  .load-pill{
+    font-family:'Nunito Sans', sans-serif; font-size:10.5px; color:var(--stamp);
+    border:1px solid var(--stamp); border-radius:10px; padding:2px 9px;
+    white-space:nowrap; flex-shrink:0; animation:loadPulse 1.4s ease-in-out infinite;
+  }
+  @keyframes loadPulse{ 0%,100%{opacity:0.55;} 50%{opacity:1;} }
+
+  .facet-rows{ margin-top:4px; display:flex; flex-direction:column; gap:0; }
+  .facet-row{ display:flex; align-items:baseline; flex-wrap:wrap; gap:5px 6px; padding:7px 0; border-bottom:1px solid var(--line); }
+  .chip-row{ display:flex; flex-wrap:wrap; flex:1 1 0%; min-width:0; gap:5px 6px; }
+  /* #authorSelectWrap keeps .chip-row's proven flex-item sizing (the actual
+     fix -- see the HTML comment above it) but overrides its `display:flex`
+     back to a plain block, since its one child is a <select>, not chips to
+     lay out. The select itself is then just a normal block-level child
+     filling its block parent -- ordinary CSS with no flex/select
+     interaction involved at all. */
+  #authorSelectWrap{ display:block; }
+  #authorSelect{ display:block; width:100%; box-sizing:border-box; }
+
+  /* Mobile-only compact chrome: a <select> standing in for the view-tab
+     buttons (saves the second wrapped row), and a collapsible filter panel
+     so Course/Cuisine/Diet/Include/Exclude don't push every recipe below
+     the fold before you've even seen one. Both are no-ops above 640px --
+     the select stays hidden and #filterPanel is never given .collapsed. */
+  .viewtabs-mobile{ display:none; }
+  /* A small square icon button living right in the search row (not its own
+     full-width bar below it) -- sliders glyph is the universal "filter"
+     symbol, distinct from the heart/star used for Interested/Family. */
+  .filters-toggle{
+    display:none; align-items:center; justify-content:center; position:relative;
+    width:32px; height:32px; flex:0 0 auto; color:var(--ink-soft);
+    background:var(--card); border:1px solid var(--line); border-radius:6px;
+    padding:0; cursor:pointer;
+  }
+  /* Same button stays put whether the panel's open or closed -- it just
+     swaps its icon (sliders -> X) so it still reads as "tap to close"
+     instead of disappearing and leaving a separate close control to find. */
+  /* No icon swap on open anymore -- the individual source/course/etc.
+     buttons already show their own on/off state, so this button just
+     stays a plain, unchanging toggle. */
+  .filters-toggle.open{ border-color:var(--stamp); color:var(--stamp); }
+  .filters-toggle-badge{
+    position:absolute; top:-6px; right:-6px;
+    font-size:10px; font-variant-numeric:tabular-nums; color:var(--paper); background:var(--stamp);
+    border-radius:9px; padding:1px 5px; line-height:1.5; border:1.5px solid var(--paper);
+  }
+  .facet-name{
+    font-family:'Nunito Sans', sans-serif; font-size:11px; font-weight:500;
+    text-transform:uppercase; letter-spacing:0.07em; color:var(--ink-faint);
+    width:140px; flex:0 0 auto; padding-top:4px; white-space:nowrap;
+  }
+  .facet-link{
+    display:inline-flex; align-items:baseline; gap:4px;
+    font-family:'Nunito Sans',sans-serif; font-size:12.5px; color:var(--ink);
+    background:var(--card); border:1px solid var(--line); border-radius:6px;
+    padding:3px 8px; cursor:pointer; white-space:nowrap; line-height:1.3;
+    transition:background .12s ease, border-color .12s ease, color .12s ease;
+  }
+  .cuisine-select-mobile{ display:none; }
+  .chip-break{ display:none; flex-basis:100%; height:0; }
+  .ing-row{ gap:14px; flex-wrap:nowrap; }
+  .ing-col{ flex:1 1 0; min-width:0; display:flex; flex-direction:column; gap:6px; }
+  .ing-col input{
+    background:var(--card); border:1px solid var(--line); border-radius:6px;
+    font-family:'Nunito Sans',sans-serif; font-size:13px; line-height:1.3;
+    color:var(--ink); padding:4px 8px; width:100%;
+  }
+  .diet-abbr{ display:none; }
+  .facet-link:hover{border-color:var(--stamp);}
+  .facet-link.active{ color:var(--paper); background:var(--stamp); border-color:var(--stamp); font-weight:500; }
+  .facet-link .n, .tb-btn .n{color:var(--ink-faint); font-size:11px;}
+  .facet-link.active .n, .tb-btn.on .n{ color:var(--paper); opacity:0.75; }
+
+  button.clear-btn{
+    font-family:'Nunito Sans', sans-serif; font-size:12.5px;
+    color:var(--ink); background:var(--card);
+    border:1px solid var(--line); border-radius:6px; padding:3px 8px; cursor:pointer; line-height:1.3;
+  }
+  button.clear-btn:hover{ color:var(--alert) !important; border-color:var(--alert) !important; }
+
+  /* was background:var(--line) with a matching 1px border -- that's a
+     common CSS Grid trick (grid background shows through the 1px gaps as
+     hairlines between cards), but it also paints the grid's own padding
+     box that color, plus the border draws an outline around the whole
+     thing -- together that reads as a visibly different grey panel sitting
+     under the filter controls rather than the same page surface continuing
+     underneath them. Cards already read as distinct from the page via
+     their own --card background, so the frame/tint isn't needed for
+     separation -- background matches the page now, gap shows page-color
+     hairlines (i.e. none, visually), and the border is gone. More top
+     padding also gives Show/Clear filters real breathing room before the
+     first row of cards on desktop, where 8px read as cramped. */
+  .grid{
+    max-width:var(--maxw); margin:0 auto; padding:24px 24px 100px;
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 265px), 1fr));
+    gap:1px; background:var(--paper);
+  }
+  .empty-state{
+    grid-column:1/-1; text-align:center; padding:90px 20px; color:var(--ink-soft);
+    font-family:'Nunito Sans',sans-serif; font-style:italic; font-size:18px; background:var(--paper);
+  }
+  #loadMoreWrap{ max-width:var(--maxw); margin:0 auto; padding:0 24px; text-align:center; }
+  .load-more-btn{
+    font-family:'Nunito Sans',sans-serif; font-size:13px; color:var(--ink); background:var(--card);
+    border:1px solid var(--line); border-radius:6px; padding:10px 20px; margin:18px 0; cursor:pointer;
+  }
+  .load-more-btn:hover{ border-color:var(--stamp); color:var(--stamp); }
+
+  .card{
+    background:var(--card); padding:12px 18px 10px; cursor:pointer;
+    display:flex; flex-direction:column; min-height:196px; position:relative;
+    transition:background .12s ease; min-width:0; overflow-x:hidden;
+  }
+  .card:hover{background:var(--card-hover);}
+  .card:hover .card-title{color:var(--stamp);}
+  /* Absolute overlay at the card's top-right, floating over the title's own
+     corner rather than taking a line/row of its own anywhere -- the title
+     already reserves room there via its own right padding below. */
+  .card-icons{
+    position:absolute; top:10px; right:12px; z-index:1;
+    display:flex; align-items:center; gap:5px;
+  }
+  .family-mark{ color:var(--stamp); flex:0 0 auto; }
+  .interested-star{
+    background:none; border:none; cursor:pointer; padding:0; flex:0 0 auto;
+    font-size:14px; line-height:1; color:var(--ink-faint); opacity:0.55;
+  }
+  .interested-star:hover{ opacity:1; color:var(--stamp); }
+  .interested-star.on{ color:var(--stamp); opacity:1; }
+  .card-top{ display:flex; flex-wrap:wrap; align-items:flex-start; margin-bottom:10px; gap:6px; }
+  .stamp-badge{
+    font-family:'Nunito Sans', sans-serif; font-weight:500; font-size:10px; text-transform:uppercase;
+    letter-spacing:0.04em; color:var(--stamp); border:1px solid var(--stamp);
+    padding:3px 8px; border-radius:5px; white-space:nowrap;
+  }
+  .card-title{
+    font-family:'Bitter',serif; font-weight:600; font-size:15.5px;
+    line-height:1.25; margin:0 0 8px; transition:color .12s ease;
+    overflow-wrap:anywhere; padding-right:34px;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  /* dishes shown as "Native Name (English Name)" run longer than a normal
+     title, so they get a smaller size to fit without dominating the card. */
+  .card-title.dual-name{ font-size:13.5px; line-height:1.28; }
+  /* Inline Labels: Type/Time/With(or Made)/Author/Added each get a small
+     caps label baked into the line instead of separate badges/footer --
+     one continuous run of text per fact, all the same visual weight. */
+  .card-line{
+    font-family:'Nunito Sans',sans-serif; font-size:11.5px; color:var(--ink-soft);
+    line-height:1.5; margin:0 0 3px; overflow-wrap:anywhere;
+  }
+  .card-line:last-child{ margin-bottom:0; }
+  .card-line-label{
+    font-weight:600; text-transform:uppercase; font-size:9.5px; letter-spacing:.06em;
+    color:var(--ink-faint); margin-right:6px;
+  }
+  /* title stays pinned to the top of the card; the label lines push to the
+     bottom via the auto margin, so cards of different heights still align
+     their fact-lines at the same baseline instead of trailing wherever the
+     title's own line-count happens to end. */
+  .card-lines{ margin-top:auto; }
+
+  .modal-overlay{
+    position:fixed; inset:0; background:var(--scrim); display:none;
+    align-items:flex-start; justify-content:center; z-index:100;
+    padding:clamp(0px, 3vw, 40px) clamp(0px, 2vw, 16px); overflow-y:auto;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal{
+    background:var(--card); max-width:960px; width:100%; box-sizing:border-box;
+    box-shadow:0 40px 80px rgba(0,0,0,0.25); position:relative; overflow-x:hidden;
+    animation:modalIn .2s cubic-bezier(.2,.8,.3,1); margin-bottom:40px; border-top:3px solid var(--stamp);
+  }
+  @keyframes modalIn{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
+  .modal-inner{ display:grid; grid-template-columns:220px 1fr; }
+  .modal-close{
+    position:absolute; top:18px; right:18px; width:30px; height:30px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    font-size:19px; color:var(--ink-soft); line-height:1; font-family:'Nunito Sans', sans-serif; z-index:1;
+  }
+  .modal-close:hover{color:var(--ink);}
+  .modal-side{
+    background:var(--stamp-soft); border-right:1px solid var(--line);
+    padding:clamp(20px, 3.5vw, 28px) clamp(16px, 3vw, 22px);
+  }
+  .modal-sidelabel{
+    font-family:'Nunito Sans', sans-serif; font-weight:600; font-size:10px; text-transform:uppercase;
+    letter-spacing:0.08em; color:var(--stamp); margin:18px 0 4px;
+  }
+  .modal-sidelabel:first-child{ margin-top:0; }
+  .modal-sideval{ font-family:'Nunito Sans',sans-serif; font-size:12.5px; color:var(--ink); line-height:1.4; }
+  .modal-main{ padding:clamp(20px, 3.5vw, 32px) clamp(16px, 4vw, 40px) 40px; min-width:0; }
+  .modal h2{
+    font-family:'Bitter',serif; font-weight:600; font-size:clamp(20px, 4.4vw, 26px);
+    line-height:1.18; margin:0 0 20px; padding-right:20px; overflow-wrap:anywhere;
+  }
+  .modal h2.dual-name{ font-size:clamp(16px, 4vw, 21px); line-height:1.2; }
+  .tags{display:flex; gap:6px; flex-wrap:wrap; margin:2px 0 0;}
+  /* mobile-only (see the max-width:640px block below for the shown state) --
+     hidden by default so desktop and print (neither matches that screen
+     media query) don't show these duplicated alongside the sidebar copy.
+     .modal-tags-mobile placed after .tags above so this display:none wins
+     the same-specificity source-order tiebreak against it. */
+  .modal-actions-mobile, .modal-meta-grid, .modal-tags-mobile{ display:none; }
+  .tagpill{
+    font-family:'Nunito Sans', sans-serif; font-size:9.5px; text-transform:uppercase;
+    letter-spacing:0.05em; border:1px solid var(--line); padding:2px 9px; color:var(--ink-soft);
+  }
+  .section-title{
+    font-family:'Nunito Sans', sans-serif; font-size:10.5px; text-transform:uppercase;
+    letter-spacing:0.11em; color:var(--stamp); margin:22px 0 10px;
+  }
+  .ing-list{list-style:none; margin:0; padding:0; columns:2; column-gap:32px;}
+  .ing-list li{
+    padding:5px 0 5px 20px; position:relative; font-size:var(--recipe-font);
+    line-height:1.35; border-bottom:1px solid var(--hair); break-inside:avoid; overflow-wrap:anywhere;
+  }
+  /* the step badge gets its own reserved column, right-aligned, present or
+     not -- appending it inline after the text only when a match exists made
+     lines without one look like something was missing/cut off rather than
+     just "no step reference for this one" */
+  .ing-list li:not(.heading){ display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+  .ing-text{ flex:1; }
+  .ing-badge-slot{ flex:none; min-width:16px; text-align:right; }
+  .ing-list li.heading{
+    font-weight:600; font-family:'Nunito Sans', sans-serif; font-size:10.5px;
+    text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft);
+    padding-left:0; border-bottom:none; margin-top:10px; column-span:all;
+  }
+  .ing-list li.heading:first-child{margin-top:0;}
+  .ing-list li:not(.heading)::before{
+    content:""; position:absolute; left:1px; top:13px; width:5px; height:5px;
+    background:var(--stamp); border-radius:50%; opacity:0.55;
+  }
+  .steps{list-style:none; counter-reset:step; margin:0; padding:0;}
+  .steps li{ counter-increment:step; padding:0 0 13px 34px; position:relative; font-size:var(--step-font); line-height:1.45; overflow-wrap:anywhere; }
+  .steps li::before{
+    content:counter(step); position:absolute; left:0; top:0;
+    width:22px; height:22px; border-radius:50%; border:1.5px solid var(--stamp);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Nunito Sans',sans-serif; font-weight:700; font-size:12px; color:var(--stamp);
+  }
+  .steps li strong{ font-weight:700; color:var(--ink); }
+  .notes-box{
+    margin-top:20px; background:var(--stamp-soft); padding:13px 18px;
+    border-radius:2px; font-size:13px; line-height:1.42; color:#1c2c3d;
+  }
+  .notes-box .notes-label{
+    font-family:'Nunito Sans', sans-serif; font-size:9.5px; text-transform:uppercase;
+    letter-spacing:0.08em; color:var(--stamp); margin-bottom:6px; display:block;
+  }
+
+  footer{
+    text-align:center; padding:30px 20px 60px; font-family:'Nunito Sans', sans-serif;
+    font-size:11px; color:var(--ink-faint); letter-spacing:0.03em;
+  }
+
+  @media (max-width:640px){
+    .masthead-inner{padding:12px 20px 8px;}
+    .controls{padding:2px 20px 4px;}
+    .facet-rows{margin-top:0;}
+    #filterPanel{padding-bottom:0;}
+    .grid{padding:8px 10px 90px; grid-template-columns:1fr; gap:1px;}
+    .card{min-height:auto; padding:10px 15px 8px;}
+    .months-wrap{ grid-template-columns:1fr; }
+    .ing-list{columns:1;}
+    .facet-name{width:100%; margin-bottom:4px; padding-top:0;}
+    /* Was forcing the input to full width, pushing "955 / 955" onto its own
+       line below -- letting the input keep its desktop flex-grow behavior
+       (shrink to make room, rather than claim the whole row) puts the count
+       back on the same line, to its right. */
+    .search-row input{ flex:1 1 140px; min-width:100px; }
+    /* Tabs: swap the two-row button grid for a single compact select.
+       !important because a later, unguarded `.viewtabs{display:flex}` base
+       rule (Phase 2 styles, further down the file) would otherwise win this
+       cascade tie by source order despite this media query matching --
+       confirmed as the actual cause of the tabs and the mobile dropdown
+       both rendering at once. */
+    .viewtabs{ display:none !important; }
+    .viewtabs-mobile{
+      display:block; font-family:'Nunito Sans',sans-serif; font-size:13px; font-weight:600;
+      color:var(--stamp); background:var(--card); border:1px solid var(--stamp); border-radius:6px;
+      padding:6px 10px; max-width:100%;
+      /* fills the row up to the Dark/synced group instead of shrinking to
+         "Cookbook"'s own text width and leaving a dead gap before them. */
+      flex:1 1 auto;
+    }
+    /* Filters: collapsed by default (JS adds/removes .open), chip rows
+       become single horizontally-swipeable lines instead of wrapping to
+       many -- Cuisine alone was 7 rows tall before a single recipe showed. */
+    .filters-toggle{ display:flex; }
+    .filter-panel{ display:none; }
+    .filter-panel.open{ display:block; }
+    /* Course/Cuisine/Diet chips wrap (not a horizontal scroll) at a smaller
+       size so most/all values are visible without swiping -- Cuisine still
+       has too many distinct values to ever fit this way (see its own
+       cuisine-scroll rule below, which keeps the old swipeable single line
+       just for that one row). */
+    .chip-row{ flex-wrap:wrap; width:100%; }
+    .chip-break{ display:block; }
+    #categoryChips{ justify-content:center; }
+    /* V/VG/GF/DF as 4 equal-width columns spanning the full row, like a
+       segmented control, instead of auto-width pills that wrap. */
+    .diet-full{ display:none; }
+    .diet-abbr{ display:inline; }
+    #dietChips{ flex-wrap:nowrap; }
+    #dietChips .facet-link{ flex:1 1 0; min-width:0; text-align:center; justify-content:center; }
+    /* Every row in the mobile filter panel gets the SAME top/bottom padding
+       -- previously each row had its own one-off value (2px here, 3px
+       there, 9px somewhere else, several as asymmetric top-only or
+       bottom-only overrides compensating for a since-fixed layout quirk),
+       which is exactly what made the vertical rhythm read as "all over the
+       place" rather than a consistent list. One value, applied uniformly,
+       replaces all of that patchwork. */
+    .facet-row{ padding:5px 0; }
+    #sourceToolbar .tb-group{ justify-content:center; padding:5px 0; }
+    #showGroup{ justify-content:center; padding:5px 0 2px; }
+    /* Include/Exclude keeps its border removed (the Author row right after
+       it already reads as the next section) but the same uniform padding
+       as every other row. */
+    #filterPanel .ing-row{ border-bottom:none; padding-bottom:5px; }
+    #filterPanel .facet-link{ font-size:11px; padding:2px 6px; }
+    #filterPanel .facet-link .n, #filterPanel .tb-btn .n{ font-size:9.5px; }
+    #cuisineChips{ display:none; }
+    .cuisine-select-mobile{ display:block; width:100%; font-size:12.5px; padding:4px 8px; }
+    .ing-row{ gap:8px; }
+    .ing-col input{ font-size:12.5px; }
+    /* Titles like "Course"/"Cuisine"/"Diet"/"Show" are redundant with their
+       own chip labels once every row is this tight on space -- Search,
+       Author/Cookbook and Sort keep theirs since a bare input/select isn't
+       self-explanatory the way "Vegetarian" or "Appetizer" already are. */
+    .mobile-hide-label{ display:none; }
+    .compact-group{ gap:4px 6px; }
+    .compact-group .tb-btn{ font-size:11px; padding:2px 6px; }
+    .toolbar label.tb-name{width:100%; margin-bottom:4px;}
+    .toolbar .tb-name-spacer{display:none;}
+    /* Cuisine's select is still a direct flex item of its .facet-row (its
+       chip-row sibling is display:none on mobile, this is the only visible
+       child) -- flex-basis:100% explicitly, not "auto" relying on width to
+       feed it, since a flex-item <select> falling back to its own
+       intrinsic content width is a known cross-browser inconsistency. */
+    #cuisineSelect{
+      display:block; width:100% !important; flex:1 1 100% !important; min-width:0; box-sizing:border-box;
+      text-align:center; text-align-last:center;
+    }
+    /* Author's select is never a flex item at all (see #authorSelectWrap
+       above it) -- centered per request, same as Cuisine, but no flex
+       properties needed since it's just a block child filling its wrapper. */
+    #authorSelect{ text-align:center; text-align-last:center; }
+    /* Clear filters + Sort (select and its ↑/↓ button) read as cramped/
+       clipped at the same compact size as the Show toggle buttons -- give
+       just these three a bit more room instead. */
+    #showGroup .clear-btn, #showGroup #sortSelect, #showGroup #sortDirBtn{ font-size:12px; padding:3px 9px; }
+    #showGroup #sortSelect{ max-width:60%; }
+    /* Never made/Made/Needs Extra Prep/Interested stretch to fill the row
+       evenly (like Diet's V/VG/GF/DF segmented control above) instead of
+       sitting as left-clustered auto-width pills with empty space after. */
+    #showGroup [data-made], #showGroup #aheadBtn{ flex:1 1 0; text-align:center; }
+    .sort-row{ display:flex; flex-basis:100%; justify-content:center; gap:6px; margin-top:6px; }
+    /* a recipe already behaves like its own "page" (opening it pushes a real
+       #r/<id> history entry, so the phone's back gesture just closes it and
+       lands back on the filtered grid instead of leaving the site) -- the
+       one thing missing on a small screen was that it still looked like a
+       card floating over the grid instead of a full page. Edge-to-edge with
+       a sticky close bar reads as "you're now on the recipe" the way a real
+       page navigation would, without giving up the state-preserving modal. */
+    .modal-overlay{ padding:0; align-items:stretch; }
+    .modal{
+      max-width:none; width:100vw; min-height:100vh; margin-bottom:0;
+      border-top-width:2px; border-radius:0; box-shadow:none;
+    }
+    /* Shrunk from 44px/border-bottom -- with the title now leading right
+       after it (metadata moved down/into the condensed grid), this read as
+       a heavy divider bar sitting in the way rather than a small close
+       affordance. */
+    /* position:fixed instead of sticky -- sticky still reserves its own
+       full-width row in the document flow (height alone, ~34px, was still
+       "space above the title" no matter how small); fixed removes it from
+       flow entirely so the title starts at the true top of the modal, while
+       staying reachable when scrolled since it's pinned to the viewport,
+       not the page. */
+    .modal-close{
+      position:fixed; top:8px; right:8px; z-index:2;
+      width:30px; height:30px; font-size:18px;
+      background:var(--card); border-radius:50%; box-shadow:0 1px 4px rgba(0,0,0,.25);
+    }
+    .modal-inner{ grid-template-columns:1fr; }
+    /* Everything modal-side used to hold on mobile has moved into
+       modal-main now (actions + metadata grid up top, cook panel at the
+       bottom) -- the sidebar itself would just be an empty box with its
+       own padding/border left over, which was the source of the stray gap
+       above the title. */
+    .modal-side{ display:none; }
+    /* Recipe modal, mobile: title/actions/metadata used to be a full vertical
+       list (modal-side) stacking ABOVE the title+ingredients, pushing both
+       below the fold. Now: title leads, a slim action row, tags, then a
+       condensed metadata grid -- ingredients follow immediately after. */
+    #modalActionsTop, .modal-meta-desktop{ display:none; }
+    /* block, not flex -- #modalActionsMobile itself was a flex container,
+       which made its two children (.action-row-top, .make-sub) sit side by
+       side as flex items on ONE row instead of stacking, squeezing the
+       "X of Y ingredients" progress text in next to the Print button
+       instead of appearing below the buttons as its own line. */
+    .modal-actions-mobile{ display:block; padding:0 0 10px; }
+    /* .icon-btn's default (faint text on a faint border, no fill) is meant
+       to read as a quiet secondary action among a lot of other small
+       controls -- fine on desktop's sidebar, but here it's the main
+       action row right under the title, and washed out to the point of
+       looking disabled, especially in dark mode. Full-contrast text + a
+       filled background instead. */
+    .modal-actions-mobile .icon-btn{
+      font-size:10px; padding:5px 3px; flex:1 1 0; text-align:center;
+      color:var(--ink); background:var(--card-hover); white-space:nowrap;
+    }
+    /* Sized by class, not DOM position -- was :first-child, which happened
+       to make Print noticeably bigger than its neighbors whenever Share
+       wasn't available (no navigator.share support) and Print ended up
+       first in the row instead of the actual "Start making" button. */
+    .modal-actions-mobile .make-btn{ flex:1.6 1 0; }
+    .modal-tags-mobile{ display:flex; margin:0 0 8px; }
+    .modal-tags-mobile:empty{ display:none; }
+    .modal-meta-grid{
+      display:grid; grid-template-columns:1fr 1fr; gap:0 14px;
+      border-top:1px solid var(--line); margin-bottom:10px;
+    }
+    .modal-meta-cell{
+      /* was align-items:baseline -- with the label (8.5px) and value
+         (11.5px) at different sizes, baseline alignment lines up their
+         text baselines, not their visual centers, so the smaller label
+         reads as sitting low/off-center relative to the value next to it. */
+      display:flex; align-items:center; gap:5px; padding:5px 0;
+      border-bottom:1px solid var(--line); font-size:11.5px; color:var(--ink); min-width:0;
+    }
+    /* was :nth-last-child(-n+2) to drop the border under the final row --
+       but that counts position among ALL children including any
+       .modal-meta-full rows mixed in (Source/Serves, when long), which
+       shift depending on which fields end up full-width vs paired cells,
+       throwing the pairing off and leaving mismatched border lines.
+       Simpler and predictable: every cell keeps its divider, uniformly. */
+    .modal-meta-cell .lbl{
+      flex:0 0 34px; font-size:8.5px; font-weight:600; text-transform:uppercase;
+      letter-spacing:.07em; color:var(--stamp); white-space:nowrap;
+    }
+    .modal-meta-cell .val{
+      flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    }
+    /* Source/Serves only use this (see openModal) when the value is long
+       enough to be worth its own wrapping line instead of an ellipsis cut --
+       a real sentence like a Serves note or a multi-author byline. */
+    .modal-meta-full{
+      font-size:11.5px; color:var(--ink); padding:0 0 8px; line-height:1.4;
+      border-bottom:1px solid var(--line); margin-bottom:2px; grid-column:1 / -1;
+    }
+    .modal-meta-full .lbl{
+      font-size:8.5px; font-weight:600; letter-spacing:.07em; text-transform:uppercase;
+      color:var(--stamp); margin-right:5px;
+    }
+    /* long titles (dual-name or just long) drop a size and allow a 3rd
+       wrapped line instead of eating the fold on their own. */
+    .modal h2.long-title{
+      font-size:15px; line-height:1.28; -webkit-line-clamp:3; display:-webkit-box;
+      -webkit-box-orient:vertical; overflow:hidden;
+    }
+    /* "Ingredients" as its own section heading was redundant space once the
+       list sits right under the scale bar with nothing else it could be --
+       "Method" stays, since steps aren't otherwise self-evidently labeled. */
+    /* was .section-title:first-of-type -- :first-of-type matches by tag
+       name (div), not class, and #modalActionsMobile/#modalTagsMobile/
+       #modalMetaGrid/#modalAhead are ALSO divs sitting before this one, so
+       it never actually matched "Ingredients" at all. Targeting the
+       specific element directly instead. */
+    #ingredientsSectionTitle{ display:none; }
+    .modal-meta-grid{ margin-bottom:6px; }
+    #modalScale .scale-bar{ margin:2px 0 8px; }
+  }
+  /* A regular iPhone's viewport (~390px or narrower) is tight enough that
+     the source pills ("Other" wrapping to its own line) and the Show
+     buttons ("Interested" wrapping below its row-mates) no longer fit on
+     one line each at the sizing above -- confirmed fine on an iPhone Max's
+     wider (~430px) viewport, broken below that. Shrinking just these two
+     compact-group rows a bit further reclaims enough width for both to
+     stay on one line at any phone size, without touching anything else. */
+  @media (max-width:400px){
+    .compact-group .tb-btn{ font-size:10px; padding:2px 5px; }
+    .compact-group{ gap:3px 4px; }
+  }
+  /* ---------- Phase 1: tracking + scaling ---------- */
+  /* .toolbar now lives nested inside #filterPanel (itself inside .controls,
+     which already supplies the left/right padding) alongside the Course/
+     Cuisine/Diet .facet-rows -- so it no longer gets its own max-width/
+     margin/padding (that was from when it was a standalone sibling of
+     .controls and would double up with the parent's padding, indenting it
+     out of alignment with the facet-rows next to it). Each .tb-group now
+     renders exactly like a .facet-row (same padding/border) instead of a
+     visually distinct block. */
+  /* was padding-bottom:10px here -- this unguarded base rule sits AFTER the
+     mobile media query's #filterPanel{padding-bottom:0} in source order, so
+     it was winning the cascade tie regardless of the media query matching
+     (same class of bug as the earlier .viewtabs one) and silently undoing
+     that fix. The last .toolbar's own :last-child rule below already zeroes
+     its own bottom padding, and .controls supplies outer breathing room
+     before the grid -- nothing else needs adding here. */
+  #filterPanel{ padding-bottom:0; }
+  .toolbar{ display:flex; flex-wrap:wrap; }
+  .toolbar .tb-group{
+    display:flex; align-items:baseline; flex-wrap:wrap; gap:5px 6px; flex-basis:100%;
+    padding:7px 0; border-bottom:1px solid var(--line);
+  }
+  #filterPanel .toolbar:last-child .tb-group{ border-bottom:none; padding-bottom:0; }
+  .toolbar label.tb-name, .toolbar .tb-name-spacer{
+    font-family:'Nunito Sans', sans-serif; font-size:11px; font-weight:500; text-transform:uppercase;
+    letter-spacing:0.07em; color:var(--ink-faint);
+    width:140px; flex:0 0 auto; white-space:nowrap;
+  }
+  /* Author/Show controls match the facet chips exactly -- same padding,
+     radius, font-size -- instead of reading as a heavier, separate kind
+     of control than the chips right above them. */
+  select.tb-select{
+    font-family:'Nunito Sans',sans-serif; font-size:12.5px; color:var(--ink); line-height:1.3;
+    background:var(--card); border:1px solid var(--line); border-radius:6px;
+    padding:3px 8px; cursor:pointer;
+    /* iOS Safari's native select chrome has been seen to ignore an explicit
+       width:100% in some flex contexts, which was the likely cause of
+       Author/Cuisine measuring differently on an actual phone despite
+       identical CSS -- stripping native appearance and drawing our own
+       arrow removes that platform-rendering variable entirely. */
+    -webkit-appearance:none; appearance:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b616c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat:no-repeat; background-position:right 8px center; background-size:13px;
+    padding-right:26px;
+  }
+  .tb-spacer{ flex:1 1 auto; }
+  button.tb-btn{
+    font-family:'Nunito Sans', sans-serif; font-size:12.5px; color:var(--ink);
+    background:var(--card); line-height:1.3;
+    border:1px solid var(--line); border-radius:6px; padding:3px 8px; cursor:pointer;
+  }
+  button.tb-btn:hover{ border-color:var(--stamp); }
+  button.tb-btn.on{ color:var(--paper); background:var(--stamp); border-color:var(--stamp); }
+
+  .ahead-pill{
+    font-family:'Nunito Sans', sans-serif; font-size:9px; text-transform:uppercase;
+    letter-spacing:0.07em; color:var(--alert); background:var(--alert-soft);
+    border:1px solid var(--alert); border-radius:2px; padding:2px 6px; white-space:nowrap;
+  }
+
+  /* scaling */
+  .scale-bar{
+    display:flex; align-items:center; flex-wrap:wrap; gap:10px;
+    border:1px solid var(--line); background:var(--paper);
+    border-radius:3px; padding:9px 12px; margin:2px 0 14px;
+  }
+  .scale-bar .sb-label{
+    font-family:'Nunito Sans', sans-serif; font-size:10px; text-transform:uppercase;
+    letter-spacing:0.08em; color:var(--ink-faint);
+  }
+  .scale-bar.active{ border-color:var(--stamp); background:var(--stamp-soft); }
+  .scale-bar.active .sb-label{ color:var(--stamp); }
+  .step{ display:flex; align-items:center; gap:0; }
+  .step button{
+    width:26px; height:26px; line-height:1; font-size:15px; cursor:pointer;
+    background:var(--card); border:1px solid var(--line); color:var(--ink);
+  }
+  .step button:first-child{ border-radius:3px 0 0 3px; }
+  .step button:last-child{ border-radius:0 3px 3px 0; }
+  .step .step-val{
+    min-width:54px; text-align:center; padding:0 8px; height:26px; line-height:26px;
+    border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+    background:var(--card); font-family:'Nunito Sans',sans-serif; font-size:13px; font-weight:600;
+  }
+  .mult-btn{
+    font-family:'Nunito Sans', sans-serif; font-size:10px; cursor:pointer;
+    background:var(--card); border:1px solid var(--line); border-radius:3px;
+    padding:5px 9px; color:var(--ink-soft);
+  }
+  .mult-btn:hover{ color:var(--stamp); border-color:var(--stamp); }
+  .mult-btn.on{ color:#fff; background:var(--stamp); border-color:var(--stamp); }
+  .unscaled-note{ color:var(--ink-faint); font-size:11px; font-style:italic; white-space:nowrap; }
+  /* which step this ingredient is first needed in -- outlined only (not
+     filled), small, so it reads as a quiet cross-reference rather than
+     something competing for attention in the ingredient list */
+  .step-badge{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:16px; height:16px; border-radius:50%; border:1px solid var(--stamp);
+    color:var(--stamp); font-family:'Nunito Sans',sans-serif; font-weight:700; font-size:9px;
+    margin-left:5px; vertical-align:middle;
+  }
+
+  /* cooked panel */
+  .cook-panel{ border-top:1px solid var(--line); margin-top:26px; padding-top:18px; }
+  .cook-row{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+  .cook-btn{
+    font-family:'Nunito Sans', sans-serif; font-size:11px; text-transform:uppercase;
+    letter-spacing:0.07em; color:#fff; background:var(--stamp); border:1px solid var(--stamp);
+    border-radius:3px; padding:8px 14px; cursor:pointer;
+  }
+  .cook-btn:hover{ opacity:.88; }
+  .cook-form{ display:none; margin-top:12px; gap:10px; flex-wrap:wrap; align-items:center; }
+  .cook-form.open{ display:flex; }
+  .cook-form input[type=date], .cook-form input[type=text]{
+    font-family:'Nunito Sans',sans-serif; font-size:13px; padding:6px 8px;
+    border:1px solid var(--line); border-radius:3px; background:var(--card); color:var(--ink);
+  }
+  .cook-form input[type=text]{ flex:1 1 220px; }
+  .rate-pick{ display:flex; gap:2px; cursor:pointer; font-size:17px; color:var(--line); }
+  .rate-pick span:hover, .rate-pick span.lit{ color:var(--gold); }
+  .cook-hist{ margin-top:14px; display:flex; flex-direction:column; gap:7px; }
+  .cook-hist-item{
+    display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
+    font-size:13px; color:var(--ink-soft); padding-bottom:7px; border-bottom:1px dotted var(--line);
+  }
+  .cook-hist-item .ch-date{ font-family:'Nunito Sans', sans-serif; font-size:11px; color:var(--ink); }
+  .cook-hist-item .ch-note{ font-style:italic; }
+  .ch-hh{ font-size:10px; text-transform:uppercase; letter-spacing:0.4px; color:var(--ink-faint); border:1px solid var(--line); border-radius:3px; padding:1px 4px; }
+  .ch-del{ margin-left:auto; cursor:pointer; color:var(--ink-faint); font-size:11px; }
+  .ch-del:hover{ color:var(--alert); }
+  .cook-empty{ color:var(--ink-faint); font-style:italic; font-size:13px; margin-top:10px; }
+  @media (max-width:640px){
+    .toolbar{ padding:0 14px 14px; }
+  }
+  /* ---------- Phase 2: planner + history ---------- */
+  .viewtabs{ display:flex; align-items:center; gap:4px; }
+  .viewtabs .vt{
+    font-family:'Nunito Sans', sans-serif; font-size:10.5px; text-transform:uppercase;
+    letter-spacing:0.09em; color:var(--ink-soft); background:transparent;
+    border:1px solid var(--line); border-radius:3px; padding:7px 14px; cursor:pointer;
+  }
+  .viewtabs .vt:hover{ color:var(--stamp); border-color:var(--stamp); }
+  .viewtabs .vt.on{ color:#fff; background:var(--stamp); border-color:var(--stamp); }
+
+  .planwrap{ max-width:var(--maxw); margin:0 auto; padding:22px clamp(12px,2.6vw,32px) 100px; }
+  .plan-head{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:16px; }
+  .plan-nav{ display:flex; align-items:center; gap:6px; }
+  .plan-range{
+    font-family:'Bitter',serif; font-weight:600; font-size:16px;
+    padding:0 8px; white-space:nowrap;
+  }
+  .week{
+    display:grid; grid-template-columns:repeat(7, 1fr);
+    gap:1px; background:var(--line); border:1px solid var(--line);
+  }
+  .day{ background:var(--card); min-height:210px; display:flex; flex-direction:column; padding:10px 11px 12px; }
+  .day.today{ background:var(--today); box-shadow:inset 0 3px 0 var(--stamp); }
+  .day.past{ background:var(--past); }
+  .day-head{
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-family:'Nunito Sans', sans-serif; font-size:10px; text-transform:uppercase;
+    letter-spacing:0.08em; color:var(--ink-faint); margin-bottom:9px;
+  }
+  .day-head .dnum{ font-size:13px; color:var(--ink); letter-spacing:0; }
+  .slot-empty{
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
+  }
+  .slot-empty button{
+    font-family:'Nunito Sans', sans-serif; font-size:10px; color:var(--ink-faint);
+    background:transparent; border:1px dashed var(--line); border-radius:3px;
+    padding:6px 10px; cursor:pointer; width:100%;
+  }
+  .slot-empty button:hover{ color:var(--stamp); border-color:var(--stamp); }
+  .slot{ flex:1; display:flex; flex-direction:column; }
+  .slot-title{
+    font-family:'Bitter',serif; font-weight:600; font-size:13.5px; line-height:1.3;
+    cursor:pointer; margin-bottom:6px;
+  }
+  .slot-title:hover{ color:var(--stamp); }
+  .slot-meta{
+    font-family:'Nunito Sans', sans-serif; font-size:9px; color:var(--ink-faint);
+    letter-spacing:0.04em; display:flex; flex-wrap:wrap; gap:5px; margin-bottom:auto;
+  }
+  .slot-actions{ display:flex; flex-wrap:wrap; gap:4px; margin-top:9px; }
+  .slot-actions button{
+    font-family:'Nunito Sans', sans-serif; font-size:9px; text-transform:uppercase;
+    letter-spacing:0.05em; color:var(--ink-soft); background:var(--paper);
+    border:1px solid var(--line); border-radius:2px; padding:4px 6px; cursor:pointer;
+  }
+  .slot-actions button:hover{ color:var(--stamp); border-color:var(--stamp); }
+  .slot-actions button.done{ color:#fff; background:var(--stamp); border-color:var(--stamp); }
+  .slot.leftover .slot-title{ font-style:italic; color:var(--ink-soft); font-weight:500; }
+  /* a day can hold several dishes now (lunch + dinner, more than one each) --
+     each meal gets its own labeled block instead of one slot filling the card */
+  .meal-block{ display:flex; flex-direction:column; margin-bottom:10px; }
+  .meal-block:last-child{ margin-bottom:0; }
+  .meal-label{ font-family:'Nunito Sans', sans-serif; font-size:9px; text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-faint); margin-bottom:4px; }
+  .meal-block .slot{ flex:none; border:1px solid var(--line); border-radius:3px; padding:8px; margin-bottom:6px; }
+  .meal-block .slot-empty{ flex:none; padding:4px 0; }
+  .lo-pill{
+    font-family:'Nunito Sans', sans-serif; font-size:8.5px; text-transform:uppercase;
+    letter-spacing:0.07em; background:var(--stamp-soft); color:var(--stamp);
+    border-radius:2px; padding:2px 5px;
+  }
+  .cooked-flag{ color:var(--stamp); }
+
+  .prep-strip{
+    border:1px solid var(--alert); background:var(--alert-soft);
+    border-radius:3px; padding:11px 14px; margin-bottom:14px; font-size:13.5px;
+  }
+  .prep-strip b{ font-weight:600; }
+  .prep-strip .pline{ margin-top:5px; }
+  .prep-strip .pline:first-of-type{ margin-top:8px; }
+
+  .useup-strip{
+    border:1px solid var(--stamp); background:var(--stamp-soft);
+    border-radius:3px; padding:11px 14px; margin-bottom:14px; font-size:13.5px;
+  }
+  .useup-strip b{ font-weight:600; }
+  .useup-card{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    margin-top:8px; padding-top:8px; border-top:1px solid var(--line);
+  }
+  .useup-card:first-of-type{ border-top:none; padding-top:0; }
+  .useup-card .uc-why{ color:var(--ink-faint); font-size:12px; }
+
+  .week-summary{
+    display:flex; flex-wrap:wrap; gap:18px; margin-top:16px; padding-top:14px;
+    border-top:1px solid var(--line);
+    font-family:'Nunito Sans', sans-serif; font-size:10.5px; color:var(--ink-soft);
+    letter-spacing:0.04em;
+  }
+  .week-summary b{ color:var(--ink); font-weight:600; }
+
+  /* shopping + prep panel */
+  .shop{ margin-top:22px; border:1px solid var(--line); background:var(--card); padding:20px 22px; }
+  .shop h3{
+    font-family:'Nunito Sans', sans-serif; font-size:11px; text-transform:uppercase;
+    letter-spacing:0.1em; color:var(--ink-soft); margin:0; font-weight:500;
+  }
+  .shop-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+  .shop-head-actions{ display:flex; gap:8px; flex-wrap:wrap; }
+  .shop-lists{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px; padding-bottom:14px; border-bottom:1px solid var(--line); }
+  .shop-cols{ columns:3; column-gap:32px; }
+  .shop-sec{ break-inside:avoid; margin-bottom:16px; }
+  .shop-sec h4{
+    font-family:'Nunito Sans', sans-serif; font-size:10px; text-transform:uppercase;
+    letter-spacing:0.08em; color:var(--stamp); margin:0 0 6px; font-weight:500;
+    border-bottom:1px solid var(--line); padding-bottom:4px;
+  }
+  .shop-sec ul{ list-style:none; margin:0; padding:0; }
+  .shop-sec li{ display:flex; align-items:baseline; gap:6px; font-size:13px; line-height:1.5; color:var(--ink); padding:1px 0; }
+  .shop-sec li .from{ color:var(--ink-faint); font-size:11px; }
+  .shop-check{ cursor:pointer; flex:0 0 auto; color:var(--stamp); }
+  .shop-item-text{ flex:1 1 auto; min-width:0; overflow-wrap:anywhere; }
+  .shop-sec li.shop-checked .shop-item-text{ color:var(--ink-faint); text-decoration:line-through; }
+  .shop-empty{ color:var(--ink-faint); font-style:italic; }
+
+  /* month / history */
+  /* History: reverse-chronological list -- replaced a 4-month calendar
+     grid that was mostly empty cells with entries truncated to ~4
+     characters. Every row reads in full now; a search box + "load more"
+     replace month-paging. */
+  .history-search{
+    display:block; width:100%; max-width:360px; margin:0 0 16px;
+    font-family:'Nunito Sans',sans-serif; font-size:13px; line-height:1.3; color:var(--ink);
+    background:var(--card); border:1px solid var(--line); border-radius:6px; padding:6px 10px;
+  }
+  .history-list{ display:flex; flex-direction:column; }
+  .hist-row{
+    display:flex; align-items:baseline; gap:14px; padding:11px 0;
+    border-bottom:1px solid var(--line); cursor:pointer;
+  }
+  .hist-row:hover .hist-title{ color:var(--stamp); }
+  .hist-date{
+    flex:0 0 62px; font-family:'Nunito Sans', sans-serif; font-size:11px;
+    color:var(--ink-faint); font-variant-numeric:tabular-nums; white-space:nowrap;
+  }
+  .hist-main{ flex:1 1 auto; min-width:0; }
+  .hist-title{
+    font-family:'Bitter',serif; font-weight:600; font-size:14.5px;
+    color:var(--ink); transition:color .12s ease; overflow-wrap:anywhere;
+  }
+  .hist-meta{
+    display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:3px;
+    font-family:'Nunito Sans', sans-serif; font-size:11.5px; color:var(--ink-soft);
+  }
+  .hist-stars{ color:var(--gold); }
+  .hist-hh{
+    font-size:9.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-faint);
+    border:1px solid var(--line); border-radius:3px; padding:1px 5px;
+  }
+  .hist-note{ font-style:italic; }
+  .hist-stats{ display:flex; flex-wrap:wrap; gap:26px; margin-bottom:16px; }
+  .hstat{ font-family:'Nunito Sans', sans-serif; font-size:10.5px; color:var(--ink-faint); letter-spacing:0.05em; }
+  .hstat b{ display:block; font-family:'Bitter',serif; font-weight:600; font-size:21px; color:var(--ink); letter-spacing:-0.01em; font-variant-numeric:tabular-nums; }
+
+  /* picker */
+  .picker-search{ display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin:6px 0 14px; }
+  .picker-search input[type=text]{
+    flex:1 1 180px; min-width:0; font-family:'Nunito Sans',sans-serif; font-size:15px; padding:8px 10px;
+    border:1px solid var(--line); border-radius:3px; background:var(--card); color:var(--ink);
+  }
+  .picker-search label{ display:flex; align-items:center; gap:5px; cursor:pointer; }
+  .picker-course-chips{ display:flex; flex-wrap:wrap; gap:5px 6px; margin:0 0 14px; }
+  .picker-custom{ margin:0 0 14px; }
+  .pc-toggle{ cursor:pointer; font-size:13px; color:var(--ink-soft); text-decoration:underline; text-underline-offset:2px; }
+  .pc-form{ display:none; flex-direction:column; gap:8px; margin-top:10px; }
+  .pc-form.open{ display:flex; }
+  .pc-form input, .pc-form textarea{ padding:7px 9px; border:1px solid var(--line); border-radius:3px; font-size:13.5px; background:var(--paper); color:var(--ink); font-family:inherit; resize:vertical; }
+  .picker-list{ max-height:46vh; overflow-y:auto; border-top:1px solid var(--line); }
+  .prow{
+    display:flex; align-items:baseline; gap:10px; padding:9px 4px;
+    border-bottom:1px solid var(--line); cursor:pointer;
+  }
+  .prow:hover{ background:var(--paper); }
+  .prow .pt{ font-weight:600; font-size:14.5px; flex:1; }
+  .prow .pm{ font-family:'Nunito Sans', sans-serif; font-size:9.5px; color:var(--ink-faint); white-space:nowrap; }
+  .prow .why{ font-family:'Nunito Sans', sans-serif; font-size:9px; color:var(--stamp); white-space:nowrap; }
+  .picker-sug{
+    margin-bottom:12px; padding:12px 14px; background:var(--stamp-soft);
+    border:1px solid var(--stamp); border-radius:3px;
+  }
+  .picker-sug h4{
+    font-family:'Nunito Sans', sans-serif; font-size:10px; text-transform:uppercase;
+    letter-spacing:0.08em; color:var(--stamp); margin:0 0 8px; font-weight:500;
+  }
+
+  @media (max-width:1000px){
+    .week{ grid-template-columns:repeat(2,1fr); }
+    .shop-cols{ columns:2; }
+  }
+  @media (max-width:640px){
+    .planwrap{ padding:16px 14px 90px; }
+    .week{ grid-template-columns:1fr; }
+    /* Meaningfully more compact per-day (smaller padding/fonts/gaps) so more
+       of the week clears the fold before scrolling -- a genuinely
+       zero-scroll 7-day view isn't realistic while every day still shows
+       full add/swap/leftover/cook controls (each needs a real tap target),
+       but this noticeably shortens a typical day. */
+    /* Date moves from its own full-width row above Dinner/Lunch to a
+       narrow column beside them -- a day label ("MON 31") doesn't need a
+       whole row's worth of width just to sit on its own line above
+       everything else. */
+    .day{ min-height:auto; padding:5px 8px 6px; flex-direction:row; align-items:flex-start; gap:8px; }
+    .day-head{
+      flex:0 0 32px; flex-direction:column; align-items:flex-start;
+      justify-content:flex-start; gap:1px; margin-bottom:0;
+    }
+    .day-head .dnum{ font-size:14px; }
+    .day-body{ flex:1 1 auto; min-width:0; }
+    .meal-block{ margin-bottom:3px; }
+    .meal-label{ margin-bottom:1px; font-size:8px; }
+    .meal-block .slot{ padding:6px; margin-bottom:4px; }
+    .slot-title{ font-size:12.5px; margin-bottom:3px; }
+    .slot-meta{ margin-bottom:5px; }
+    .slot-actions{ margin-top:5px; gap:3px; }
+    .slot-actions button{ padding:3px 5px; }
+    .slot-empty{ gap:4px; }
+    .slot-empty button{ padding:3px 6px; font-size:9px; }
+    .shop-cols{ columns:1; }
+    .hist-row{ gap:10px; }
+    .hist-date{ flex-basis:48px; font-size:10px; }
+  }
+  .settings{
+    border:1px solid var(--line); background:var(--card);
+    padding:18px 20px; margin-bottom:16px;
+  }
+  .settings h3{
+    font-family:'Nunito Sans', sans-serif; font-size:11px; text-transform:uppercase;
+    letter-spacing:0.1em; color:var(--ink-soft); margin:0 0 4px; font-weight:500;
+  }
+  .settings p.hint{ font-size:13px; color:var(--ink-soft); margin:0 0 14px; font-style:italic; }
+  .house-row{ display:flex; align-items:center; gap:10px; }
+  .house-row .rday{ font-family:'Nunito Sans', sans-serif; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; }
+  .submit-recipe{ margin-top:18px; padding-top:16px; border-top:1px solid var(--line); }
+  .submit-recipe .rday{ font-family:'Nunito Sans', sans-serif; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; }
+  .submit-recipe input, .submit-recipe select, .submit-recipe textarea{
+    width:100%; box-sizing:border-box; font-family:'Nunito Sans',sans-serif; font-size:13px;
+    padding:7px 9px; border:1px solid var(--line); border-radius:6px; background:var(--paper); color:var(--ink);
+  }
+  .submit-recipe textarea{ resize:vertical; }
+  /* ---------- Phase 5: household storage ---------- */
+  .inv-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:18px; margin-top:10px; }
+  .inv-sec h4{ margin:0 0 8px; font-family:'Nunito Sans', sans-serif; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-soft); }
+  .inv-list{ list-style:none; margin:0 0 10px; padding:0; display:flex; flex-direction:column; gap:6px; }
+  .inv-row{ display:flex; align-items:center; gap:8px; font-size:13.5px; }
+  .inv-name{ flex:1 1 auto; min-width:0; overflow-wrap:anywhere; }
+  .inv-name.inv-out{ color:var(--ink-faint); text-decoration:line-through; }
+  .inv-qty{ color:var(--ink-soft); font-size:12px; white-space:nowrap; }
+  .inv-useby{ font-size:11px; white-space:nowrap; padding:1px 6px; border-radius:3px; }
+  .inv-useby-ok{ color:var(--ink-faint); }
+  .inv-useby-soon, .inv-useby-over{ color:var(--alert); background:var(--alert-soft); font-weight:600; }
+  .inv-empty{ color:var(--ink-faint); font-style:italic; font-size:13px; }
+  .inv-add{ display:flex; gap:6px; flex-wrap:wrap; }
+  .inv-add input{ flex:1 1 70px; min-width:0; padding:5px 7px; border:1px solid var(--line); border-radius:3px; font-size:13px; background:var(--paper); color:var(--ink); }
+  .inv-add input#invName-pantry, .inv-add input#invName-fridge, .inv-add input#invName-freezer, .inv-add input#invName-shopping{ flex:2 1 100px; }
+  /* ---------- Phase 3: theme, making mode, mobile chrome ---------- */
+  .util-row{ display:flex; align-items:center; gap:10px; }
+  /* #authArea wraps whatever syncLabel() renders (a span sharing .icon-btn
+     with #themeBtn) -- as a plain inline span it was an extra box around
+     that content, throwing off vertical alignment/height next to the
+     button sitting directly in the flex row beside it. Making it a flex
+     item itself (rather than just an inline wrapper) puts its child on
+     equal footing. */
+  .util-row #authArea{ display:inline-flex; align-items:center; }
+  .icon-btn{
+    background:transparent; border:1px solid var(--line); border-radius:3px;
+    color:var(--ink-faint); cursor:pointer; padding:5px 9px; line-height:1;
+    font-family:'Nunito Sans', sans-serif; font-size:11px;
+    display:inline-flex; align-items:center; justify-content:center; gap:4px;
+    /* buttons carry native platform chrome (min-height/padding) that
+       persists even after setting explicit padding above unless appearance
+       is reset -- without this, #themeBtn (a <button>) rendered a hair
+       taller than the "synced" indicator (a <span>) right next to it. */
+    -webkit-appearance:none; appearance:none; box-sizing:border-box; vertical-align:middle;
+  }
+  .icon-btn:hover{ color:var(--stamp); border-color:var(--stamp); }
+  .icon-btn.on{ color:#fff; background:var(--stamp); border-color:var(--stamp); }
+
+  /* the workbench: computer-only data plumbing, hidden until asked for */
+
+  /* --- scale bar: fixed columns so nothing shifts when values change --- */
+  .scale-bar{
+    display:flex; align-items:center; flex-wrap:wrap; gap:10px 16px;
+    border:1px solid var(--line); background:var(--paper);
+    border-radius:3px; padding:10px 13px; margin:2px 0 14px;
+  }
+  .sb-block{ display:flex; align-items:center; gap:8px; }
+  .sb-key{
+    font-family:'Nunito Sans', sans-serif; font-size:10px; text-transform:uppercase;
+    letter-spacing:0.08em; color:var(--ink-faint); flex:0 0 auto;
+  }
+  .sb-mults{ display:flex; gap:4px; }
+  .sb-yield{
+    font-family:'Nunito Sans', sans-serif; font-size:11px; color:var(--ink-soft);
+    white-space:nowrap;
+  }
+  .sb-flag{
+    font-family:'Nunito Sans', sans-serif; font-size:9px; text-transform:uppercase;
+    letter-spacing:0.07em; color:var(--stamp); border:1px solid var(--stamp);
+    background:var(--stamp-soft); border-radius:2px; padding:2px 6px; white-space:nowrap;
+  }
+  .step .step-val{
+    min-width:46px; text-align:center; padding:0 6px; height:26px; line-height:26px;
+    border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+    background:var(--card); font-family:'Nunito Sans', sans-serif;
+    font-size:13px; font-weight:600; font-variant-numeric:tabular-nums; color:var(--ink);
+  }
+
+  /* --- making mode --- */
+  /* two action rows: mode-toggle actions (Start Making / Mark Cooked) on
+     top, the three ways to hand the recipe off (share sheet / print / link)
+     below -- same button style/size within each row */
+  .action-row-top{ display:flex; gap:8px; margin-bottom:8px; }
+  .action-row-top:last-of-type{ margin-bottom:2px; }
+  .action-row-top .icon-btn{ flex:1; text-align:center; padding:8px 6px; }
+  /* Save to list / Add to plan: their own quieter row below Share/Print --
+     same shape, but not part of the "same button style/size within each
+     row" grouping above, since these two open a picker rather than acting
+     immediately. */
+  .action-row-secondary{ display:flex; gap:8px; margin-bottom:2px; }
+  .action-row-secondary .icon-btn{ flex:1; text-align:center; padding:8px 6px; }
+  .make-sub{ display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .make-prog{
+    font-family:'Nunito Sans', sans-serif; font-size:10.5px; color:var(--ink-soft);
+    font-variant-numeric:tabular-nums;
+  }
+
+  /* ---------------- quick popovers (save-to-list / add-to-plan) ---------------- */
+  .quick-menu{
+    position:absolute; z-index:110; background:var(--card); border:1px solid var(--line);
+    border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.2); padding:10px;
+    width:240px; max-height:min(60vh,380px); overflow-y:auto;
+    font-family:'Nunito Sans',sans-serif; font-size:12.5px;
+  }
+  .qm-title{
+    font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--ink-faint); margin-bottom:6px;
+  }
+  .quick-menu .qm-item{
+    display:block; width:100%; text-align:left; background:transparent; border:none;
+    border-radius:5px; padding:7px 8px; font-family:inherit; font-size:12.5px;
+    color:var(--ink); cursor:pointer;
+  }
+  .quick-menu .qm-item:hover{ background:var(--card-hover); }
+  .qm-new{ display:flex; gap:6px; margin-top:6px; padding-top:6px; border-top:1px solid var(--line); }
+  .qm-new input{
+    flex:1 1 auto; min-width:0; font-size:12px; padding:5px 7px;
+    border:1px solid var(--line); border-radius:5px; background:var(--paper); color:var(--ink);
+  }
+  .qm-new-btn{ flex:0 0 auto; white-space:nowrap; padding:5px 9px; }
+  .qm-days{ display:flex; flex-direction:column; gap:5px; }
+  .qm-day{ display:flex; align-items:center; gap:6px; }
+  .qm-day-label{ flex:1 1 auto; font-size:11.5px; color:var(--ink-soft); }
+  .qm-day .qm-item{ width:auto; flex:0 0 auto; border:1px solid var(--line); padding:4px 8px; }
+
+  /* checkable ingredients + steps while cooking */
+  .making .ing-list li:not(.heading), .making .steps li{ cursor:pointer; }
+  .making .ing-list li:not(.heading){ padding-left:28px; }
+  .making .ing-list li:not(.heading)::before{
+    content:""; left:2px; top:calc(0.5em + 3px); width:13px; height:13px; border-radius:3px;
+    background:transparent; border:1.5px solid var(--ink-faint); opacity:1;
+  }
+  .making .ing-list li.tick{ color:var(--ink-faint); text-decoration:line-through; }
+  .making .ing-list li.tick::before{
+    background:var(--stamp); border-color:var(--stamp);
+  }
+  .making .steps li{ padding-left:28px; }
+  .making .steps li::before{
+    content:""; left:2px; top:calc(0.5em + 3px); width:13px; height:13px; border-radius:3px;
+    background:transparent; border:1.5px solid var(--ink-faint); opacity:1;
+  }
+  .making .steps li.tick{ color:var(--ink-faint); text-decoration:line-through; }
+  .making .steps li.tick::before{
+    background:var(--stamp); border-color:var(--stamp);
+  }
+
+
+  @media (max-width:760px){
+    .grid{ grid-template-columns:1fr; }
+    .viewtabs{ flex-wrap:wrap; }
+    .viewtabs .vt{ flex:1 1 auto; min-width:88px; }
+    .facet-row{ gap:2px; }
+    .facet-link{ padding:5px 8px; }
+    .toolbar{ gap:8px 12px; }
+    .toolbar .tb-group{ flex-wrap:wrap; }
+    .scale-bar{ gap:8px 12px; }
+    .sb-block{ flex:0 0 auto; }
+    .ing-list{ columns:1; }
+    .action-row-top{ gap:6px; }
+  }
+  .sync-dot{ font-size:11px; letter-spacing:0.04em; }
+  .sync-dot.s-ok, .sync-dot.s-idle{ color:#5FA36B; border-color:#5FA36B33; }
+  .sync-dot.s-syncing{ color:var(--stamp); border-color:var(--stamp); }
+  .sync-dot.s-error{ color:var(--alert); border-color:var(--alert); }
+
+  /* "Print recipe" -- when a recipe modal is open, hide literally everything
+     else on the page and let only the modal's content through, so what
+     comes out of the printer (or a browser's Save as PDF, which uses this
+     same stylesheet) is a clean one-pager instead of the whole app chrome. */
+  /* Shared by @media print (belt) and a body.printing class toggled right
+     before window.print() (suspenders) -- some export/PDF paths render the
+     print stylesheet unreliably (confirmed: a real screenshot from an actual
+     print came out at full on-screen sizing, single-column, none of this
+     applied), so the class version guarantees the condensed layout is
+     already painted on screen the instant Print is clicked, regardless of
+     whether the browser's print pass honors @media print in that context.
+     See #printRecipe's click handler and the `afterprint` listener below. */
+  /* The condensed one-pager layout used to live ONLY under the `.printing`
+     class (added by the in-app Print button right before window.print()).
+     That works fine when Print is clicked -- but printing any other way
+     (iOS share-sheet "Print", Cmd+P, a browser's own print menu) skips that
+     click handler entirely, so `.printing` never gets added and the modal
+     prints at full on-screen size -- confirmed the actual cause of a real
+     multi-page printout with a mostly-blank trailing page. Fix: every rule
+     below is duplicated verbatim under bare `@media print` (no class needed)
+     so printing is correct via ANY path, with the `.printing`-class copies
+     kept alongside so the in-app Print button still gets the "paint it
+     condensed on screen first" behavior described where it's toggled. */
+  @media print{
+    /* Paper wastes ink/looks wrong printing a dark background regardless of
+       theme -- force the light-theme values here with !important, since a
+       plain :root selector at print's normal specificity would otherwise
+       lose to whatever :root[data-theme="dark"] (or the OS dark-mode media
+       query) already matched. Print should always look like paper. */
+    :root{
+      --paper:#eef0f3 !important; --card:#ffffff !important; --card-hover:#f7f8fa !important;
+      --ink:#23335a !important; --ink-soft:#5b616c !important; --ink-faint:#9aa0ab !important;
+      --line:#d7dbe1 !important; --hair:#e7e9ed !important; --stamp:#3b5980 !important;
+      --stamp-soft:#e4e9f0 !important; --alert:#a3402c !important; --alert-soft:#f3e2dd !important;
+      --gold:#b8860b !important;
+    }
+    body, .modal, .modal-side, .modal-main{ background:#fff !important; color:#23335a !important; }
+    body > *{ display:none !important; }
+    body > #modalOverlay{ display:block !important; position:static !important; background:none !important; padding:0 !important; }
+    @page{ margin:0.4in; }
+    .modal{ position:static !important; width:100%; max-width:100%; box-shadow:none; border:none; margin:0; }
+    .modal-close, #modalActionsTop, .cook-panel, #modalAhead{ display:none !important; }
+    /* The mobile redesign (title/actions/metadata moved into .modal-main,
+       .modal-side hidden below 640px) was leaking into print: some print
+       paths (confirmed: iOS share-sheet print) render at the device's own
+       CSS width, which also matches the max-width:640px screen query, so
+       BOTH rule sets were applying at once -- the mobile elements showing
+       (with none of this condensing) right alongside .modal-side forced
+       hidden, instead of the one condensed sidebar layout this whole block
+       assumes. Force the print-intended state explicitly regardless of
+       viewport width. */
+    .modal-side{ display:block !important; }
+    #modalActionsMobile, .modal-meta-grid, .modal-tags-mobile{ display:none !important; }
+    .modal-inner{ grid-template-columns:130px 1fr; display:grid !important; }
+    body, .modal-main, .modal-side{ font-size:10.5px !important; }
+    .modal-main{ padding:0 !important; }
+    .modal-main h2{ font-size:16px !important; margin:0 0 8px !important; }
+    .modal-sidelabel{ font-size:8px !important; margin-top:6px !important; }
+    .modal-sidelabel:first-child{ margin-top:0 !important; }
+    .modal-sideval, .modal-side .tags{ font-size:9.5px !important; }
+    .section-title{ font-size:9px !important; margin:10px 0 4px !important; }
+    #ingredientsSectionTitle{ display:block !important; margin-top:0 !important; }
+    #modalScale{ display:none !important; }
+    .ing-list{ columns:3 !important; column-gap:14px !important; }
+    .ing-list li{ font-size:9.5px !important; line-height:1.25 !important; padding:2px 0 2px 12px !important; }
+    .ing-list li.heading{ font-size:8px !important; margin-top:6px !important; }
+    .ing-list li:not(.heading)::before{ top:8px !important; width:3px !important; height:3px !important; }
+    .step-badge{ width:13px !important; height:13px !important; font-size:7.5px !important; border-width:1px !important; margin-left:3px !important; }
+    .ing-badge-slot{ min-width:13px !important; }
+    .steps{ columns:2 !important; column-gap:18px !important; }
+    .steps li{ font-size:9.5px !important; line-height:1.3 !important; padding:0 0 11px 16px !important; break-inside:avoid; }
+    .steps li::before{ width:13px !important; height:13px !important; font-size:7px !important; border-width:1px !important; }
+    .stamp-badge{ font-size:8px !important; padding:1px 5px !important; border-width:1px !important; }
+    .modal-side .tagpill{ font-size:8px !important; padding:1px 5px !important; }
+    .notes-box{ font-size:9px !important; padding:8px 10px !important; margin-top:10px !important; }
+    .notes-box .notes-label{ font-size:8px !important; }
+  }
+  /* same forced light-mode override as the bare @media print block above */
+  body.printing{
+    --paper:#eef0f3 !important; --card:#ffffff !important; --card-hover:#f7f8fa !important;
+    --ink:#23335a !important; --ink-soft:#5b616c !important; --ink-faint:#9aa0ab !important;
+    --line:#d7dbe1 !important; --hair:#e7e9ed !important; --stamp:#3b5980 !important;
+    --stamp-soft:#e4e9f0 !important; --alert:#a3402c !important; --alert-soft:#f3e2dd !important;
+    --gold:#b8860b !important; background:#fff !important; color:#23335a !important;
+  }
+  body.printing .modal, body.printing .modal-side, body.printing .modal-main{ background:#fff !important; color:#23335a !important; }
+  body.printing > *{ display:none !important; }
+  body.printing > #modalOverlay{ display:block !important; position:static !important; background:none !important; padding:0 !important; }
+  body.printing .modal{ position:static !important; width:100%; max-width:100%; box-shadow:none; border:none; margin:0; }
+  body.printing .modal-close, body.printing #modalActionsTop, body.printing .cook-panel, body.printing #modalAhead{ display:none !important; }
+  /* same fix as the bare @media print block above -- see its comment */
+  body.printing .modal-side{ display:block !important; }
+  body.printing #modalActionsMobile, body.printing .modal-meta-grid, body.printing .modal-tags-mobile{ display:none !important; }
+  body.printing .modal-inner{ grid-template-columns:130px 1fr; display:grid !important; }
+  body.printing, body.printing .modal-main, body.printing .modal-side{ font-size:10.5px !important; }
+  body.printing .modal-main{ padding:0 !important; }
+  body.printing .modal-main h2{ font-size:16px !important; margin:0 0 8px !important; }
+  body.printing .modal-sidelabel{ font-size:8px !important; margin-top:6px !important; }
+  body.printing .modal-sidelabel:first-child{ margin-top:0 !important; }
+  body.printing .modal-sideval, body.printing .modal-side .tags{ font-size:9.5px !important; }
+  body.printing .section-title{ font-size:9px !important; margin:10px 0 4px !important; }
+  body.printing #ingredientsSectionTitle{ display:block !important; margin-top:0 !important; }
+  body.printing #modalScale{ display:none !important; }
+  body.printing .ing-list{ columns:3 !important; column-gap:14px !important; }
+  body.printing .ing-list li{ font-size:9.5px !important; line-height:1.25 !important; padding:2px 0 2px 12px !important; }
+  body.printing .ing-list li.heading{ font-size:8px !important; margin-top:6px !important; }
+  body.printing .ing-list li:not(.heading)::before{ top:8px !important; width:3px !important; height:3px !important; }
+  body.printing .step-badge{ width:13px !important; height:13px !important; font-size:7.5px !important; border-width:1px !important; margin-left:3px !important; }
+  body.printing .ing-badge-slot{ min-width:13px !important; }
+  body.printing .steps{ columns:2 !important; column-gap:18px !important; }
+  body.printing .steps li{ font-size:9.5px !important; line-height:1.3 !important; padding:0 0 11px 16px !important; break-inside:avoid; }
+  body.printing .steps li::before{ width:13px !important; height:13px !important; font-size:7px !important; border-width:1px !important; }
+  body.printing .stamp-badge{ font-size:8px !important; padding:1px 5px !important; border-width:1px !important; }
+  body.printing .modal-side .tagpill{ font-size:8px !important; padding:1px 5px !important; }
+  body.printing .notes-box{ font-size:9px !important; padding:8px 10px !important; margin-top:10px !important; }
+  body.printing .notes-box .notes-label{ font-size:8px !important; }
+
+  /* Landing directly on a #r/<id> link (as anyone would from a shared link,
+     never from browsing) shows just that recipe, not the whole toolbar+grid.
+     This IS access control now, not just framing: someone sending a recipe
+     to a friend outside the household shouldn't be handing them a path into
+     the rest of the family cookbook, so the close button is hidden entirely
+     (see closeModal()) and there's no link back to browsing anywhere here. */
+  body.share-view .masthead, body.share-view #cookbookView{ display:none; }
+  /* full-viewport on every screen size in share mode, not just mobile --
+     there's nothing behind it to frame (masthead/grid are hidden above), so
+     a card floating on empty white space looks like a mistake instead of
+     the page itself. This is exactly the mobile treatment already used at
+     max-width:640px, just not limited to that width here. */
+  body.share-view .modal-overlay{ padding:0; align-items:stretch; }
+  body.share-view .modal{ max-width:none; width:100vw; min-height:100vh; margin-bottom:0; border-radius:0; box-shadow:none; }
+  body.share-view .modal-close{ display:none; }
+  .share-footer{
+    text-align:center; padding:18px 20px 8px; font-family:'Nunito Sans',sans-serif;
+    font-size:11px; color:var(--ink-faint);
+  }
+  .share-footer a{ color:var(--stamp); }
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <div class="masthead-inner">
+    <h1 class="title" id="homeTitle" title="Back to the cookbook" style="cursor:pointer;">Deemer-Berdux Family Cookbook</h1>
+    <div class="viewtabs" id="viewTabs">
+      <button class="vt" data-view="cookbook">Cookbook</button>
+      <button class="vt" data-view="plan" style="display:none">Plan the week</button>
+      <button class="vt" data-view="shopping" style="display:none">Shopping</button>
+      <button class="vt" data-view="history" style="display:none">History</button>
+      <button class="vt" data-view="storage" style="display:none">Storage</button>
+    </div>
+    <select class="viewtabs-mobile" id="viewTabsMobile">
+      <option value="cookbook">Cookbook</option>
+      <option value="plan" style="display:none">Plan the week</option>
+      <option value="shopping" style="display:none">Shopping</option>
+      <option value="history" style="display:none">History</option>
+      <option value="storage" style="display:none">Storage</option>
+    </select>
+    <div class="util-row">
+      <button class="icon-btn" id="themeBtn" title="Switch theme">◐ Light</button>
+      <span id="authArea"></span>
+    </div>
+  </div>
+</div>
+
+<div id="cookbookView">
+<div class="controls">
+  <div class="facet-rows">
+    <div class="facet-row">
+      <span class="facet-name mobile-hide-label">Search</span>
+      <div class="search-row">
+        <input id="searchInput" type="text" placeholder="Search…">
+        <button class="filters-toggle" id="filtersToggle" type="button" title="Filters" aria-label="Filters">
+          <svg class="icon-sliders" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2.3" fill="currentColor" stroke="none"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="16" cy="12" r="2.3" fill="currentColor" stroke="none"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="2.3" fill="currentColor" stroke="none"/></svg>
+          <span class="filters-toggle-badge" id="filtersToggleBadge" hidden>0</span>
+        </button>
+        <!-- A dedicated quick-clear icon here would have been a 2nd X right
+             next to the Filters button's own X (its closed/open icon) --
+             too easy to confuse which does what. Clear filters (inside the
+             panel) already covers this. -->
+        <span class="result-count" id="resultCount"></span>
+      </div>
+    </div>
+    <!-- Everything below Search lives in one panel now -- on desktop this is
+         just a normal always-visible block (no CSS hides it above 640px);
+         on mobile it's collapsed behind the Filters button above, which
+         stays put and swaps its icon to an X while open (see .icon-sliders/
+         .icon-x) -- same button closes it again, no separate close control
+         needed. -->
+    <div id="filterPanel" class="filter-panel">
+    <div class="toolbar" id="sourceToolbar"></div>
+    <div class="facet-row">
+      <span class="facet-name mobile-hide-label">Course</span>
+      <div id="categoryChips" class="chip-row"></div>
+    </div>
+    <div class="facet-row">
+      <span class="facet-name mobile-hide-label">Cuisine</span>
+      <div id="cuisineChips" class="chip-row"></div>
+      <!-- 23 distinct cuisines is too many to ever wrap into 1-2 mobile
+           lines even shrunk -- below 640px this dropdown replaces the chip
+           row entirely (see .cuisine-select-mobile); desktop keeps the
+           chips, which have room to wrap and still show counts at a glance. -->
+      <select id="cuisineSelect" class="tb-select cuisine-select-mobile"></select>
+    </div>
+    <!-- Same facet-row markup as Course/Cuisine above. A bare <select>
+         as a direct flex item (what #cuisineSelect still is) has a known
+         cross-browser sizing quirk that kept measuring narrower than its
+         siblings across several fix attempts, even with matching CSS.
+         Sidestepping it entirely: the flex item is a plain .chip-row DIV
+         (the exact mechanism already proven to size correctly for
+         Course/Cuisine's chip rows), and the select is just a plain block
+         child inside it -- never itself a flex item, so that whole class
+         of bug no longer applies. Ordered right after Cuisine (ahead of
+         Diet) per request. -->
+    <div class="facet-row">
+      <span class="facet-name mobile-hide-label">Author/Cookbook</span>
+      <div class="chip-row" id="authorSelectWrap">
+        <select class="tb-select" id="authorSelect"></select>
+      </div>
+    </div>
+    <div class="facet-row">
+      <span class="facet-name mobile-hide-label">Diet</span>
+      <div id="dietChips" class="chip-row"></div>
+    </div>
+    <div class="facet-row ing-row">
+      <div class="ing-col">
+        <input id="ingIncludeInput" type="text" list="ingIncludeOptions" placeholder="+ include e.g. chicken">
+        <datalist id="ingIncludeOptions"></datalist>
+        <div id="ingIncludeChips" style="display:flex; flex-wrap:wrap; gap:4px;"></div>
+      </div>
+      <div class="ing-col">
+        <input id="ingExcludeInput" type="text" list="ingExcludeOptions" placeholder="− exclude e.g. cinnamon">
+        <datalist id="ingExcludeOptions"></datalist>
+        <div id="ingExcludeChips" style="display:flex; flex-wrap:wrap; gap:4px;"></div>
+      </div>
+    </div>
+    <div class="toolbar" id="toolbar"></div>
+    </div>
+  </div>
+</div>
+
+<main class="grid" id="grid"></main>
+<div id="loadMoreWrap"></div>
+
+<footer id="footerCount"></footer>
+</div><!-- /cookbookView -->
+
+<div id="planView" style="display:none">
+  <div class="planwrap">
+    <div class="plan-head">
+      <div class="plan-nav">
+        <button class="tb-btn" id="weekPrev">&lsaquo;</button>
+        <span class="plan-range" id="weekRange"></span>
+        <button class="tb-btn" id="weekNext">&rsaquo;</button>
+        <button class="tb-btn" id="weekToday">This week</button>
+      </div>
+      <div class="tb-spacer"></div>
+      <div class="plan-nav">
+        <button class="tb-btn" id="clearWeek">Clear</button>
+        <button class="tb-btn" id="shopBtn">Shopping &amp; prep</button>
+        <button class="tb-btn" id="setBtn">Household</button>
+      </div>
+    </div>
+    <div id="settingsPanel"></div>
+    <div id="useupStrip"></div>
+    <div id="prepStrip"></div>
+    <div class="week" id="weekGrid"></div>
+    <div id="weekSummary"></div>
+    <div id="shopPanel"></div>
+  </div>
+</div>
+
+<div id="historyView" style="display:none">
+  <div class="planwrap">
+    <div id="histStats"></div>
+    <input type="text" id="historySearch" placeholder="Search what you've cooked…" class="history-search">
+    <div id="historyList" class="history-list"></div>
+    <div id="historyLoadMore"></div>
+  </div>
+</div>
+
+<div id="storageView" style="display:none">
+  <div class="planwrap">
+    <div id="storagePanel"></div>
+  </div>
+</div>
+
+<div id="shoppingViewWrap" style="display:none">
+  <div class="planwrap">
+    <div class="inv-add" style="margin-bottom:18px;">
+      <input type="text" placeholder="Item" id="shopAddName">
+      <input type="text" placeholder="Qty" id="shopAddQty">
+      <input type="text" placeholder="Unit" id="shopAddUnit">
+      <button class="cook-btn" id="shopAddBtn">Add</button>
+    </div>
+    <div id="shoppingView"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="pickerOverlay">
+  <div class="modal" id="pickerCard">
+    <div class="modal-inner">
+      <div class="modal-close" id="pickerClose">&times;</div>
+      <h2 id="pickerTitle">Choose a dinner</h2>
+      <div class="picker-search">
+        <input id="pickerInput" type="text" placeholder="Search recipes…">
+      </div>
+      <div id="pickerCourseChips" class="picker-course-chips"></div>
+      <div id="pickerSuggest"></div>
+      <div class="picker-custom" id="pickerCustom">
+        <div class="pc-toggle" id="pickerCustomToggle">+ not in the cookbook — add a custom dish</div>
+        <div class="pc-form" id="pickerCustomForm">
+          <input type="text" id="pcName" placeholder="Dish name">
+          <textarea id="pcIngredients" placeholder="Ingredients, one per line (optional, feeds the shopping list)" rows="3"></textarea>
+          <button class="cook-btn" id="pcSave">Add dish</button>
+        </div>
+      </div>
+      <div class="picker-list" id="pickerList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="householdGate">
+  <div class="modal" style="max-width:420px; padding:28px 24px; border-top-color:var(--stamp);">
+    <div style="font-family:'Bitter',serif; font-weight:600; font-size:1.2rem; margin-bottom:6px;">Whose kitchen is this?</div>
+    <div class="hint" style="margin:0 0 18px;">Only asked once per device -- picking here keeps your meal plan, shopping list, and pantry separate from theirs.</div>
+    <div style="display:flex; flex-direction:column; gap:10px;" id="householdGateBtns"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modalCard">
+    <div class="modal-close" id="modalClose">&times;</div>
+    <div class="modal-inner">
+      <div class="modal-side">
+        <div id="modalActionsTop"></div>
+        <!-- Hidden on mobile (see .modal-meta-desktop) in favor of the
+             condensed #modalMetaGrid inside .modal-main, right after the
+             title -- desktop keeps this exact vertical list unchanged. -->
+        <div class="modal-meta-desktop">
+        <div class="modal-sidelabel">Course</div><div class="modal-sideval" id="modalSideCourse"></div>
+        <div class="modal-sidelabel">Cuisine</div><div class="modal-sideval" id="modalSideCuisine"></div>
+        <div class="modal-sidelabel">Source</div><div class="modal-sideval" id="modalSideSource"></div>
+        <div class="modal-sidelabel">Serves</div><div class="modal-sideval" id="modalSideServes"></div>
+        <div class="modal-sidelabel">Prep / Cook</div><div class="modal-sideval" id="modalSideTime"></div>
+        <div class="modal-sidelabel">Macros</div><div class="modal-sideval" id="modalSideMacros"></div>
+        <div class="modal-sidelabel">Diet</div><div class="tags" id="modalTags"></div>
+        <div class="modal-sidelabel">Added</div><div class="modal-sideval" id="modalSideAdded"></div>
+        </div>
+      </div>
+      <div class="modal-main">
+        <h2 id="modalTitle"></h2>
+        <!-- Mobile-only: same actions as #modalActionsTop above (duplicated,
+             not moved -- desktop's sidebar copy stays exactly as it was),
+             slim icon row via CSS, plus the condensed metadata grid so
+             Course/Cuisine/Source/Serves/Prep-Cook/Added don't push
+             ingredients below the fold. -->
+        <div id="modalActionsMobile" class="modal-actions-mobile"></div>
+        <div class="tags modal-tags-mobile" id="modalTagsMobile"></div>
+        <div class="modal-meta-grid" id="modalMetaGrid"></div>
+
+        <div id="modalAhead"></div>
+
+        <div class="section-title" id="ingredientsSectionTitle">Ingredients</div>
+        <div id="modalScale"></div>
+        <ul class="ing-list" id="modalIngredients"></ul>
+
+        <div class="section-title">Method</div>
+        <ol class="steps" id="modalSteps"></ol>
+
+        <div id="modalNotesWrap"></div>
+        <!-- Whether-it's-been-cooked lives at the very end now -- it was in
+             the sidebar, which on mobile stacks ABOVE the title (DOM/grid
+             order), meaning "Not yet cooked" was the first thing you saw
+             before even the recipe name. Single element, just relocated
+             (not duplicated) -- renderCookPanel() still finds it the same
+             way on both desktop and mobile. -->
+        <div id="modalCook"></div>
+        <div id="modalShareFooter"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
