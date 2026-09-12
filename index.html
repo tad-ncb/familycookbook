@@ -59912,6 +59912,8 @@ const MACRO_KEYWORD_RULES = [
   [/\bpork\b/i, {kcal:242, protein:27, carbs:0, fat:14}],
   [/\bbacon\b/i, {kcal:541, protein:37, carbs:1.4, fat:42}],
   [/sausage|chorizo/i, {kcal:300, protein:15, carbs:2, fat:26}],
+  [/\blamb\b/i, {kcal:294, protein:25, carbs:0, fat:21}],
+  [/\bduck\b/i, {kcal:337, protein:19, carbs:0, fat:28}],
   [/salmon/i, {kcal:208, protein:20, carbs:0, fat:13}],
   [/shrimp|prawn/i, {kcal:99, protein:24, carbs:0.2, fat:0.3}],
   [/\btuna\b/i, {kcal:132, protein:28, carbs:0, fat:1}],
@@ -59920,43 +59922,90 @@ const MACRO_KEYWORD_RULES = [
   [/\btofu\b/i, {kcal:76, protein:8, carbs:1.9, fat:4.8}],
   [/black beans|kidney beans|\bbeans?\b|chickpea|lentil/i, {kcal:130, protein:9, carbs:22, fat:0.5}],
   [/\bbutter\b/i, {kcal:717, protein:0.9, carbs:0.1, fat:81}],
-  [/olive oil|vegetable oil|canola oil|\boil\b/i, {kcal:884, protein:0, carbs:0, fat:100}],
+  [/olive oil|vegetable oil|canola oil|sesame oil|\boil\b/i, {kcal:884, protein:0, carbs:0, fat:100}],
   [/heavy cream/i, {kcal:340, protein:2.1, carbs:2.8, fat:36}],
   [/sour cream/i, {kcal:198, protein:2.4, carbs:4.6, fat:20}],
   [/cream cheese/i, {kcal:342, protein:6, carbs:4, fat:34}],
-  [/parmesan/i, {kcal:431, protein:38, carbs:4, fat:29}],
-  [/mozzarella|cheddar|\bcheese\b/i, {kcal:350, protein:23, carbs:2.5, fat:28}],
-  [/whole milk|\bmilk\b/i, {kcal:61, protein:3.2, carbs:4.8, fat:3.3}],
+  [/parmesan|parmigiano|grana padano|pecorino/i, {kcal:431, protein:38, carbs:4, fat:29}],
+  [/mozzarella|cheddar|\bfeta\b|ricotta|\bcheese\b/i, {kcal:350, protein:23, carbs:2.5, fat:28}],
+  [/whole milk|\bmilk\b|buttermilk/i, {kcal:61, protein:3.2, carbs:4.8, fat:3.3}],
   [/yogurt|yoghurt/i, {kcal:59, protein:10, carbs:3.6, fat:0.4}],
   [/white rice|\brice\b/i, {kcal:130, protein:2.7, carbs:28, fat:0.3}],
   [/brown rice/i, {kcal:112, protein:2.6, carbs:24, fat:0.9}],
-  [/pasta|spaghetti|noodle/i, {kcal:158, protein:5.8, carbs:31, fat:0.9}],
+  [/pasta|spaghetti|noodle|orzo|macaroni/i, {kcal:158, protein:5.8, carbs:31, fat:0.9}],
   [/quinoa/i, {kcal:120, protein:4.4, carbs:21, fat:1.9}],
+  [/\boats?\b|oatmeal/i, {kcal:389, protein:17, carbs:66, fat:7}],
   [/\bbread\b/i, {kcal:265, protein:9, carbs:49, fat:3.2}],
   [/tortilla/i, {kcal:218, protein:5.7, carbs:36, fat:5.4}],
   [/all-purpose flour|\bflour\b/i, {kcal:364, protein:10, carbs:76, fat:1}],
   [/brown sugar/i, {kcal:380, protein:0, carbs:98, fat:0}],
   [/\bsugar\b/i, {kcal:387, protein:0, carbs:100, fat:0}],
   [/\bhoney\b/i, {kcal:304, protein:0.3, carbs:82, fat:0}],
+  [/maple syrup/i, {kcal:260, protein:0, carbs:67, fat:0.2}],
   [/sweet potato/i, {kcal:86, protein:1.6, carbs:20, fat:0.1}],
   [/\bpotato\b/i, {kcal:77, protein:2, carbs:17, fat:0.1}],
-  [/\bonion\b/i, {kcal:40, protein:1.1, carbs:9.3, fat:0.1}],
+  [/\bonion\b|\bshallots?\b|\bscallions?\b|\bleeks?\b/i, {kcal:40, protein:1.1, carbs:9.3, fat:0.1}],
   [/\bgarlic\b/i, {kcal:149, protein:6.4, carbs:33, fat:0.5}],
   [/\bcarrot/i, {kcal:41, protein:0.9, carbs:10, fat:0.2}],
   [/\btomato/i, {kcal:18, protein:0.9, carbs:3.9, fat:0.2}],
-  [/bell pepper|\bpepper\b/i, {kcal:31, protein:1, carbs:6, fat:0.3}],
+  [/bell pepper|\bpepper\b(?!corn)/i, {kcal:31, protein:1, carbs:6, fat:0.3}],
   [/broccoli/i, {kcal:34, protein:2.8, carbs:7, fat:0.4}],
+  [/brussels sprout/i, {kcal:43, protein:3.4, carbs:9, fat:0.3}],
+  [/\bzucchini\b|courgette/i, {kcal:17, protein:1.2, carbs:3.1, fat:0.3}],
+  [/\bceler(y|iac)\b/i, {kcal:16, protein:0.7, carbs:3, fat:0.2}],
   [/spinach/i, {kcal:23, protein:2.9, carbs:3.6, fat:0.4}],
-  [/lettuce|greens/i, {kcal:15, protein:1.4, carbs:2.9, fat:0.2}],
+  [/lettuce|\bgreens\b|\bkale\b|cabbage/i, {kcal:20, protein:1.6, carbs:4, fat:0.2}],
   [/mushroom/i, {kcal:22, protein:3.1, carbs:3.3, fat:0.3}],
   [/avocado/i, {kcal:160, protein:2, carbs:8.5, fat:15}],
   [/almond|walnut|pecan|cashew|pistachio|\bnuts?\b/i, {kcal:600, protein:20, carbs:20, fat:52}],
+  [/sesame seeds?/i, {kcal:573, protein:17, carbs:23, fat:50}],
   [/peanut butter/i, {kcal:588, protein:25, carbs:20, fat:50}],
   [/coconut milk/i, {kcal:230, protein:2.3, carbs:6, fat:24}],
   [/\bapple\b/i, {kcal:52, protein:0.3, carbs:14, fat:0.2}],
   [/\bbanana\b/i, {kcal:89, protein:1.1, carbs:23, fat:0.3}],
-  [/lemon|lime/i, {kcal:29, protein:1.1, carbs:9.3, fat:0.3}]
+  [/lemon|lime/i, {kcal:29, protein:1.1, carbs:9.3, fat:0.3}],
+  [/soy sauce/i, {kcal:53, protein:8, carbs:4.9, fat:0.1}],
+  [/oyster sauce/i, {kcal:51, protein:1.4, carbs:11, fat:0.3}],
+  [/worcestershire/i, {kcal:78, protein:0, carbs:19, fat:0}],
+  [/dijon|\bmustard\b/i, {kcal:66, protein:4, carbs:5, fat:4}],
+  [/\bmirin\b/i, {kcal:225, protein:0.3, carbs:49, fat:0}],
+  [/ketchup/i, {kcal:112, protein:1.2, carbs:27, fat:0.3}],
+  [/mayonnaise/i, {kcal:680, protein:1, carbs:1, fat:75}],
+  [/\bstock\b|\bbroth\b/i, {kcal:8, protein:1.2, carbs:0.7, fat:0.2}],
+  [/white wine|red wine|dry wine/i, {kcal:82, protein:0.1, carbs:2.6, fat:0}],
+  [/\bbeer\b/i, {kcal:43, protein:0.5, carbs:3.6, fat:0}],
+  /* From here down: explicit near-zero entries. These exist to fix the
+     matched/total COVERAGE ratio below, not because they move the calorie
+     total -- salt/water/dried herbs & spices at typical recipe quantities
+     contribute negligible calories either way, but left unmatched they
+     were dragging otherwise-well-covered recipes under the 35% threshold. */
+  [/\bsalt\b/i, {kcal:0, protein:0, carbs:0, fat:0}],
+  [/\bwater\b/i, {kcal:0, protein:0, carbs:0, fat:0}],
+  [/black pepper|peppercorn/i, {kcal:0, protein:0, carbs:0, fat:0}],
+  [/baking (powder|soda)/i, {kcal:0, protein:0, carbs:0, fat:0}],
+  [/\bcornstarch\b/i, {kcal:381, protein:0.3, carbs:91, fat:0.1}],
+  [/vanilla (extract|paste|bean)/i, {kcal:288, protein:0.1, carbs:13, fat:0.1}],
+  [/vinegar/i, {kcal:19, protein:0, carbs:0.4, fat:0}],
+  [/cinnamon|cumin|paprika|oregano|turmeric|coriander|nutmeg|allspice|chili (flakes|powder)|curry powder|bay leaves?|\bthyme\b|rosemary|\bsage\b|\bdill\b|\bbasil\b|parsley|cilantro|red pepper flakes|\byeast\b|cream of tartar/i, {kcal:0, protein:0, carbs:0, fat:0}]
 ];
+/* Many ingredient lines in this dataset already carry a metric conversion
+   in parentheses -- "2-4 lbs (910 g-1.8 kg) chicken", "6 tsp (30 ml)
+   turmeric" -- which is both more precise than the generic UNIT_GRAMS table
+   (a cup of flour and a cup of milk don't weigh the same, but the recipe's
+   own author already did that conversion per ingredient) and immune to the
+   leading-quantity regex's range problem below (ranges average cleanly).
+   Preferred over the generic table whenever present. */
+function parenGrams(line){
+  const m = line.match(/\(([^)]*)\)/);
+  if(!m) return null;
+  const nums = [...m[1].matchAll(/(\d+(?:\.\d+)?)\s*(g|kg|ml|l)\b/gi)];
+  if(!nums.length) return null;
+  const vals = nums.map(mm=>{
+    const v = parseFloat(mm[1]), u = mm[2].toLowerCase();
+    return (u==='kg'||u==='l') ? v*1000 : v;
+  });
+  return vals.reduce((a,b)=>a+b,0)/vals.length;
+}
 function estimateMacros(r){
   const base = r._servings && r._servings.base;
   if(!base) return null;
@@ -59964,9 +60013,11 @@ function estimateMacros(r){
   (r.ingredients||[]).forEach(line=>{
     if(!line || line.trim().endsWith(':')) return;
     if(isNoScale(line)) return;
+    let grams = parenGrams(line);
     const lead = line.match(/^(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?)(\s*)([A-Za-z]*)/);
-    let grams;
-    if(lead && parseQty(lead[1])){
+    if(grams != null){
+      /* use it as-is */
+    } else if(lead && parseQty(lead[1])){
       const unit = lead[3].toLowerCase().replace(/\.$/,'');
       const perUnit = UNIT_GRAMS[unit];
       grams = parseQty(lead[1]) * (perUnit!==undefined ? perUnit : UNIT_GRAMS_NO_UNIT);
