@@ -59600,12 +59600,15 @@ function setHousehold(hh){
    they all belong to the original (only) household. */
 function householdOf(e){ return e.household || 'deemer-berdux'; }
 
-/* "Interested" -- a lightweight shared shortlist, distinct from cook history:
-   for "does this look good while browsing", "maybe for the bring-a-side ask",
+/* "Interested" -- a lightweight shortlist, distinct from cook history: for
+   "does this look good while browsing", "maybe for the bring-a-side ask",
    or "not sure yet but a candidate for this week's plan" -- cases where you
    want to flag something before committing to actually cooking it. Shared
-   across the household (interested_recipes has no household_id -- see
-   remoteFetchAll/runOp) so either of you can see what the other starred. */
+   between the two of you within a household (no per-person split), but NOT
+   across households as of 2026-09-11 -- Tyler decided this and cook_log's
+   ratings/last-made should behave oppositely: interested/hearts private
+   per household, ratings/last-made visible across them. See migrations/
+   002_interested_recipes_household_id.sql, remoteFetchAll, and runOp. */
 function isInterested(id){ return DATA.interested.some(e=>e.id===id && !e._d); }
 function toggleInterested(id){
   const on = !isInterested(id);
@@ -59621,6 +59624,24 @@ function lastMade(id){ const e=cookEvents(id); return e.length ? e[0].date : nul
 function avgRating(id, household){
   const h = household || currentHousehold();
   const rs = cookEventsFor(id, h).map(e=>e.rating).filter(n=>typeof n==='number' && n>0);
+  return rs.length ? rs.reduce((a,b)=>a+b,0)/rs.length : null;
+}
+
+/* ---------------- the other household's cook history (read-only) ---------------- */
+/* Ratings and last-made ARE meant to be visible across households (unlike
+   interested/plan/shopping/inventory) -- but always clearly attributed to
+   whichever household they belong to, never blended into one number, and
+   never touching DATA.cookLog (see remoteFetchAll's otherCookLog comment)
+   so lastMade()/candidatesFor()'s "haven't made this in a while" planning
+   logic stays scoped to your own household's cooking only. */
+function otherHouseholdId(){ return Object.keys(HOUSEHOLD_LABEL).find(h=>h!==currentHousehold()); }
+function otherCookEvents(id){
+  return (DATA.otherCookLog||[]).filter(e=>e.recipeId===id).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+}
+function otherTimesMade(id){ return otherCookEvents(id).length; }
+function otherLastMade(id){ const e=otherCookEvents(id); return e.length ? e[0].date : null; }
+function otherAvgRating(id){
+  const rs = otherCookEvents(id).map(e=>e.rating).filter(n=>typeof n==='number' && n>0);
   return rs.length ? rs.reduce((a,b)=>a+b,0)/rs.length : null;
 }
 function addCook(recipeId, date, rating, note, leftover){
@@ -60780,8 +60801,14 @@ function renderCookPanel(){
      showing it here duplicates the star line the history list below already
      shows for that same entry. Only worth surfacing once there's more than
      one to actually average across. */
-  const summary = n===0 ? 'Not yet cooked.'
+  const mine = n===0 ? "You haven't cooked this yet."
     : `Cooked ${n}×${(avg && n>1)?` · ${starStr(avg)}`:''} · last ${relTime(lastMade(r.id))}`;
+  const otherHh = otherHouseholdId();
+  const otherN = otherHh ? otherTimesMade(r.id) : 0;
+  const otherBit = otherN
+    ? ` · ${escapeHTML(HOUSEHOLD_LABEL[otherHh])}: ${otherN}×${(otherAvgRating(r.id) && otherN>1)?` · ${starStr(otherAvgRating(r.id))}`:''} · last ${relTime(otherLastMade(r.id))}`
+    : '';
+  const summary = (n===0 && !otherN) ? 'Not yet cooked.' : `${mine}${otherBit}`;
   host.innerHTML = `
     <div class="cook-panel">
       <div class="cook-row">
@@ -62391,13 +62418,22 @@ function rowToShoppingList(r){ return {id:r.id, name:r.name, _d:!!r.deleted, _t:
 async function remoteFetchAll(){
   if(!sb) return null;
   const hh = currentHousehold();
-  const [cl, pd, iv, pf, it, sl] = await Promise.all([
+  const otherHh = Object.keys(HOUSEHOLD_LABEL).find(h=>h!==hh);
+  const [cl, pd, iv, pf, it, sl, ocl] = await Promise.all([
     sb.from('cook_log').select('*').eq('household_id', hh),
     sb.from('plan_days').select('*').eq('household_id', hh),
     sb.from('inventory_items').select('*').eq('household_id', hh),
     sb.from('prefs').select('*').eq('household_id', hh).maybeSingle(),
-    sb.from('interested_recipes').select('*'),
-    sb.from('shopping_lists').select('*').eq('household_id', hh)
+    sb.from('interested_recipes').select('*').eq('household_id', hh),
+    sb.from('shopping_lists').select('*').eq('household_id', hh),
+    /* Ratings/last-made ARE shared across households (unlike interested,
+       plan, shopping, inventory) -- but only as a read-only, low-detail
+       view (recipe id / rating / date, no notes or leftover text) kept in
+       its own array (DATA.otherCookLog), never merged into DATA.cookLog.
+       Merging it would silently pull the other household's cooking
+       activity into lastMade()/candidatesFor()'s staleness math, which is
+       exactly what "shouldn't affect each other's planning" rules out. */
+    otherHh ? sb.from('cook_log').select('recipe_id,rating,date').eq('household_id', otherHh) : Promise.resolve({data:[]})
   ]);
   if(cl.error || pd.error || iv.error || pf.error){
     console.error('Supabase fetch error', cl.error||pd.error||iv.error||pf.error);
@@ -62410,6 +62446,7 @@ async function remoteFetchAll(){
      returning null for the whole fetch. */
   if(it.error) console.error('interested_recipes fetch error (has the migration been run?)', it.error);
   if(sl.error) console.error('shopping_lists fetch error (has the migration been run?)', sl.error);
+  if(ocl.error) console.error('other-household cook_log fetch error', ocl.error);
   const p = pf.data || {household: currentHousehold(), rituals: [], updated_at: new Date(0).toISOString()};
   return {
     version: 1,
@@ -62418,6 +62455,7 @@ async function remoteFetchAll(){
     inventory: {items: iv.data.map(rowToInv)},
     interested: it.error ? [] : it.data.map(rowToInterested),
     shoppingLists: sl.error ? [] : sl.data.map(rowToShoppingList),
+    otherCookLog: ocl.error ? [] : (ocl.data||[]).map(r=>({recipeId:r.recipe_id, rating:r.rating, date:r.date})),
     prefs: Object.assign({household: p.household, rituals: p.rituals||[]}, {_t: Date.parse(p.updated_at)})
   };
 }
@@ -62857,7 +62895,7 @@ async function runOp(op){
   }
   if(op.table === 'interested_recipes'){
     return sb.from('interested_recipes').upsert({
-      recipe_id: op.row.id, deleted: !!op.row._d, updated_at: new Date(op.row._t).toISOString()
+      recipe_id: op.row.id, household_id: currentHousehold(), deleted: !!op.row._d, updated_at: new Date(op.row._t).toISOString()
     });
   }
 }
@@ -62912,6 +62950,10 @@ function onRemoteChange(){
     const remote = await remoteFetchAll();
     if(!remote) return;
     DATA = mergeStates(remote, DATA);
+    /* read-only cross-household view -- always just the latest fetch, never
+       run through the offline merge machinery above (nothing local ever
+       edits it, so there's nothing to reconcile). */
+    DATA.otherCookLog = remote.otherCookLog || [];
     persist(true);
     render();
     if(view==='plan') renderWeek();
@@ -62948,7 +62990,11 @@ async function authBoot(){
   paintAuth(); applyAuthGate();
   if(!sb) return;
   const remote = await remoteFetchAll();
-  if(remote){ DATA = mergeStates(remote, DATA); persist(true); render(); }
+  if(remote){
+    DATA = mergeStates(remote, DATA);
+    DATA.otherCookLog = remote.otherCookLog || [];
+    persist(true); render();
+  }
   subscribeRealtime();
   flushQueue();
 }
