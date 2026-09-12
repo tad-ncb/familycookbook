@@ -59937,6 +59937,7 @@ const MACRO_KEYWORD_RULES = [
   [/heavy cream/i, {kcal:340, protein:2.1, carbs:2.8, fat:36}],
   [/sour cream/i, {kcal:198, protein:2.4, carbs:4.6, fat:20}],
   [/cream cheese/i, {kcal:342, protein:6, carbs:4, fat:34}],
+  [/\bcream\b/i, {kcal:340, protein:2.1, carbs:2.8, fat:36}],
   [/parmesan|parmigiano|grana padano|pecorino/i, {kcal:431, protein:38, carbs:4, fat:29}],
   [/mozzarella|cheddar|\bfeta\b|ricotta|\bcheese\b/i, {kcal:350, protein:23, carbs:2.5, fat:28}],
   [/whole milk|\bmilk\b|buttermilk/i, {kcal:61, protein:3.2, carbs:4.8, fat:3.3}],
@@ -59953,9 +59954,10 @@ const MACRO_KEYWORD_RULES = [
   [/\bsugar\b/i, {kcal:387, protein:0, carbs:100, fat:0}],
   [/\bhoney\b/i, {kcal:304, protein:0.3, carbs:82, fat:0}],
   [/maple syrup/i, {kcal:260, protein:0, carbs:67, fat:0.2}],
-  [/sweet potato/i, {kcal:86, protein:1.6, carbs:20, fat:0.1}],
-  [/\bpotato\b/i, {kcal:77, protein:2, carbs:17, fat:0.1}],
-  [/\bonion\b|\bshallots?\b|\bscallions?\b|\bleeks?\b/i, {kcal:40, protein:1.1, carbs:9.3, fat:0.1}],
+  [/sweet potato(es)?/i, {kcal:86, protein:1.6, carbs:20, fat:0.1}],
+  [/\bpotato(es)?\b/i, {kcal:77, protein:2, carbs:17, fat:0.1}],
+  [/\bonions?\b|\bshallots?\b|\bscallions?\b|\bleeks?\b/i, {kcal:40, protein:1.1, carbs:9.3, fat:0.1}],
+  [/\bginger\b/i, {kcal:80, protein:1.8, carbs:18, fat:0.8}],
   [/\bgarlic\b/i, {kcal:149, protein:6.4, carbs:33, fat:0.5}],
   [/\bcarrot/i, {kcal:41, protein:0.9, carbs:10, fat:0.2}],
   [/\btomato/i, {kcal:18, protein:0.9, carbs:3.9, fat:0.2}],
@@ -59975,6 +59977,7 @@ const MACRO_KEYWORD_RULES = [
   [/\bapple\b/i, {kcal:52, protein:0.3, carbs:14, fat:0.2}],
   [/\bbanana\b/i, {kcal:89, protein:1.1, carbs:23, fat:0.3}],
   [/lemon|lime/i, {kcal:29, protein:1.1, carbs:9.3, fat:0.3}],
+  [/\borange\b/i, {kcal:47, protein:0.9, carbs:12, fat:0.1}],
   [/soy sauce/i, {kcal:53, protein:8, carbs:4.9, fat:0.1}],
   [/oyster sauce/i, {kcal:51, protein:1.4, carbs:11, fat:0.3}],
   [/worcestershire/i, {kcal:78, protein:0, carbs:19, fat:0}],
@@ -59997,7 +60000,7 @@ const MACRO_KEYWORD_RULES = [
   [/\bcornstarch\b/i, {kcal:381, protein:0.3, carbs:91, fat:0.1}],
   [/vanilla (extract|paste|bean)/i, {kcal:288, protein:0.1, carbs:13, fat:0.1}],
   [/vinegar/i, {kcal:19, protein:0, carbs:0.4, fat:0}],
-  [/cinnamon|cumin|paprika|oregano|turmeric|coriander|nutmeg|allspice|chili (flakes|powder)|curry powder|bay leaves?|\bthyme\b|rosemary|\bsage\b|\bdill\b|\bbasil\b|parsley|cilantro|red pepper flakes|\byeast\b|cream of tartar/i, {kcal:0, protein:0, carbs:0, fat:0}]
+  [/cinnamon|cumin|paprika|oregano|turmeric|coriander|nutmeg|allspice|chili (flakes|powder)|curry powder|bay leaves?|\bthyme\b|rosemary|\bsage\b|\bdill\b|\bbasil\b|parsley|cilantro|\bmint\b|red pepper flakes|\byeast\b|cream of tartar/i, {kcal:0, protein:0, carbs:0, fat:0}]
 ];
 /* Many ingredient lines in this dataset already carry a metric conversion
    in parentheses -- "2-4 lbs (910 g-1.8 kg) chicken", "6 tsp (30 ml)
@@ -61352,6 +61355,27 @@ function ingredientNoun(line){
     .replace(/\s+/g,' ').trim().toLowerCase();
   return s;
 }
+/* Heuristic English singularizer, scoped to shopping-list merge keys only
+   (not ingredientNoun itself, which other matching logic like haveInInventory
+   already depends on as-is) -- so "2 onions" from one recipe and "1 large
+   onion" from another land on the same shopping-list line instead of two. */
+const SINGULAR_EXCEPTIONS = new Set(['hummus','asparagus','molasses','couscous','watercress','swiss','citrus','leftovers']);
+function singularizeWord(w){
+  if(SINGULAR_EXCEPTIONS.has(w)) return w;
+  if(/[^aeiou]ies$/.test(w)) return w.slice(0,-3)+'y';        /* berries -> berry */
+  if(/oes$/.test(w)) return w.slice(0,-2);                     /* tomatoes/potatoes -> tomato/potato */
+  if(/(ches|shes|xes|zes)$/.test(w)) return w.slice(0,-2);     /* dishes/boxes -> dish/box */
+  if(/ss$/.test(w) || /us$/.test(w)) return w;                 /* glass, hummus-like: leave alone */
+  if(/s$/.test(w) && w.length>3) return w.slice(0,-1);         /* onions -> onion */
+  return w;
+}
+function mergeNoun(line){
+  const n = ingredientNoun(line);
+  if(!n) return n;
+  const words = n.split(' ');
+  words[words.length-1] = singularizeWord(words[words.length-1]);
+  return words.join(' ');
+}
 function keyIngredients(r){
   const out = new Set();
   (r.ingredients||[]).forEach(line=>{
@@ -61615,7 +61639,7 @@ function buildShoppingList(weekStart, listId){
         const f = slotFactor(e, r);
         (r.ingredients||[]).forEach(line=>{
           if(line.trim().endsWith(':')) return;
-          const noun = ingredientNoun(line);
+          const noun = mergeNoun(line);
           if(!noun || noun.length < 3) return;
           const scaled = scaleLine(line, f).text;
           const sec = sectionFor(line);
@@ -61627,7 +61651,7 @@ function buildShoppingList(weekStart, listId){
         });
       } else if(e.manualName && e.manualIngredients && e.manualIngredients.length){
         e.manualIngredients.forEach(line=>{
-          const noun = ingredientNoun(line);
+          const noun = mergeNoun(line);
           if(!noun || noun.length < 2) return;
           const sec = sectionFor(line);
           const key = sec + '|manual|' + noun;
@@ -61644,13 +61668,25 @@ function buildShoppingList(weekStart, listId){
        (Produce, Dairy & Eggs, Pantry, ...) as recipe-driven ingredients
        instead of landing in one undifferentiated "Shopping list" catch-all
        -- auto-assigned by name via the same sectionFor() rules, no need to
-       pick a category when adding an item. */
+       pick a category when adding an item. Also merged by noun the same way
+       recipe-driven ingredients are: saving two recipes that both call for
+       onions (or one for "onions", one for "1 large onion") lands one
+       "onion" line, not two, since "Save ingredients to list" has no other
+       opportunity to notice the overlap the way a week's plan does. */
+    const extraSeen = new Map();
     invItems('shopping').filter(it=> it.listId === listId).forEach(it=>{
       const sec = sectionFor(it.name);
-      const item = {
-        key: 'extra|'+it.id, text: [it.qty, it.unit, it.name].filter(Boolean).join(' '),
-        from: ['added manually'], have: false, invId: it.id
-      };
+      const noun = mergeNoun(it.name);
+      const text = [it.qty, it.unit, it.name].filter(Boolean).join(' ');
+      const key = (noun && noun.length >= 3) ? 'extra|'+sec+'|'+noun : 'extra|id|'+it.id;
+      if(extraSeen.has(key)){
+        const item = extraSeen.get(key);
+        item.from.push('added manually');
+        item.invIds.push(it.id);
+        return;
+      }
+      const item = {key, text, from: ['added manually'], have: false, invIds: [it.id]};
+      extraSeen.set(key, item);
       (bySection[sec] || (bySection[sec] = [])).push(item);
     });
   }
@@ -61885,13 +61921,13 @@ function renderShopInto(hostId, ws, rerender){
           return `<li class="${checked?'shop-checked':''}">
             <span class="shop-check" data-check="${escapeHTML(it.key)}" role="checkbox" aria-checked="${checked}">${checked?'☑':'☐'}</span>
             <span class="shop-item-text">${it.have?'<span class="from">[have] </span>':''}${zwsp(escapeHTML(it.text))}${it.from.length>1?` <span class="from">×${it.from.length}</span>`:''}</span>
-            ${it.invId?` <span class="ch-del" data-del="${it.invId}">delete</span>`:''}
+            ${it.invIds?` <span class="ch-del" data-del="${it.invIds.join(',')}">delete</span>`:''}
           </li>`;
         }).join('')}</ul></div>`).join('')}</div>
     </div>`;
   }
   host.querySelectorAll('[data-check]').forEach(el=> el.onclick = ()=>{ toggleShopChecked(el.dataset.check); rerender(); });
-  host.querySelectorAll('[data-del]').forEach(b=> b.onclick = ()=>{ removeInvItem(b.dataset.del); rerender(); });
+  host.querySelectorAll('[data-del]').forEach(b=> b.onclick = ()=>{ b.dataset.del.split(',').forEach(removeInvItem); rerender(); });
   host.querySelectorAll('[data-switch-list]').forEach(b=> b.onclick = ()=>{ setActiveShopListId(b.dataset.switchList); rerender(); });
   const newListBtn = host.querySelector('#shopNewList');
   if(newListBtn) newListBtn.onclick = ()=>{
