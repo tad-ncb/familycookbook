@@ -1069,7 +1069,7 @@
 
   /* ---------------- quick popovers (save-to-list / add-to-plan) ---------------- */
   .quick-menu{
-    position:absolute; z-index:60; background:var(--card); border:1px solid var(--line);
+    position:absolute; z-index:110; background:var(--card); border:1px solid var(--line);
     border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.2); padding:10px;
     width:240px; max-height:min(60vh,380px); overflow-y:auto;
     font-family:'Nunito Sans',sans-serif; font-size:12.5px;
@@ -59681,7 +59681,18 @@ function relTime(iso){
 }
 
 /* ---------------- formatting helpers ---------------- */
-function escapeHTML(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+/* Some scraped/imported recipe text (curated and archive alike -- archive
+   text lives in Supabase, not visible to grep here, so this can't be fixed
+   by patching a few known strings) already contains literal HTML entities
+   like "&amp;" instead of a bare "&". Escaping that again turns it into
+   "&amp;amp;", which the browser then displays as the literal text
+   "&amp;" on screen. Decoding the handful of entities escapeHTML itself
+   produces, before re-escaping, makes this idempotent regardless of
+   whether the source already contains a literal "&" or an escaped one. */
+function escapeHTML(s){
+  const unescaped = String(s).replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+  return unescaped.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
 /* zero-width space after slashes -> lets long titles/cuisines wrap without a visible gap */
 function zwsp(s){ return String(s).replace(/\/(?!​)/g, '/​'); }
 function renderInline(s){
@@ -60006,8 +60017,19 @@ function parenGrams(line){
   });
   return vals.reduce((a,b)=>a+b,0)/vals.length;
 }
+/* _servings.base is the recipe's as-written low end of a range (e.g. "6-8"
+   -> 6), which is correct for the +/- stepper's starting point but would
+   understate the true serving count for macro math, inflating per-serving
+   calories. Use the range's midpoint here instead, independent of the
+   stepper's base. */
+function macroServingBase(r){
+  const str = String(r.servings||'').trim();
+  const m = str.match(/(\d+(?:\.\d+)?)\s*(?:-|–|to)\s*(\d+(?:\.\d+)?)/i);
+  if(m) return (parseFloat(m[1])+parseFloat(m[2]))/2;
+  return r._servings && r._servings.base;
+}
 function estimateMacros(r){
-  const base = r._servings && r._servings.base;
+  const base = macroServingBase(r);
   if(!base) return null;
   let kcal=0, protein=0, carbs=0, fat=0, matchedGrams=0, totalGrams=0;
   (r.ingredients||[]).forEach(line=>{
@@ -60797,7 +60819,7 @@ function renderGrid(){
        own top-right corner (title already reserves that space via its own
        right padding) instead of taking a dedicated row anywhere. */
     const familyMark = isFamilyRecipe(r)
-      ? `<svg class="family-mark" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-label="Family recipe"><path d="M12 21s-6.7-4.4-9.8-8.9C.5 9.4 1.6 5.9 4.7 4.8 6.9 4 9 4.8 12 7.4c3-2.6 5.1-3.4 7.3-2.6 3.1 1.1 4.2 4.6 2.5 7.3C18.7 16.6 12 21 12 21z"/></svg>`
+      ? `<svg class="family-mark" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-label="Family recipe"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9a1 1 0 0 0 1 1H17.5a1 1 0 0 0 1-1v-9"/></svg>`
       : '';
     card.innerHTML = `
       <div class="card-icons">
