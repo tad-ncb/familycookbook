@@ -988,6 +988,9 @@
   .inv-name{ flex:1 1 auto; min-width:0; overflow-wrap:anywhere; }
   .inv-name.inv-out{ color:var(--ink-faint); text-decoration:line-through; }
   .inv-qty{ color:var(--ink-soft); font-size:12px; white-space:nowrap; }
+  .inv-useby{ font-size:11px; white-space:nowrap; padding:1px 6px; border-radius:3px; }
+  .inv-useby-ok{ color:var(--ink-faint); }
+  .inv-useby-soon, .inv-useby-over{ color:var(--alert); background:var(--alert-soft); font-weight:600; }
   .inv-empty{ color:var(--ink-faint); font-style:italic; font-size:13px; }
   .inv-add{ display:flex; gap:6px; flex-wrap:wrap; }
   .inv-add input{ flex:1 1 70px; min-width:0; padding:5px 7px; border:1px solid var(--line); border-radius:3px; font-size:13px; background:var(--paper); color:var(--ink); }
@@ -1476,6 +1479,7 @@
         <div class="modal-sidelabel">Source</div><div class="modal-sideval" id="modalSideSource"></div>
         <div class="modal-sidelabel">Serves</div><div class="modal-sideval" id="modalSideServes"></div>
         <div class="modal-sidelabel">Prep / Cook</div><div class="modal-sideval" id="modalSideTime"></div>
+        <div class="modal-sidelabel">Macros</div><div class="modal-sideval" id="modalSideMacros"></div>
         <div class="modal-sidelabel">Diet</div><div class="tags" id="modalTags"></div>
         <div class="modal-sidelabel">Added</div><div class="modal-sideval" id="modalSideAdded"></div>
         </div>
@@ -59884,12 +59888,120 @@ function servingsLabel(s){
   return /^(makes|serves)\b/i.test(str) ? str : 'Serves ' + str;
 }
 
+/* ---------------- rough per-serving macro estimate ---------------- */
+/* Deliberately a heuristic, same spirit as the rest of this file's
+   estimates (weight/time guesses) -- ingredient text is matched against a
+   ~50-entry keyword table of per-100g macros, quantities are converted to
+   grams via generic (not ingredient-specific) unit weights, and the whole
+   thing is skipped rather than shown if too little of the recipe's mass
+   could be matched. This is nutrition-label-adjacent, not nutrition-label
+   accurate -- no ingredient database or API involved, just enough to say
+   "roughly a 600-calorie dinner" at a glance. */
+const UNIT_GRAMS = {
+  g:1, gram:1, grams:1, kg:1000, ml:1, milliliter:1, milliliters:1, l:1000, liter:1000, liters:1000,
+  oz:28, ounce:28, ounces:28, lb:454, lbs:454, pound:454, pounds:454,
+  cup:225, cups:225, tbsp:15, tablespoon:15, tablespoons:15, tsp:5, teaspoon:5, teaspoons:5,
+  clove:3, cloves:3, stick:113, sticks:113, can:400, cans:400
+};
+const UNIT_GRAMS_NO_UNIT = 50; /* bare counts: "2 eggs", "1 onion", "3 tortillas" */
+const MACRO_KEYWORD_RULES = [
+  [/chicken breast/i, {kcal:165, protein:31, carbs:0, fat:3.6}],
+  [/chicken thigh|\bchicken\b/i, {kcal:220, protein:26, carbs:0, fat:12}],
+  [/ground beef|\bbeef\b|steak/i, {kcal:250, protein:26, carbs:0, fat:17}],
+  [/ground turkey|\bturkey\b/i, {kcal:150, protein:24, carbs:0, fat:7}],
+  [/\bpork\b/i, {kcal:242, protein:27, carbs:0, fat:14}],
+  [/\bbacon\b/i, {kcal:541, protein:37, carbs:1.4, fat:42}],
+  [/sausage|chorizo/i, {kcal:300, protein:15, carbs:2, fat:26}],
+  [/salmon/i, {kcal:208, protein:20, carbs:0, fat:13}],
+  [/shrimp|prawn/i, {kcal:99, protein:24, carbs:0.2, fat:0.3}],
+  [/\btuna\b/i, {kcal:132, protein:28, carbs:0, fat:1}],
+  [/\bfish\b|cod|tilapia|halibut/i, {kcal:105, protein:23, carbs:0, fat:1}],
+  [/\begg\b|\beggs\b/i, {kcal:143, protein:13, carbs:1.1, fat:10}],
+  [/\btofu\b/i, {kcal:76, protein:8, carbs:1.9, fat:4.8}],
+  [/black beans|kidney beans|\bbeans?\b|chickpea|lentil/i, {kcal:130, protein:9, carbs:22, fat:0.5}],
+  [/\bbutter\b/i, {kcal:717, protein:0.9, carbs:0.1, fat:81}],
+  [/olive oil|vegetable oil|canola oil|\boil\b/i, {kcal:884, protein:0, carbs:0, fat:100}],
+  [/heavy cream/i, {kcal:340, protein:2.1, carbs:2.8, fat:36}],
+  [/sour cream/i, {kcal:198, protein:2.4, carbs:4.6, fat:20}],
+  [/cream cheese/i, {kcal:342, protein:6, carbs:4, fat:34}],
+  [/parmesan/i, {kcal:431, protein:38, carbs:4, fat:29}],
+  [/mozzarella|cheddar|\bcheese\b/i, {kcal:350, protein:23, carbs:2.5, fat:28}],
+  [/whole milk|\bmilk\b/i, {kcal:61, protein:3.2, carbs:4.8, fat:3.3}],
+  [/yogurt|yoghurt/i, {kcal:59, protein:10, carbs:3.6, fat:0.4}],
+  [/white rice|\brice\b/i, {kcal:130, protein:2.7, carbs:28, fat:0.3}],
+  [/brown rice/i, {kcal:112, protein:2.6, carbs:24, fat:0.9}],
+  [/pasta|spaghetti|noodle/i, {kcal:158, protein:5.8, carbs:31, fat:0.9}],
+  [/quinoa/i, {kcal:120, protein:4.4, carbs:21, fat:1.9}],
+  [/\bbread\b/i, {kcal:265, protein:9, carbs:49, fat:3.2}],
+  [/tortilla/i, {kcal:218, protein:5.7, carbs:36, fat:5.4}],
+  [/all-purpose flour|\bflour\b/i, {kcal:364, protein:10, carbs:76, fat:1}],
+  [/brown sugar/i, {kcal:380, protein:0, carbs:98, fat:0}],
+  [/\bsugar\b/i, {kcal:387, protein:0, carbs:100, fat:0}],
+  [/\bhoney\b/i, {kcal:304, protein:0.3, carbs:82, fat:0}],
+  [/sweet potato/i, {kcal:86, protein:1.6, carbs:20, fat:0.1}],
+  [/\bpotato\b/i, {kcal:77, protein:2, carbs:17, fat:0.1}],
+  [/\bonion\b/i, {kcal:40, protein:1.1, carbs:9.3, fat:0.1}],
+  [/\bgarlic\b/i, {kcal:149, protein:6.4, carbs:33, fat:0.5}],
+  [/\bcarrot/i, {kcal:41, protein:0.9, carbs:10, fat:0.2}],
+  [/\btomato/i, {kcal:18, protein:0.9, carbs:3.9, fat:0.2}],
+  [/bell pepper|\bpepper\b/i, {kcal:31, protein:1, carbs:6, fat:0.3}],
+  [/broccoli/i, {kcal:34, protein:2.8, carbs:7, fat:0.4}],
+  [/spinach/i, {kcal:23, protein:2.9, carbs:3.6, fat:0.4}],
+  [/lettuce|greens/i, {kcal:15, protein:1.4, carbs:2.9, fat:0.2}],
+  [/mushroom/i, {kcal:22, protein:3.1, carbs:3.3, fat:0.3}],
+  [/avocado/i, {kcal:160, protein:2, carbs:8.5, fat:15}],
+  [/almond|walnut|pecan|cashew|pistachio|\bnuts?\b/i, {kcal:600, protein:20, carbs:20, fat:52}],
+  [/peanut butter/i, {kcal:588, protein:25, carbs:20, fat:50}],
+  [/coconut milk/i, {kcal:230, protein:2.3, carbs:6, fat:24}],
+  [/\bapple\b/i, {kcal:52, protein:0.3, carbs:14, fat:0.2}],
+  [/\bbanana\b/i, {kcal:89, protein:1.1, carbs:23, fat:0.3}],
+  [/lemon|lime/i, {kcal:29, protein:1.1, carbs:9.3, fat:0.3}]
+];
+function estimateMacros(r){
+  const base = r._servings && r._servings.base;
+  if(!base) return null;
+  let kcal=0, protein=0, carbs=0, fat=0, matchedGrams=0, totalGrams=0;
+  (r.ingredients||[]).forEach(line=>{
+    if(!line || line.trim().endsWith(':')) return;
+    if(isNoScale(line)) return;
+    const lead = line.match(/^(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?)(\s*)([A-Za-z]*)/);
+    let grams;
+    if(lead && parseQty(lead[1])){
+      const unit = lead[3].toLowerCase().replace(/\.$/,'');
+      const perUnit = UNIT_GRAMS[unit];
+      grams = parseQty(lead[1]) * (perUnit!==undefined ? perUnit : UNIT_GRAMS_NO_UNIT);
+    } else {
+      grams = UNIT_GRAMS_NO_UNIT;
+    }
+    totalGrams += grams;
+    const rule = MACRO_KEYWORD_RULES.find(([re])=> re.test(line));
+    if(rule){
+      const m = rule[1];
+      kcal += grams/100*m.kcal; protein += grams/100*m.protein;
+      carbs += grams/100*m.carbs; fat += grams/100*m.fat;
+      matchedGrams += grams;
+    }
+  });
+  /* Under a third of the recipe's estimated mass identified -> too little
+     signal to put a number in front of someone. Silence, not a bad guess. */
+  if(totalGrams < 10 || matchedGrams/totalGrams < 0.35) return null;
+  return {
+    kcal: Math.round(kcal/base), protein: Math.round(protein/base),
+    carbs: Math.round(carbs/base), fat: Math.round(fat/base)
+  };
+}
+function macrosLabel(r){
+  const m = r._macros;
+  return m ? `≈${m.kcal} cal · ${m.protein}p · ${m.carbs}c · ${m.fat}f (est./serving)` : '—';
+}
+
 /* ---------------- derived index ---------------- */
 RECIPES.forEach(r=>{
   r._ahead    = detectAhead(r);
   r._servings = parseServings(r.servings);
   r._total    = totalTime(r);
   r._plan     = planMinutes(r);
+  r._macros   = estimateMacros(r);
 });
 
 /* ---------------- app state ---------------- */
@@ -60348,7 +60460,8 @@ function getFiltered(){
     most:   (a,b)=> timesMade(b.id)-timesMade(a.id) || byTitle(a,b),
     rating: (a,b)=>{ const A=avgRating(a.id)||-1, B=avgRating(b.id)||-1; return B-A || byTitle(a,b); },
     quick:  (a,b)=>{ const A=a._plan===null?1e9:a._plan, B=b._plan===null?1e9:b._plan; return A-B || byTitle(a,b); },
-    newest: (a,b)=> addedDateOf(b).localeCompare(addedDateOf(a)) || byTitle(a,b)
+    newest: (a,b)=> addedDateOf(b).localeCompare(addedDateOf(a)) || byTitle(a,b),
+    pantry: (a,b)=> inventoryMatchRatio(b)-inventoryMatchRatio(a) || byTitle(a,b)
   };
   const base = sorters[state.sort] || byTitle;
   const dir = state.sortDir || 1;
@@ -60418,6 +60531,7 @@ function renderToolbar(){
             <option value="rating">Highest rated</option>
             <option value="quick">Quickest</option>
             <option value="newest">Newest added</option>
+            <option value="pantry">What I can make now</option>
           </select>
           <button class="tb-btn" id="sortDirBtn" title="Reverse sort order">↓</button>
         </div>
@@ -60856,6 +60970,7 @@ async function openModal(r){
   document.getElementById('modalSideServes').textContent = r.servings ? servingsLabel(r.servings) : '—';
   document.getElementById('modalSideTime').textContent =
     (p && c) ? `${fmtTime(p)} / ${fmtTime(c)}` : (t ? `${fmtTime(t)} total` : '—');
+  document.getElementById('modalSideMacros').textContent = macrosLabel(r);
   document.getElementById('modalSideAdded').textContent = fmtAddedDate(addedDateOf(r));
   const modalTitleEl = document.getElementById('modalTitle');
   modalTitleEl.innerHTML = zwsp(escapeHTML(displayTitle(r)));
@@ -60900,6 +61015,7 @@ async function openModal(r){
     sourceVal.length > OWN_LINE_LEN ? metaFull('Source', sourceVal) : metaCell('Source', sourceVal),
     servesVal.length > OWN_LINE_LEN ? metaFull('Serves', servesVal) : metaCell('Serves', servesVal),
     metaCell('Prep/Cook', (parseTime(r.prepTime) && parseTime(r.cookTime)) ? `${fmtTime(parseTime(r.prepTime))} / ${fmtTime(parseTime(r.cookTime))}` : (r._total ? `${fmtTime(r._total)} total` : '—')),
+    r._macros ? metaFull('Macros', macrosLabel(r)) : '',
     metaCell('Added', fmtAddedDate(addedDateOf(r))),
     /* the tag list already shows a "Marinate"/etc pill for at-a-glance
        scanning, but that pill has no room for the actual lead time -- this
@@ -61240,6 +61356,12 @@ function scoreFor(r, iso, ctx){
   if(keyIng(r).size && invRatio >= 0.99){ s += 12; why.unshift('have all the ingredients'); }
   else if(invRatio >= 0.6){ s += 5; }
 
+  /* Using up something before it goes bad beats almost every other reason to
+     cook a given dish tonight -- weighted and surfaced ahead of the plainer
+     "have all the ingredients" case above. */
+  const expiring = usesExpiringSoon(r);
+  if(expiring.length){ s += 20; why.unshift('uses '+expiring[0]+' before it goes bad'); }
+
   /* a dish big enough to feed the household twice is a mild plus, not a driver */
   const sv = r._servings;
   if(sv && sv.servingBased && sv.base >= prefs().household * 2) s += 5;
@@ -61287,12 +61409,34 @@ function prepTasks(weekStart){
 
 /* ---------------- inventory (pantry / fridge / freezer / shopping) ---------------- */
 function invItems(kind){ return DATA.inventory.items.filter(it=> it.kind===kind && !it._d); }
-function addInvItem(kind, name, qty, unit, listId){
-  const row = {id:uid(), kind, name, qty: qty||'', unit: unit||'', listId: listId||null, _t: Date.now()};
+function addInvItem(kind, name, qty, unit, listId, useBy){
+  const row = {id:uid(), kind, name, qty: qty||'', unit: unit||'', listId: listId||null, useBy: useBy||null, _t: Date.now()};
   DATA.inventory.items.push(row);
   persist();
   if(typeof pushWrite === 'function') pushWrite({table:'inventory_items', kind, row});
   return row;
+}
+/* ---------------- use-by / expiration ---------------- */
+function useByStatus(iso){
+  if(!iso) return null;
+  const d = -daysSince(iso);
+  if(d < 0) return {label:'expired '+relTime(iso), urgency:'over'};
+  if(d === 0) return {label:'use today', urgency:'soon'};
+  if(d <= 3) return {label:'use in '+d+'d', urgency:'soon'};
+  return {label:'use by '+iso, urgency:'ok'};
+}
+/* Pantry/fridge/freezer items with a use-by inside the urgency window,
+   matched against recipes the same way haveInInventory() already does --
+   reusing that matching logic rather than a second one. */
+function expiringSoonNouns(){
+  const all = [...invItems('pantry'), ...invItems('fridge'), ...invItems('freezer')];
+  return all.filter(it=> it.useBy && hasQty(it) && useByStatus(it.useBy).urgency!=='ok')
+    .map(it=> String(it.name).toLowerCase());
+}
+function usesExpiringSoon(r){
+  const soon = expiringSoonNouns();
+  if(!soon.length) return [];
+  return [...keyIng(r)].filter(n=> soon.some(s=> n.indexOf(s)!==-1));
 }
 /* ---------------- named shopping lists ---------------- */
 /* "Which list am I even looking at" was the actual complaint -- one
@@ -61707,17 +61851,22 @@ function renderStorage(){
   const kindSec = k => `
     <div class="inv-sec">
       <h4>${label[k]}</h4>
-      <ul class="inv-list">${invItems(k).map(it=>`
+      <ul class="inv-list">${invItems(k).map(it=>{
+        const st = useByStatus(it.useBy);
+        return `
         <li class="inv-row" data-id="${it.id}">
           <span class="inv-name${hasQty(it)?'':' inv-out'}">${escapeHTML(it.name)}</span>
           <span class="inv-qty">${escapeHTML([it.qty,it.unit].filter(Boolean).join(' '))}</span>
+          ${st ? `<span class="inv-useby inv-useby-${st.urgency}">${escapeHTML(st.label)}</span>` : ''}
           <button class="ch-del" data-empty="${it.id}">out</button>
           <button class="ch-del" data-remove="${it.id}">×</button>
-        </li>`).join('') || '<li class="inv-empty">Nothing tracked yet.</li>'}</ul>
+        </li>`;
+      }).join('') || '<li class="inv-empty">Nothing tracked yet.</li>'}</ul>
       <div class="inv-add">
         <input type="text" placeholder="Item" id="invName-${k}">
         <input type="text" placeholder="Qty" id="invQty-${k}">
         <input type="text" placeholder="Unit" id="invUnit-${k}">
+        <input type="date" placeholder="Use by" id="invUseBy-${k}" title="Use by (optional)">
         <button class="cook-btn" data-addkind="${k}">Add</button>
       </div>
     </div>`;
@@ -61748,7 +61897,8 @@ function renderStorage(){
     const nameEl = document.getElementById('invName-'+k);
     const name = nameEl.value.trim();
     if(!name) return;
-    addInvItem(k, name, document.getElementById('invQty-'+k).value.trim(), document.getElementById('invUnit-'+k).value.trim(), k==='shopping' ? ensureActiveShopList() : undefined);
+    const useByEl = document.getElementById('invUseBy-'+k);
+    addInvItem(k, name, document.getElementById('invQty-'+k).value.trim(), document.getElementById('invUnit-'+k).value.trim(), k==='shopping' ? ensureActiveShopList() : undefined, useByEl ? useByEl.value || null : null);
     renderStorage();
   });
   host.querySelectorAll('[data-empty]').forEach(b=> b.onclick = ()=>{ markInvEmpty(b.dataset.empty); renderStorage(); });
@@ -62411,7 +62561,7 @@ function rowToPlan(r){
     _d: !!r.deleted, _t: Date.parse(r.updated_at)
   };
 }
-function rowToInv(r){ return {id:r.id, kind:r.kind, name:r.name, qty:r.qty, unit:r.unit, listId:r.list_id||null, _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
+function rowToInv(r){ return {id:r.id, kind:r.kind, name:r.name, qty:r.qty, unit:r.unit, listId:r.list_id||null, useBy:r.use_by||null, _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
 function rowToInterested(r){ return {id:r.recipe_id, _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
 function rowToShoppingList(r){ return {id:r.id, name:r.name, _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
 
@@ -62886,7 +63036,7 @@ async function runOp(op){
     return sb.from('inventory_items').upsert({
       id: op.row.id, household_id: hh, kind: op.kind, name: op.row.name,
       qty: (op.row.qty===''||op.row.qty===undefined) ? null : op.row.qty, unit: op.row.unit||null,
-      list_id: op.row.listId||null,
+      list_id: op.row.listId||null, use_by: op.row.useBy||null,
       deleted: !!op.row._d, updated_at: new Date(op.row._t).toISOString()
     });
   }
