@@ -60989,7 +60989,6 @@ function renderCookPanel(){
       ${n ? `<div class="cook-hist">${evs.map(e=>`
         <div class="cook-hist-item">
           <span class="ch-date">${e.date}</span>
-          ${householdOf(e)!==me?`<span class="ch-hh">${HOUSEHOLD_LABEL[householdOf(e)]||householdOf(e)}</span>`:''}
           ${e.rating?`<span class="stars">${starStr(e.rating)}</span>`:''}
           ${e.note?`<span class="ch-note">${escapeHTML(e.note)}</span>`:''}
           ${e.leftover?`<span class="ch-note">Leftovers: ${escapeHTML(e.leftover)}</span>`:''}
@@ -62193,7 +62192,6 @@ function renderHistory(){
     return r && displayTitle(r).toLowerCase().includes(q);
   }) : all;
 
-  const me = currentHousehold();
   const toShow = filtered.slice(0, historyRenderLimit);
   const host = document.getElementById('historyList');
   host.innerHTML = toShow.length ? toShow.map(e=>{
@@ -62204,7 +62202,6 @@ function renderHistory(){
         <div class="hist-title">${r?zwsp(escapeHTML(displayTitle(r))):'(recipe no longer on file)'}</div>
         <div class="hist-meta">
           ${e.rating?`<span class="hist-stars">${starStr(e.rating)}</span>`:''}
-          ${householdOf(e)!==me?`<span class="hist-hh">${HOUSEHOLD_LABEL[householdOf(e)]||householdOf(e)}</span>`:''}
           ${e.note?`<span class="hist-note">${escapeHTML(e.note)}</span>`:''}
           ${e.leftover?`<span class="hist-note">Leftovers: ${escapeHTML(e.leftover)}</span>`:''}
         </div>
