@@ -59553,30 +59553,35 @@ function persist(fromSync){
 function uid(){ return 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 
 /* ---------------- households ---------------- */
-/* Single-household for now (2026-09-04) -- multi-household support (a
-   household switcher UI, per-household code unlock, cross-household "made
-   by them too" comparisons in the cook panel) was built and worked, but
-   added more complexity than the second household ("berdux" / Jen and
-   Chris) currently needs. Kept here, inert, rather than deleted, since the
-   data model (household_id columns, HOUSEHOLD_LABEL, timesMadeByHousehold,
-   the otherHh comparison in renderCookPanel) all still work unmodified --
-   turning multi-household back on is just restoring the switcher UI that
-   called switchHousehold(hh), not rebuilding any of this.
-   Membership mirrors the household_members allowlist in Supabase -- update
-   both places together when adding someone. */
-const HOUSEHOLD_MAP = {
-  'tad5127@gmail.com': 'deemer-berdux',
-  'ncberdux@gmail.com': 'deemer-berdux',
-  'tyler.deemer@capitalone.com': 'deemer-berdux',
-  'berdux@hotmail.com': 'berdux',
-  'jcberdux@gmail.com': 'berdux'
-};
+/* Re-activated 2026-09-11 for a second real household ("berdux" / Jen and
+   Chris) sharing this cookbook. No login, no code -- access control is
+   just "don't send the wrong link to the wrong people," same trust model
+   the rest of this app already uses. Each household gets its own URL
+   (?hh=berdux vs. the bare URL / ?hh=deemer-berdux), remembered in
+   localStorage after the first visit so it doesn't need to be in every
+   link forever -- and it's changeable any time from Settings, in case a
+   link gets reused on the wrong device.
+   The old email-lookup switcher (HOUSEHOLD_MAP) and the cross-household
+   "3x us / 2x them" cook-panel comparison were both removed rather than
+   restored -- the former added a login-like step nobody wanted, the latter
+   was confusing and nobody asked for it back. */
 const HOUSEHOLD_LABEL = { 'deemer-berdux': 'Nick and Tyler', 'berdux': 'Jen and Chris' };
-/* No login, no code -- everyone can see and use Plan/History/Storage right
-   away, and it all still saves across sessions/devices via Supabase (see
-   remoteFetchAll/subscribeRealtime/flushQueue below) -- there's just only
-   ever one household now, so there's nothing to switch between. */
-function currentHousehold(){ return 'deemer-berdux'; }
+const HOUSEHOLD_STORAGE_KEY = 'household';
+function currentHousehold(){
+  const fromUrl = new URLSearchParams(location.search).get('hh');
+  if(fromUrl && HOUSEHOLD_LABEL[fromUrl]){
+    try{ localStorage.setItem(HOUSEHOLD_STORAGE_KEY, fromUrl); }catch(e){}
+    return fromUrl;
+  }
+  let stored;
+  try{ stored = localStorage.getItem(HOUSEHOLD_STORAGE_KEY); }catch(e){}
+  return (stored && HOUSEHOLD_LABEL[stored]) ? stored : 'deemer-berdux';
+}
+function setHousehold(hh){
+  if(!HOUSEHOLD_LABEL[hh]) return;
+  try{ localStorage.setItem(HOUSEHOLD_STORAGE_KEY, hh); }catch(e){}
+  location.reload();
+}
 /* cook_log rows written before household scoping existed have no tag --
    they all belong to the original (only) household. */
 function householdOf(e){ return e.household || 'deemer-berdux'; }
@@ -59598,11 +59603,6 @@ function toggleInterested(id){
 function cookEvents(id){ return DATA.cookLog.filter(e=>e.recipeId===id && !e._d).sort((a,b)=>(b.date||'').localeCompare(a.date||'')); }
 function cookEventsFor(id, household){ return cookEvents(id).filter(e=>householdOf(e)===household); }
 function timesMade(id){ return cookEvents(id).length; }
-function timesMadeByHousehold(id){
-  const out = {};
-  cookEvents(id).forEach(e=>{ const h = householdOf(e); out[h] = (out[h]||0)+1; });
-  return out;
-}
 function lastMade(id){ const e=cookEvents(id); return e.length ? e[0].date : null; }
 function avgRating(id, household){
   const h = household || currentHousehold();
@@ -60762,16 +60762,12 @@ function renderScaleBar(){
 function renderCookPanel(){
   const r = modalRecipe, host = document.getElementById('modalCook');
   const evs = cookEvents(r.id), n = evs.length, avg = avgRating(r.id);
-  const me = currentHousehold();
-  const byHh = timesMadeByHousehold(r.id);
-  const otherHh = Object.keys(byHh).find(h=>h!==me);
-  const otherBit = otherHh ? ` (${byHh[me]||0}× us · ${byHh[otherHh]}× ${HOUSEHOLD_LABEL[otherHh]||otherHh})` : '';
   /* with exactly one cook logged, the average IS that entry's own rating --
      showing it here duplicates the star line the history list below already
      shows for that same entry. Only worth surfacing once there's more than
      one to actually average across. */
   const summary = n===0 ? 'Not yet cooked.'
-    : `Cooked ${n}×${otherBit}${(avg && n>1)?` · ${starStr(avg)}`:''} · last ${relTime(lastMade(r.id))}`;
+    : `Cooked ${n}×${(avg && n>1)?` · ${starStr(avg)}`:''} · last ${relTime(lastMade(r.id))}`;
   host.innerHTML = `
     <div class="cook-panel">
       <div class="cook-row">
@@ -61749,7 +61745,14 @@ function renderSettings(){
   const host = document.getElementById('settingsPanel');
   if(!host.dataset.open){ host.innerHTML=''; return; }
   const p = prefs();
+  const me = currentHousehold();
+  const otherHousehold = Object.keys(HOUSEHOLD_LABEL).find(h=>h!==me);
   host.innerHTML = `<div class="settings">
+    <div class="house-row">
+      <span class="rday">Kitchen</span>
+      <span style="font-weight:600;">${escapeHTML(HOUSEHOLD_LABEL[me]||me)}</span>
+      ${otherHousehold ? `<button type="button" class="cook-btn" id="switchHousehold" style="padding:3px 10px; font-size:12px;">Switch to ${escapeHTML(HOUSEHOLD_LABEL[otherHousehold])}</button>` : ''}
+    </div>
     <div class="house-row">
       <span class="rday">Household</span>
       <div class="step">
@@ -61791,6 +61794,8 @@ function renderSettings(){
   };
   host.querySelector('#hhUp').onclick   = ()=> setHH(p.household+1);
   host.querySelector('#hhDown').onclick = ()=> setHH(p.household-1);
+  const switchBtn = host.querySelector('#switchHousehold');
+  if(switchBtn) switchBtn.onclick = ()=> setHousehold(otherHousehold);
   const subCatChips = host.querySelector('#subCategoryChips');
   subCatChips.innerHTML = ALL_CATEGORIES.map(cat=>
     `<span class="facet-link" data-course="${escapeHTML(cat)}">${escapeHTML(cat)}</span>`).join('');
