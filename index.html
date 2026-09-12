@@ -1453,6 +1453,14 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="householdGate">
+  <div class="modal" style="max-width:420px; padding:28px 24px; border-top-color:var(--stamp);">
+    <div style="font-family:'Bitter',serif; font-weight:600; font-size:1.2rem; margin-bottom:6px;">Whose kitchen is this?</div>
+    <div class="hint" style="margin:0 0 18px;">Only asked once per device -- picking here keeps your meal plan, shopping list, and pantry separate from theirs.</div>
+    <div style="display:flex; flex-direction:column; gap:10px;" id="householdGateBtns"></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal" id="modalCard">
     <div class="modal-close" id="modalClose">&times;</div>
@@ -59567,6 +59575,12 @@ function uid(){ return 'c'+Date.now().toString(36)+Math.random().toString(36).sl
    was confusing and nobody asked for it back. */
 const HOUSEHOLD_LABEL = { 'deemer-berdux': 'Nick and Tyler', 'berdux': 'Jen and Chris' };
 const HOUSEHOLD_STORAGE_KEY = 'household';
+/* Deliberately returns null, never a guessed default, when neither signal
+   is present -- a silent fallback here is exactly how one household's
+   device could end up reading and writing into the other's meal plan/
+   shopping list/pantry without anyone noticing. Callers that need a
+   guaranteed value must go through resolveHousehold() below, which blocks
+   on an explicit choice instead of guessing. */
 function currentHousehold(){
   const fromUrl = new URLSearchParams(location.search).get('hh');
   if(fromUrl && HOUSEHOLD_LABEL[fromUrl]){
@@ -59575,7 +59589,7 @@ function currentHousehold(){
   }
   let stored;
   try{ stored = localStorage.getItem(HOUSEHOLD_STORAGE_KEY); }catch(e){}
-  return (stored && HOUSEHOLD_LABEL[stored]) ? stored : 'deemer-berdux';
+  return (stored && HOUSEHOLD_LABEL[stored]) ? stored : null;
 }
 function setHousehold(hh){
   if(!HOUSEHOLD_LABEL[hh]) return;
@@ -62914,9 +62928,9 @@ function syncLabel(){
 }
 
 /* ---------------- sync status ---------------- */
-/* No code, no login, no switcher -- just one household, and everything
-   (Plan/History/Storage/Shopping) is available immediately. This is just a
-   quiet sync indicator now, not an auth control. */
+/* Still no code, no real login -- but there are two households sharing this
+   now (see resolveHouseholdThenBoot()), so this is just a quiet sync
+   indicator, not the thing that decides which household's data you see. */
 function paintAuth(){
   const host = document.getElementById('authArea');
   if(!sb){ host.innerHTML = `<span class="icon-btn" style="cursor:default">Supabase not configured</span>`; return; }
@@ -62938,11 +62952,34 @@ async function authBoot(){
   subscribeRealtime();
   flushQueue();
 }
-authBoot();
-/* the archive never auto-loads -- see toggleSource(), which is the only
-   thing that ever calls nytBoot() now; every fresh load starts curated-only */
-familySubmissionsBoot();
-loadArchiveSourceCounts();
+/* Nothing that reads or writes household-scoped data (authBoot, the
+   submission queue, realtime sync) may run until we're sure which
+   household this device is -- resolveHouseholdThenBoot() is the only
+   thing allowed to call these directly. */
+function startApp(){
+  authBoot();
+  /* the archive never auto-loads -- see toggleSource(), which is the only
+     thing that ever calls nytBoot() now; every fresh load starts curated-only */
+  familySubmissionsBoot();
+  loadArchiveSourceCounts();
+}
+function resolveHouseholdThenBoot(){
+  if(currentHousehold()){ startApp(); return; }
+  const gate = document.getElementById('householdGate');
+  const btnsHost = document.getElementById('householdGateBtns');
+  btnsHost.innerHTML = Object.keys(HOUSEHOLD_LABEL).map(hh=>
+    `<button type="button" class="cook-btn" data-hh="${hh}" style="padding:14px; font-size:15px;">${escapeHTML(HOUSEHOLD_LABEL[hh])}</button>`
+  ).join('');
+  btnsHost.querySelectorAll('[data-hh]').forEach(b=>{
+    b.onclick = ()=>{
+      try{ localStorage.setItem(HOUSEHOLD_STORAGE_KEY, b.dataset.hh); }catch(e){}
+      gate.classList.remove('open');
+      startApp();
+    };
+  });
+  gate.classList.add('open');
+}
+resolveHouseholdThenBoot();
 
 /* Scale the whole recipe card down just enough to fit one printed page,
    rather than letting a long method spill onto a second page. The fixed
