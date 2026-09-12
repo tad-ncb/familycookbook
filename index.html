@@ -824,6 +824,18 @@
   .prep-strip .pline{ margin-top:5px; }
   .prep-strip .pline:first-of-type{ margin-top:8px; }
 
+  .useup-strip{
+    border:1px solid var(--stamp); background:var(--stamp-soft);
+    border-radius:3px; padding:11px 14px; margin-bottom:14px; font-size:13.5px;
+  }
+  .useup-strip b{ font-weight:600; }
+  .useup-card{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    margin-top:8px; padding-top:8px; border-top:1px solid var(--line);
+  }
+  .useup-card:first-of-type{ border-top:none; padding-top:0; }
+  .useup-card .uc-why{ color:var(--ink-faint); font-size:12px; }
+
   .week-summary{
     display:flex; flex-wrap:wrap; gap:18px; margin-top:16px; padding-top:14px;
     border-top:1px solid var(--line);
@@ -1399,6 +1411,7 @@
       </div>
     </div>
     <div id="settingsPanel"></div>
+    <div id="useupStrip"></div>
     <div id="prepStrip"></div>
     <div class="week" id="weekGrid"></div>
     <div id="weekSummary"></div>
@@ -61836,11 +61849,41 @@ function renderWeek(){
     renderWeek(); renderGrid();
   });
 
+  renderUseupStrip();
   renderPrepStrip();
   renderWeekSummary();
   if(document.getElementById('shopPanel').dataset.open) renderShop();
 }
 
+/* Surfaces recipes that use up something already expiring, right on the plan
+   view -- scoreFor() already weighs this (usesExpiringSoon, +20, top billing
+   in "why") but that only mattered once you'd opened a day's picker; this
+   puts the same signal in front of you without asking first. Scoped to the
+   curated RECIPES set only, same as scoreFor/candidatesFor and the "What I
+   can make now" sort -- archive rows don't carry ingredients locally until
+   opened, so scanning all 60k+ per render isn't an option. */
+function renderUseupStrip(){
+  const host = document.getElementById('useupStrip');
+  if(!host) return;
+  if(!expiringSoonNouns().length){ host.innerHTML = ''; return; }
+  const ctx = weekContext(weekStart, null);
+  const today = todayISO();
+  const cands = RECIPES
+    .filter(r=> isDinnerish(r) && !ctx.used.has(r.id) && usesExpiringSoon(r).length)
+    .map(r=> ({r, sc: scoreFor(r, today, ctx)}))
+    .sort((a,b)=> b.sc.score - a.sc.score)
+    .slice(0,3);
+  if(!cands.length){ host.innerHTML = ''; return; }
+  host.innerHTML = `<div class="useup-strip"><b>Use it up before it goes bad</b>` +
+    cands.map(({r,sc})=>`
+      <div class="useup-card">
+        <span>${escapeHTML(displayTitle(r))}<br><span class="uc-why">${escapeHTML(sc.why)}</span></span>
+        <button class="tb-btn" data-useup-add="${escapeHTML(r.id)}">Add to plan</button>
+      </div>`).join('') + `</div>`;
+  host.querySelectorAll('[data-useup-add]').forEach(b=>{
+    b.onclick = ()=>{ const r = recipeById(b.dataset.useupAdd); if(r) openAddToPlanMenu(b, r); };
+  });
+}
 function renderPrepStrip(){
   const host = document.getElementById('prepStrip');
   const tasks = prepTasks(weekStart);
@@ -62579,7 +62622,8 @@ function openAddToListMenu(anchor){
   el.querySelector('#qmNewListGo').onclick = go;
   el.querySelector('#qmNewListName').addEventListener('keydown', e=>{ if(e.key==='Enter') go(); });
 }
-function openAddToPlanMenu(anchor){
+function openAddToPlanMenu(anchor, recipe){
+  const target = recipe || modalRecipe;
   const days = [];
   for(let i=0;i<14;i++) days.push(addDays(todayISO(), i));
   const html = `
@@ -62594,13 +62638,13 @@ function openAddToPlanMenu(anchor){
     </div>`;
   const el = openQuickMenu(anchor, html);
   el.querySelectorAll('[data-iso]').forEach(b=> b.onclick = async ()=>{
-    addSlot(b.dataset.iso, b.dataset.meal, {recipeId: modalRecipe.id});
+    addSlot(b.dataset.iso, b.dataset.meal, {recipeId: target.id});
     closeQuickMenu();
     flashButton(anchor, 'Added!');
     /* a lite archive row (see NYT_LITE_COLUMNS) has no ingredients locally
        yet -- fetch now so the plan's shopping list is right by the time
        anyone looks at it, same reasoning as pickRecipe() below. */
-    if(modalRecipe && modalRecipe._lite) await fetchRecipeDetail(modalRecipe);
+    if(target && target._lite) await fetchRecipeDetail(target);
     if(typeof renderWeek === 'function') renderWeek();
   });
 }
@@ -62662,6 +62706,36 @@ const sb = (SUPABASE_URL.startsWith('http'))
   : null;
 
 let realtimeChannel = null;
+
+/* ---------------- client-side error logging ---------------- */
+/* Every regression this session (the "me" ReferenceError that broke every
+   recipe-open, the quick-menu z-index bug) was only caught because someone
+   happened to notice and paste a console screenshot. Logs to
+   migrations/008's client_errors table instead of waiting on that -- fire
+   and forget, deduped per tab so a loop-y error can't spam the table or
+   itself trip more errors. */
+const LOGGED_ERRORS = new Set();
+function logClientError(message, stack, url){
+  try{
+    if(!sb) return;
+    const trimmedMsg = String(message||'').slice(0, 500);
+    const trimmedStack = String(stack||'').slice(0, 2000);
+    const dedupeKey = trimmedMsg + '|' + trimmedStack.slice(0, 200);
+    if(LOGGED_ERRORS.has(dedupeKey)) return;
+    LOGGED_ERRORS.add(dedupeKey);
+    sb.from('client_errors').insert({
+      household_id: currentHousehold(),
+      message: trimmedMsg, stack: trimmedStack, url: String(url||location.href)
+    }).then(()=>{}, ()=>{});
+  }catch(e){ /* logging must never itself throw */ }
+}
+window.addEventListener('error', e=>{
+  logClientError(e.message, e.error && e.error.stack, location.href);
+});
+window.addEventListener('unhandledrejection', e=>{
+  const reason = e.reason;
+  logClientError(reason && reason.message ? reason.message : String(reason), reason && reason.stack, location.href);
+});
 
 /* ---------------- row <-> local shape mapping ---------------- */
 /* NOTE: prefs.household is the existing integer "household size" field (used for
