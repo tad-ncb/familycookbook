@@ -62855,18 +62855,27 @@ function loadQueue(){ try{ return JSON.parse(localStorage.getItem(QUEUE_KEY)) ||
 function saveQueue(q){ try{ localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); }catch(e){} }
 function enqueue(op){ const q = loadQueue(); q.push(op); saveQueue(q); }
 
+/* op.hh is the household stamped by pushWrite() at the moment an edit was
+   MADE, not whatever household happens to be active when this op finally
+   sends. Queued/offline writes can sit for a while -- without this, a
+   pending write made under one household would get flushed under whichever
+   household is active by the time it succeeds, mislabeling it if someone
+   switches households (Settings > Switch to...) before it flushes. Falls
+   back to a live currentHousehold() only for ops queued before this fix
+   existed (already in someone's localStorage) that never got an op.hh. */
 async function runOp(op){
+  const hh = op.hh || currentHousehold();
   if(op.table === 'cook_log'){
     return sb.from('cook_log').upsert({
       id: op.row.id, recipe_id: op.row.recipeId, date: op.row.date,
       rating: op.row.rating, note: op.row.note, leftover: op.row.leftover||'',
-      household_id: op.row.household || currentHousehold(), deleted: !!op.row._d,
+      household_id: op.row.household || hh, deleted: !!op.row._d,
       updated_at: new Date(op.row._t).toISOString()
     });
   }
   if(op.table === 'plan_days'){
     return sb.from('plan_days').upsert({
-      slot_id: op.row.id, iso_date: op.row.iso, household_id: currentHousehold(),
+      slot_id: op.row.id, iso_date: op.row.iso, household_id: hh,
       meal_type: op.row.mealType||'dinner', recipe_id: op.row.recipeId||null,
       manual_name: op.row.manualName||null, manual_ingredients: op.row.manualIngredients||null,
       leftover_of: op.row.leftoverOf||null, ritual: !!op.row.ritual, servings: op.row.servings||null,
@@ -62875,7 +62884,7 @@ async function runOp(op){
   }
   if(op.table === 'inventory_items'){
     return sb.from('inventory_items').upsert({
-      id: op.row.id, household_id: currentHousehold(), kind: op.kind, name: op.row.name,
+      id: op.row.id, household_id: hh, kind: op.kind, name: op.row.name,
       qty: (op.row.qty===''||op.row.qty===undefined) ? null : op.row.qty, unit: op.row.unit||null,
       list_id: op.row.listId||null,
       deleted: !!op.row._d, updated_at: new Date(op.row._t).toISOString()
@@ -62883,19 +62892,19 @@ async function runOp(op){
   }
   if(op.table === 'shopping_lists'){
     return sb.from('shopping_lists').upsert({
-      id: op.row.id, household_id: currentHousehold(), name: op.row.name,
+      id: op.row.id, household_id: hh, name: op.row.name,
       deleted: !!op.row._d, updated_at: new Date(op.row._t).toISOString()
     });
   }
   if(op.table === 'prefs'){
     return sb.from('prefs').upsert({
-      household_id: currentHousehold(), household: op.row.household, rituals: op.row.rituals,
+      household_id: hh, household: op.row.household, rituals: op.row.rituals,
       updated_at: new Date(op.row._t).toISOString()
     });
   }
   if(op.table === 'interested_recipes'){
     return sb.from('interested_recipes').upsert({
-      recipe_id: op.row.id, household_id: currentHousehold(), deleted: !!op.row._d, updated_at: new Date(op.row._t).toISOString()
+      recipe_id: op.row.id, household_id: hh, deleted: !!op.row._d, updated_at: new Date(op.row._t).toISOString()
     });
   }
 }
@@ -62920,8 +62929,12 @@ window.addEventListener('online', flushQueue);
 
 /* every local mutation goes through here instead of writing straight
    to Supabase, so the UI never blocks on network and offline edits
-   are never lost -- they just wait in the queue. */
+   are never lost -- they just wait in the queue. Stamping op.hh here,
+   at the moment the edit is made, is what keeps a queued write correctly
+   attributed even if the household is switched before it flushes -- see
+   the comment on runOp(). */
 function pushWrite(op){
+  if(op.hh === undefined) op.hh = currentHousehold();
   enqueue(op);
   flushQueue();
 }
