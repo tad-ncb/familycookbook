@@ -60041,8 +60041,18 @@ function estimateMacros(r){
     carbs: Math.round(carbs/base), fat: Math.round(fat/base)
   };
 }
+/* r._macros is precomputed at load for the curated set (see the RECIPES
+   forEach below); archive rows instead carry the same numbers as flat
+   kcal/protein/carbs/fat columns fetched straight from nyt_recipes (see
+   NYT_LITE_COLUMNS + migrations/004-005) -- recipeMacros() normalizes
+   either shape to one object so callers don't need to care which. */
+function recipeMacros(r){
+  if(r._macros) return r._macros;
+  if(r.kcal!=null) return {kcal:r.kcal, protein:r.protein, carbs:r.carbs, fat:r.fat};
+  return null;
+}
 function macrosLabel(r){
-  const m = r._macros;
+  const m = recipeMacros(r);
   return m ? `≈${m.kcal} cal · ${m.protein}p · ${m.carbs}c · ${m.fat}f (est./serving)` : '—';
 }
 
@@ -61065,7 +61075,7 @@ async function openModal(r){
     sourceVal.length > OWN_LINE_LEN ? metaFull('Source', sourceVal) : metaCell('Source', sourceVal),
     servesVal.length > OWN_LINE_LEN ? metaFull('Serves', servesVal) : metaCell('Serves', servesVal),
     metaCell('Prep/Cook', (parseTime(r.prepTime) && parseTime(r.cookTime)) ? `${fmtTime(parseTime(r.prepTime))} / ${fmtTime(parseTime(r.cookTime))}` : (r._total ? `${fmtTime(r._total)} total` : '—')),
-    r._macros ? metaFull('Macros', macrosLabel(r)) : '',
+    recipeMacros(r) ? metaFull('Macros', macrosLabel(r)) : '',
     metaCell('Added', fmtAddedDate(addedDateOf(r))),
     /* the tag list already shows a "Marinate"/etc pill for at-a-glance
        scanning, but that pill has no room for the actual lead time -- this
@@ -62682,7 +62692,7 @@ const NYT_CACHE_VERSION = 18; /* bumped: v17 cache still had full ingredients/in
 /* Columns needed to browse/filter/render a card, WITHOUT the ~70%-of-payload
    ingredients/instructions/notes text -- that gets fetched per-recipe, on
    demand, only when its modal is actually opened (see fetchRecipeDetail). */
-const NYT_LITE_COLUMNS = 'id,title,category,cuisine,source,servings,needs_review,total_time,cook_time,prep_time,tags,ingredient_core,ingredient_all,ingredient_dietary,ahead_label,ahead_minutes';
+const NYT_LITE_COLUMNS = 'id,title,category,cuisine,source,servings,needs_review,total_time,cook_time,prep_time,tags,ingredient_core,ingredient_all,ingredient_dietary,ahead_label,ahead_minutes,kcal,protein,carbs,fat';
 const NYT_DB_NAME = 'cookbookCache', NYT_DB_STORE = 'nytRecipes';
 
 function openNytDB(){
