@@ -40,5 +40,16 @@ begin
 end $$;
 
 -- The correct constraint going forward: one row per recipe PER household.
-alter table interested_recipes
-  add constraint if not exists interested_recipes_recipe_household_key unique (recipe_id, household_id);
+-- Postgres has no "add constraint if not exists" -- ADD CONSTRAINT doesn't
+-- accept IF NOT EXISTS at all (unlike ADD COLUMN above), so existence has
+-- to be checked explicitly or a second run of this migration errors on a
+-- duplicate constraint name instead of being a harmless no-op.
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'interested_recipes_recipe_household_key'
+  ) then
+    alter table interested_recipes
+      add constraint interested_recipes_recipe_household_key unique (recipe_id, household_id);
+  end if;
+end $$;
