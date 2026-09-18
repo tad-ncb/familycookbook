@@ -13,7 +13,7 @@ if(cameFromShareLink) document.body.classList.add('share-view');
 const SEED_STATE = {
   "version": 1,
   "cookLog": [
-    { "id": "seed-ctm-1", "recipeId": "chicken-tikka-masala", "date": "2026-08-23", "rating": 5, "note": "", "leftover": "", "household": "deemer-berdux", "_t": 1788264000000 }
+    { "id": "seed-ctm-1", "recipeId": "chicken-tikka-masala", "date": "2026-08-23", "rating": 5, "note": "", "leftover": "", "household": "nicholas-tyler", "_t": 1788264000000 }
   ],
   "plan": [],
   "inventory": { "items": [] },
@@ -122,15 +122,26 @@ function uid(){ return 'c'+Date.now().toString(36)+Math.random().toString(36).sl
    Chris) sharing this cookbook. No login, no code -- access control is
    just "don't send the wrong link to the wrong people," same trust model
    the rest of this app already uses. Each household gets its own URL
-   (?hh=berdux vs. the bare URL / ?hh=deemer-berdux), remembered in
-   localStorage after the first visit so it doesn't need to be in every
-   link forever -- and it's changeable any time from Settings, in case a
-   link gets reused on the wrong device.
+   (?hh=<id> vs. the bare URL), remembered in localStorage after the first
+   visit so it doesn't need to be in every link forever -- and it's
+   changeable any time from Settings, in case a link gets reused on the
+   wrong device.
    The old email-lookup switcher (HOUSEHOLD_MAP) and the cross-household
    "3x us / 2x them" cook-panel comparison were both removed rather than
    restored -- the former added a login-like step nobody wanted, the latter
    was confusing and nobody asked for it back. */
-const HOUSEHOLD_LABEL = { 'deemer-berdux': 'Nick and Tyler', 'berdux': 'Jen and Chris', 'craig-kelly': 'Craig and Kelly' };
+const HOUSEHOLD_LABEL = { 'nicholas-tyler': 'Nick and Tyler', 'chris-jen': 'Jen and Chris', 'craig-kelly': 'Craig and Kelly' };
+/* Renamed 2026-09-18 from the original 'deemer-berdux'/'berdux' ids (kept
+   here, not deleted) so a device that already saved one of those in
+   localStorage, or a bookmarked old ?hh= link, still resolves to the right
+   household instead of silently landing back on the picker screen. Any
+   locally-stored old id gets rewritten to its new form and re-saved the
+   next time currentHousehold() runs, so this translation only ever fires
+   once per device. The matching Supabase household_id rows were migrated
+   in migrations/009_rename_household_ids.sql -- this map does NOT relieve
+   that migration, it only covers the client-side id used for reads/writes
+   from that point on. */
+const LEGACY_HOUSEHOLD_IDS = { 'deemer-berdux': 'nicholas-tyler', 'berdux': 'chris-jen' };
 const HOUSEHOLD_STORAGE_KEY = 'household';
 /* Deliberately returns null, never a guessed default, when neither signal
    is present -- a silent fallback here is exactly how one household's
@@ -139,14 +150,19 @@ const HOUSEHOLD_STORAGE_KEY = 'household';
    guaranteed value must go through resolveHousehold() below, which blocks
    on an explicit choice instead of guessing. */
 function currentHousehold(){
-  const fromUrl = new URLSearchParams(location.search).get('hh');
+  const fromUrl = LEGACY_HOUSEHOLD_IDS[new URLSearchParams(location.search).get('hh')] || new URLSearchParams(location.search).get('hh');
   if(fromUrl && HOUSEHOLD_LABEL[fromUrl]){
     try{ localStorage.setItem(HOUSEHOLD_STORAGE_KEY, fromUrl); }catch(e){}
     return fromUrl;
   }
   let stored;
   try{ stored = localStorage.getItem(HOUSEHOLD_STORAGE_KEY); }catch(e){}
-  return (stored && HOUSEHOLD_LABEL[stored]) ? stored : null;
+  stored = LEGACY_HOUSEHOLD_IDS[stored] || stored;
+  if(stored && HOUSEHOLD_LABEL[stored]){
+    try{ localStorage.setItem(HOUSEHOLD_STORAGE_KEY, stored); }catch(e){}
+    return stored;
+  }
+  return null;
 }
 function setHousehold(hh){
   if(!HOUSEHOLD_LABEL[hh]) return;
@@ -155,7 +171,7 @@ function setHousehold(hh){
 }
 /* cook_log rows written before household scoping existed have no tag --
    they all belong to the original (only) household. */
-function householdOf(e){ return e.household || 'deemer-berdux'; }
+function householdOf(e){ return e.household || 'nicholas-tyler'; }
 
 /* "Interested" -- a lightweight shortlist, distinct from cook history: for
    "does this look good while browsing", "maybe for the bring-a-side ask",
@@ -3282,7 +3298,7 @@ window.addEventListener('unhandledrejection', e=>{
 /* NOTE: prefs.household is the existing integer "household size" field (used for
    leftover heuristics); the multi-tenant household GROUP id lives in a separate
    household_id text column on every synced table, to avoid colliding with it. */
-function rowToCook(r){ return {id:r.id, recipeId:r.recipe_id, date:r.date, rating:r.rating, note:r.note||'', leftover:r.leftover||'', household:r.household_id||'deemer-berdux', _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
+function rowToCook(r){ return {id:r.id, recipeId:r.recipe_id, date:r.date, rating:r.rating, note:r.note||'', leftover:r.leftover||'', household:LEGACY_HOUSEHOLD_IDS[r.household_id]||r.household_id||'nicholas-tyler', _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
 function rowToPlan(r){
   return {
     id: r.slot_id, iso: r.iso_date, mealType: r.meal_type||'dinner',
