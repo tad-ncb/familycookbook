@@ -11,24 +11,31 @@
 -- reads (remoteFetchAll's otherCookLog query filters by the NEW id only),
 -- and any household_id-scoped table read straight in the Supabase dashboard
 -- will look stale until this runs.
-
-update cook_log            set household_id = 'nicholas-tyler' where household_id = 'deemer-berdux';
-update cook_log            set household_id = 'chris-jen'      where household_id = 'berdux';
-
-update plan_days           set household_id = 'nicholas-tyler' where household_id = 'deemer-berdux';
-update plan_days           set household_id = 'chris-jen'      where household_id = 'berdux';
-
-update inventory_items     set household_id = 'nicholas-tyler' where household_id = 'deemer-berdux';
-update inventory_items     set household_id = 'chris-jen'      where household_id = 'berdux';
-
-update prefs                set household_id = 'nicholas-tyler' where household_id = 'deemer-berdux';
-update prefs                set household_id = 'chris-jen'      where household_id = 'berdux';
-
-update interested_recipes  set household_id = 'nicholas-tyler' where household_id = 'deemer-berdux';
-update interested_recipes  set household_id = 'chris-jen'      where household_id = 'berdux';
-
-update shopping_lists       set household_id = 'nicholas-tyler' where household_id = 'deemer-berdux';
-update shopping_lists       set household_id = 'chris-jen'      where household_id = 'berdux';
-
-update client_errors        set household_id = 'nicholas-tyler' where household_id = 'deemer-berdux';
-update client_errors        set household_id = 'chris-jen'      where household_id = 'berdux';
+--
+-- Written defensively: not every table listed necessarily has a
+-- household_id column yet on this database (e.g. interested_recipes only
+-- gets one if migration 002 was actually run -- as of 2026-09-18 it hadn't
+-- been, so a plain `update interested_recipes set household_id = ...`
+-- fails with "column does not exist" and aborts the whole script). Each
+-- table's update is skipped, not fatal, if its household_id column isn't
+-- there -- run \d <table> or check the table editor afterward to see which
+-- ones were actually touched.
+do $$
+declare
+  t text;
+  tables text[] := array['cook_log','plan_days','inventory_items','prefs',
+                          'interested_recipes','shopping_lists','client_errors'];
+begin
+  foreach t in array tables loop
+    if exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = t and column_name = 'household_id'
+    ) then
+      execute format('update %I set household_id = %L where household_id = %L', t, 'nicholas-tyler', 'deemer-berdux');
+      execute format('update %I set household_id = %L where household_id = %L', t, 'chris-jen', 'berdux');
+      raise notice 'updated %', t;
+    else
+      raise notice 'skipped % (no household_id column)', t;
+    end if;
+  end loop;
+end $$;
