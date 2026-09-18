@@ -6,8 +6,14 @@
 -- Existing rows predate any household concept and all belong to the
 -- original (only) household, same backfill pattern already used for
 -- cook_log (see householdOf() in index.html).
+--
+-- NOTE (2026-09-18): this migration sat unrun long enough that the
+-- household ids it originally referenced ('deemer-berdux') were renamed to
+-- 'nicholas-tyler' by migrations/009_rename_household_ids.sql before this
+-- one ever ran. Backfilling straight to the current id here instead of the
+-- retired one, so there's no need to run 009 again afterward.
 alter table interested_recipes add column if not exists household_id text;
-update interested_recipes set household_id = 'deemer-berdux' where household_id is null;
+update interested_recipes set household_id = 'nicholas-tyler' where household_id is null;
 
 -- If a unique/primary-key constraint exists on recipe_id alone (from when this
 -- was one shared row per recipe), it must go -- otherwise two households
