@@ -130,7 +130,7 @@ function uid(){ return 'c'+Date.now().toString(36)+Math.random().toString(36).sl
    "3x us / 2x them" cook-panel comparison were both removed rather than
    restored -- the former added a login-like step nobody wanted, the latter
    was confusing and nobody asked for it back. */
-const HOUSEHOLD_LABEL = { 'deemer-berdux': 'Nick and Tyler', 'berdux': 'Jen and Chris' };
+const HOUSEHOLD_LABEL = { 'deemer-berdux': 'Nick and Tyler', 'berdux': 'Jen and Chris', 'craig-kelly': 'Craig and Kelly' };
 const HOUSEHOLD_STORAGE_KEY = 'household';
 /* Deliberately returns null, never a guessed default, when neither signal
    is present -- a silent fallback here is exactly how one household's
@@ -191,14 +191,14 @@ function avgRating(id, household){
    never touching DATA.cookLog (see remoteFetchAll's otherCookLog comment)
    so lastMade()/candidatesFor()'s "haven't made this in a while" planning
    logic stays scoped to your own household's cooking only. */
-function otherHouseholdId(){ return Object.keys(HOUSEHOLD_LABEL).find(h=>h!==currentHousehold()); }
-function otherCookEvents(id){
-  return (DATA.otherCookLog||[]).filter(e=>e.recipeId===id).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+function otherHouseholdIds(){ return Object.keys(HOUSEHOLD_LABEL).filter(h=>h!==currentHousehold()); }
+function otherCookEvents(id, household){
+  return (DATA.otherCookLog||[]).filter(e=>e.recipeId===id && e.household===household).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 }
-function otherTimesMade(id){ return otherCookEvents(id).length; }
-function otherLastMade(id){ const e=otherCookEvents(id); return e.length ? e[0].date : null; }
-function otherAvgRating(id){
-  const rs = otherCookEvents(id).map(e=>e.rating).filter(n=>typeof n==='number' && n>0);
+function otherTimesMade(id, household){ return otherCookEvents(id, household).length; }
+function otherLastMade(id, household){ const e=otherCookEvents(id, household); return e.length ? e[0].date : null; }
+function otherAvgRating(id, household){
+  const rs = otherCookEvents(id, household).map(e=>e.rating).filter(n=>typeof n==='number' && n>0);
   return rs.length ? rs.reduce((a,b)=>a+b,0)/rs.length : null;
 }
 function addCook(recipeId, date, rating, note, leftover){
@@ -1556,12 +1556,12 @@ function renderCookPanel(){
      one to actually average across. */
   const mine = n===0 ? "You haven't cooked this yet."
     : `Cooked ${n}×${(avg && n>1)?` · ${starStr(avg)}`:''} · last ${relTime(lastMade(r.id))}`;
-  const otherHh = otherHouseholdId();
-  const otherN = otherHh ? otherTimesMade(r.id) : 0;
-  const otherBit = otherN
-    ? ` · ${escapeHTML(HOUSEHOLD_LABEL[otherHh])}: ${otherN}×${(otherAvgRating(r.id) && otherN>1)?` · ${starStr(otherAvgRating(r.id))}`:''} · last ${relTime(otherLastMade(r.id))}`
-    : '';
-  const summary = (n===0 && !otherN) ? 'Not yet cooked.' : `${mine}${otherBit}`;
+  const otherBits = otherHouseholdIds().map(hh=>{
+    const otherN = otherTimesMade(r.id, hh);
+    if(!otherN) return '';
+    return ` · ${escapeHTML(HOUSEHOLD_LABEL[hh])}: ${otherN}×${(otherAvgRating(r.id, hh) && otherN>1)?` · ${starStr(otherAvgRating(r.id, hh))}`:''} · last ${relTime(otherLastMade(r.id, hh))}`;
+  }).join('');
+  const summary = (n===0 && !otherBits) ? 'Not yet cooked.' : `${mine}${otherBits}`;
   host.innerHTML = `
     <div class="cook-panel">
       <div class="cook-row">
@@ -2638,12 +2638,12 @@ function renderSettings(){
   if(!host.dataset.open){ host.innerHTML=''; return; }
   const p = prefs();
   const me = currentHousehold();
-  const otherHousehold = Object.keys(HOUSEHOLD_LABEL).find(h=>h!==me);
+  const otherHouseholds = otherHouseholdIds();
   host.innerHTML = `<div class="settings">
     <div class="house-row">
       <span class="rday">Kitchen</span>
       <span style="font-weight:600;">${escapeHTML(HOUSEHOLD_LABEL[me]||me)}</span>
-      ${otherHousehold ? `<button type="button" class="cook-btn" id="switchHousehold" style="padding:3px 10px; font-size:12px;">Switch to ${escapeHTML(HOUSEHOLD_LABEL[otherHousehold])}</button>` : ''}
+      ${otherHouseholds.map(hh=>`<button type="button" class="cook-btn switch-household" data-hh="${hh}" style="padding:3px 10px; font-size:12px;">Switch to ${escapeHTML(HOUSEHOLD_LABEL[hh])}</button>`).join('')}
     </div>
     <div class="house-row">
       <span class="rday">Household</span>
@@ -2686,8 +2686,9 @@ function renderSettings(){
   };
   host.querySelector('#hhUp').onclick   = ()=> setHH(p.household+1);
   host.querySelector('#hhDown').onclick = ()=> setHH(p.household-1);
-  const switchBtn = host.querySelector('#switchHousehold');
-  if(switchBtn) switchBtn.onclick = ()=> setHousehold(otherHousehold);
+  host.querySelectorAll('.switch-household').forEach(btn=>{
+    btn.onclick = ()=> setHousehold(btn.dataset.hh);
+  });
   const subCatChips = host.querySelector('#subCategoryChips');
   subCatChips.innerHTML = ALL_CATEGORIES.map(cat=>
     `<span class="facet-link" data-course="${escapeHTML(cat)}">${escapeHTML(cat)}</span>`).join('');
@@ -3298,7 +3299,7 @@ function rowToShoppingList(r){ return {id:r.id, name:r.name, _d:!!r.deleted, _t:
 async function remoteFetchAll(){
   if(!sb) return null;
   const hh = currentHousehold();
-  const otherHh = Object.keys(HOUSEHOLD_LABEL).find(h=>h!==hh);
+  const otherHhs = otherHouseholdIds();
   const [cl, pd, iv, pf, it, sl, ocl] = await Promise.all([
     sb.from('cook_log').select('*').eq('household_id', hh),
     sb.from('plan_days').select('*').eq('household_id', hh),
@@ -3308,12 +3309,15 @@ async function remoteFetchAll(){
     sb.from('shopping_lists').select('*').eq('household_id', hh),
     /* Ratings/last-made ARE shared across households (unlike interested,
        plan, shopping, inventory) -- but only as a read-only, low-detail
-       view (recipe id / rating / date, no notes or leftover text) kept in
-       its own array (DATA.otherCookLog), never merged into DATA.cookLog.
-       Merging it would silently pull the other household's cooking
-       activity into lastMade()/candidatesFor()'s staleness math, which is
-       exactly what "shouldn't affect each other's planning" rules out. */
-    otherHh ? sb.from('cook_log').select('recipe_id,rating,date').eq('household_id', otherHh) : Promise.resolve({data:[]})
+       view (recipe id / rating / date / which household, no notes or
+       leftover text) kept in its own array (DATA.otherCookLog), never
+       merged into DATA.cookLog. Merging it would silently pull other
+       households' cooking activity into lastMade()/candidatesFor()'s
+       staleness math, which is exactly what "shouldn't affect each other's
+       planning" rules out. Fetches every OTHER household in one query
+       (not just a single fixed "other one") since there can now be more
+       than two. */
+    otherHhs.length ? sb.from('cook_log').select('recipe_id,rating,date,household_id').in('household_id', otherHhs) : Promise.resolve({data:[]})
   ]);
   if(cl.error || pd.error || iv.error || pf.error){
     console.error('Supabase fetch error', cl.error||pd.error||iv.error||pf.error);
@@ -3335,7 +3339,7 @@ async function remoteFetchAll(){
     inventory: {items: iv.data.map(rowToInv)},
     interested: it.error ? [] : it.data.map(rowToInterested),
     shoppingLists: sl.error ? [] : sl.data.map(rowToShoppingList),
-    otherCookLog: ocl.error ? [] : (ocl.data||[]).map(r=>({recipeId:r.recipe_id, rating:r.rating, date:r.date})),
+    otherCookLog: ocl.error ? [] : (ocl.data||[]).map(r=>({recipeId:r.recipe_id, rating:r.rating, date:r.date, household:r.household_id})),
     prefs: Object.assign({household: p.household, rituals: p.rituals||[]}, {_t: Date.parse(p.updated_at)})
   };
 }
