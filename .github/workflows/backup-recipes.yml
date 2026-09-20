@@ -29,7 +29,8 @@ jobs:
           SUPABASE_URL: https://kubvqmptumftqtfqrifs.supabase.co
           SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt1YnZxbXB0dW1mdHF0ZnFyaWZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1MDc0NzcsImV4cCI6MjEwMzA4MzQ3N30.uWvku48avh5aUIp6V7lwGoNz-nk6RT1SiHaKODyWI2Q
         run: |
-          mkdir -p backups
+          rm -rf backups/nyt_recipes
+          mkdir -p backups/nyt_recipes
           python3 - <<'PYEOF'
           import os, json, time, urllib.request, urllib.parse
 
@@ -37,8 +38,34 @@ jobs:
           key = os.environ['SUPABASE_ANON_KEY']
           headers = {'apikey': key, 'Authorization': f'Bearer {key}'}
           page_size = 1000
-          all_rows = []
           last_id = None
+          total_rows = 0
+
+          # Sharded into multiple files instead of one, now that the table has
+          # grown past GitHub's 100MB-per-file push limit (hit at 60,633 rows /
+          # 225MB on 2026-09-20 -- this backup had in fact never once succeeded
+          # before that, so there's no old single-file format to migrate away
+          # from). Flushed by accumulated serialized size, not row count, so
+          # this stays safe even if rows get bigger later (e.g. more macro
+          # fields) rather than just more numerous -- 30MB/file leaves a wide
+          # margin below the 100MB limit.
+          FLUSH_BYTES = 30_000_000
+          part_num = 0
+          buf = []
+          buf_size = 0
+
+          def flush():
+              global part_num, buf, buf_size
+              if not buf:
+                  return
+              part_num += 1
+              path = f'backups/nyt_recipes/part-{part_num:04d}.json'
+              with open(path, 'w') as f:
+                  json.dump(buf, f, ensure_ascii=False)
+              print(f'wrote {path}: {len(buf)} rows, {buf_size} bytes')
+              buf = []
+              buf_size = 0
+
           # Keyset (cursor) pagination on `id`, not offset=N: an OFFSET-based page
           # forces Postgres to scan and discard every prior row before it can return
           # the next page, so it gets slower as the table grows -- this table passed
@@ -61,22 +88,27 @@ jobs:
                   raise RuntimeError(f'failed after retries at last_id={last_id!r}')
               if not data:
                   break
-              all_rows.extend(data)
+              for row in data:
+                  row_bytes = len(json.dumps(row, ensure_ascii=False))
+                  if buf and buf_size + row_bytes > FLUSH_BYTES:
+                      flush()
+                  buf.append(row)
+                  buf_size += row_bytes
+              total_rows += len(data)
               last_id = data[-1]['id']
-              print(f'fetched {len(data)} rows, last_id={last_id!r}, total so far={len(all_rows)}')
+              print(f'fetched {len(data)} rows, last_id={last_id!r}, total so far={total_rows}')
               if len(data) < page_size:
                   break
 
-          with open('backups/nyt_recipes.json', 'w') as f:
-              json.dump(all_rows, f, indent=1, ensure_ascii=False)
-          print(f'TOTAL: {len(all_rows)} rows written to backups/nyt_recipes.json')
+          flush()
+          print(f'TOTAL: {total_rows} rows written across {part_num} files in backups/nyt_recipes/')
           PYEOF
 
       - name: Commit snapshot if it changed
         run: |
           git config user.name "cookbook-backup-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add backups/nyt_recipes.json
+          git add -A backups/nyt_recipes
           if git diff --cached --quiet; then
             echo "No changes since last backup."
             exit 0
