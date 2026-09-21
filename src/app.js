@@ -190,8 +190,19 @@ function toggleInterested(id){
   persist();
   if(typeof pushWrite === 'function') pushWrite({table:'interested_recipes', row: entry});
 }
-function cookEvents(id){ return DATA.cookLog.filter(e=>e.recipeId===id && !e._d).sort((a,b)=>(b.date||'').localeCompare(a.date||'')); }
-function cookEventsFor(id, household){ return cookEvents(id).filter(e=>householdOf(e)===household); }
+/* cookEventsFor is the single source of truth -- cookEvents(id) is just it
+   pinned to the CURRENT household, never "every household's rows". Before
+   2026-09-21 cookEvents() read DATA.cookLog with no household filter at
+   all, so timesMade()/lastMade() (both built on it) counted every
+   household's cook-log rows as "yours" -- most visibly, the client-side-
+   only chicken-tikka-masala seed entry (household 'nicholas-tyler', never
+   written to Supabase) showed as "made" on every household's own count
+   with no attribution, since it also never reaches DATA.otherCookLog (that
+   comes from a real DB query, and the seed was never a DB row). avgRating
+   already filtered by household correctly, which is what made the bug
+   easy to miss -- the rating matched but the times-made/last-made didn't. */
+function cookEventsFor(id, household){ return DATA.cookLog.filter(e=>e.recipeId===id && !e._d && householdOf(e)===household).sort((a,b)=>(b.date||'').localeCompare(a.date||'')); }
+function cookEvents(id){ return cookEventsFor(id, currentHousehold()); }
 function timesMade(id){ return cookEvents(id).length; }
 function lastMade(id){ const e=cookEvents(id); return e.length ? e[0].date : null; }
 function avgRating(id, household){
