@@ -2864,12 +2864,27 @@ document.getElementById('pcSave').onclick = saveCustomDish;
    instead of 30. */
 let historyRenderLimit = 50;
 function renderHistory(){
-  const all = DATA.cookLog.filter(e=>!e._d).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const me = currentHousehold();
+  /* Own log only, for both the list and the stats below -- DATA.cookLog
+     unfiltered would also include every OTHER household's rows (this is
+     exactly the bug that made the 2026-08-23 chicken-tikka-masala seed
+     entry, tagged 'nicholas-tyler', show up unattributed in every
+     household's History; see cookEvents()'s comment for the same root
+     cause elsewhere). Other households' cooks are still shown below, just
+     clearly labeled and kept out of "yours" stats. */
+  const all = DATA.cookLog.filter(e=>!e._d && householdOf(e)===me).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  /* Read-only cross-household entries (recipe id/rating/date/household only
+     -- see DATA.otherCookLog's own comment) merged into the LIST for
+     visibility, each tagged so it renders with its household's name
+     instead of looking like your own entry. Never merged into `all` --
+     that would double back into the stats and defeat the point. */
+  const otherEntries = (DATA.otherCookLog||[]).map(e=>Object.assign({}, e, {_otherHousehold: e.household}));
+  const combined = [...all, ...otherEntries].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   const q = (document.getElementById('historySearch').value||'').trim().toLowerCase();
-  const filtered = q ? all.filter(e=>{
+  const filtered = q ? combined.filter(e=>{
     const r = recipeById(e.recipeId);
     return r && displayTitle(r).toLowerCase().includes(q);
-  }) : all;
+  }) : combined;
 
   const toShow = filtered.slice(0, historyRenderLimit);
   const host = document.getElementById('historyList');
@@ -2880,6 +2895,7 @@ function renderHistory(){
       <div class="hist-main">
         <div class="hist-title">${r?zwsp(escapeHTML(displayTitle(r))):'(recipe no longer on file)'}</div>
         <div class="hist-meta">
+          ${e._otherHousehold?`<span class="hist-note">${escapeHTML(HOUSEHOLD_LABEL[e._otherHousehold]||e._otherHousehold)}</span>`:''}
           ${e.rating?`<span class="hist-stars">${starStr(e.rating)}</span>`:''}
           ${e.note?`<span class="hist-note">${escapeHTML(e.note)}</span>`:''}
           ${e.leftover?`<span class="hist-note">Leftovers: ${escapeHTML(e.leftover)}</span>`:''}
