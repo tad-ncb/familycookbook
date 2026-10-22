@@ -1,0 +1,28 @@
+name: Supabase keep-alive
+
+# Free-tier Supabase projects pause after ~7 days of inactivity (this one did,
+# which also broke the weekly backup). A tiny REST read every few days keeps
+# it well inside that window regardless of whether anyone opens the site.
+on:
+  schedule:
+    - cron: '0 12 * * 1,4'  # Mondays and Thursdays, 12:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query Supabase
+        env:
+          # anon key is public by design (same one shipped in index.html)
+          SUPABASE_URL: https://kubvqmptumftqtfqrifs.supabase.co
+          SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt1YnZxbXB0dW1mdHF0ZnFyaWZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1MDc0NzcsImV4cCI6MjEwMzA4MzQ3N30.uWvku48avh5aUIp6V7lwGoNz-nk6RT1SiHaKODyWI2Q
+        run: |
+          # --fail makes a paused/missing project (DNS error, 4xx/5xx) fail the
+          # job, so GitHub emails you right away instead of weeks later.
+          curl --fail --silent --show-error --retry 3 --retry-delay 5 \
+            "$SUPABASE_URL/rest/v1/nyt_recipes?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY"
+          echo
+          echo "Supabase responded OK"
