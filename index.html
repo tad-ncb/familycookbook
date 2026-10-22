@@ -60260,6 +60260,7 @@ let archiveLoading = false;
    loaded, already-toggled-on source would randomly flash "Loading…" while
    a completely different button was fetching. */
 let currentlyLoadingSource = null;
+let loadFailedSource = null; /* set when a source's fetch ended partial/failed, to show a retry hint */
 let state = { query:"", category:null, cuisine:null, diets:[], author:null, sort:"top", sortDir:1, made:"all", aheadOnly:false, includeIngredients:[], excludeIngredients:[] };
 const COURSE_ORDER = ["Appetizer","Salad","Soup","Bread","Side","Main","Dessert","Breakfast","Drink"];
 const STALE_DAYS = 75;   /* "had it, but not in 2-3 months" */
@@ -63194,8 +63195,12 @@ async function toggleSource(src){
        however long the fetch actually took. */
     document.getElementById('resultCount').innerHTML = `<span class="loading-spin">&#8635;</span> Loading…`;
     try{
-      await nytBoot(src); /* merges into RECIPES and calls render() itself once done */
-      archiveFetchedSources.add(src);
+      const complete = await nytBoot(src); /* merges into RECIPES and calls render() itself once done */
+      /* a partial fetch must NOT count as loaded, or toggling off/on would never
+         retry it and the source would stay silently truncated for the visit.
+         Rows already merged are kept (mergeNytRecipes skips known ids). */
+      if(complete) archiveFetchedSources.add(src);
+      else loadFailedSource = src;
     }catch(e){
       /* whatever the cause, archiveLoading must never come out of this
          still true -- that's what left every source button permanently
@@ -63209,10 +63214,17 @@ async function toggleSource(src){
     }
   }
   renderToolbar(); render();
+  if(loadFailedSource){
+    document.getElementById('resultCount').insertAdjacentHTML('beforeend',
+      ` <span style="color:#b45309">&#9888; ${loadFailedSource} only partly loaded &mdash; turn it off and on to retry</span>`);
+    loadFailedSource = null;
+  }
   if(turningOn) runArchiveSearch(state.query);
 }
+/* Resolves true only when the source loaded completely (or came from a valid
+   cache); false means a partial or failed fetch -- see toggleSource. */
 async function nytBoot(src){
-  if(!sb) return;
+  if(!sb) return false;
   const cacheKey = NYT_CACHE_KEY + ':' + src;
   const cached = await loadNytCache(cacheKey);
   if(cached && cached.version === NYT_CACHE_VERSION && Array.isArray(cached.rows)){
@@ -63231,63 +63243,46 @@ async function nytBoot(src){
     console.log(`nytBoot(${src}): cache hit, showing ${cached.rows.length} cached recipes, skipping the network fetch`);
     await mergeNytRecipes(cached.rows);
     render();
-    return;
+    return true;
   }
   console.log(`nytBoot(${src}): no usable cache, fetching from Supabase`);
 
-  /* PostgREST caps a single response at 1000 rows by default. Each of the 4
-     archive sources now fetches only its own rows (filtered server-side --
-     see ARCHIVE_SOURCE_FILTERS) instead of one shared ~60k-row pull for
-     whichever button happened to be clicked first -- turning on just NYT
-     (~19k rows) used to also silently download Epicurious/BBC/Other on top
-     of it, which is what made a single button take 37 seconds. Pages within
-     THIS source's own fetch still go out in concurrent batches, walking
-     forward without needing to know the total row count up front (see the
-     count=exact reliability note above) -- a batch containing a short or
-     failed page marks the end. */
-  /* Concurrency and retry count both walked back down from an earlier
-     attempt at this (10 / 5 attempts) that assumed every timeout was a
-     one-off blip -- during an actual sustained rough patch on this
-     endpoint, that combination makes the WORST case dramatically longer
-     (5 retries x a growing backoff, repeated per page) instead of failing
-     fast, which is what turned into a 30+ second hang that never
-     resolved. Fewer concurrent requests is also gentler on a
-     resource-constrained backend that's already struggling. A hard
-     overall deadline below is the real fix for "never ends", though --
-     no amount of retry tuning guarantees an upper bound on its own. */
-  const PAGE_SIZE = 1000, CONCURRENCY = 5, OVERALL_DEADLINE_MS = 15000;
-  const startedAt = Date.now();
-  let allData = [], hadError = false, timedOut = false;
-  async function fetchPage(from){
-    for(let attempt = 1; attempt <= 3; attempt++){
-      let q = sb.from('nyt_recipes').select(NYT_LITE_COLUMNS).eq('needs_review', false);
-      q = ARCHIVE_SOURCE_FILTERS[src](q);
-      const res = await q.order('id').range(from, from + PAGE_SIZE - 1);
-      if(!res.error) return res.data;
-      console.error(`nyt_recipes fetch error (${src}, page starting at ${from}, attempt ${attempt})`, res.error);
-      if(attempt < 3) await new Promise(r => setTimeout(r, 500 * attempt));
+  /* Keyset (cursor) pagination on `id`, not .range()/OFFSET: an OFFSET page
+     makes Postgres scan and discard every prior row first, so deep pages
+     (10k+ rows in) hit Supabase's statement timeout and return HTTP 500 --
+     confirmed live for NYT/Epicurious/BBC, and the same failure that broke
+     the weekly backup earlier. `id=gt.<last id>` seeks via the index instead,
+     so every page costs about the same. Pages are inherently sequential
+     (each needs the previous page's last id), so a big source takes ~15-30s
+     on a cold load -- that's why there is no overall deadline anymore (the
+     old 15s one cut off sources mid-fetch and, worse, still marked them as
+     fully loaded). Each page retries on its own; a page that exhausts its
+     retries stops the fetch, keeps what it got, and reports failure so the
+     caller doesn't treat the source as loaded. */
+  const PAGE_SIZE = 1000, MAX_ATTEMPTS = 5;
+  let allData = [], hadError = false, lastId = null;
+  async function fetchPage(afterId){
+    for(let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++){
+      try{
+        let q = sb.from('nyt_recipes').select(NYT_LITE_COLUMNS).eq('needs_review', false);
+        q = ARCHIVE_SOURCE_FILTERS[src](q);
+        if(afterId !== null) q = q.gt('id', afterId);
+        const res = await q.order('id').limit(PAGE_SIZE);
+        if(!res.error) return res.data;
+        console.error(`nyt_recipes fetch error (${src}, after id ${afterId}, attempt ${attempt})`, res.error);
+      }catch(e){
+        console.error(`nyt_recipes fetch threw (${src}, after id ${afterId}, attempt ${attempt})`, e);
+      }
+      if(attempt < MAX_ATTEMPTS) await new Promise(r => setTimeout(r, 700 * attempt));
     }
-    hadError = true;
     return null;
   }
-  let from = 0, done = false;
-  while(!done){
-    if(Date.now() - startedAt > OVERALL_DEADLINE_MS){
-      /* whatever is already fetched gets kept and merged/rendered below --
-         this is what guarantees "never ends" can't actually happen, no
-         matter how degraded the backend is right now. */
-      timedOut = true; hadError = true;
-      console.error(`nytBoot(${src}): stopping after ${OVERALL_DEADLINE_MS}ms -- backend seems degraded, keeping ${allData.length} rows fetched so far`);
-      break;
-    }
-    const starts = []; for(let i=0; i<CONCURRENCY; i++) starts.push(from + i*PAGE_SIZE);
-    const batch = await Promise.all(starts.map(fetchPage));
-    for(const data of batch){
-      if(!data){ done = true; break; }
-      allData = allData.concat(data);
-      if(data.length < PAGE_SIZE){ done = true; break; }
-    }
-    from += CONCURRENCY * PAGE_SIZE;
+  while(true){
+    const data = await fetchPage(lastId);
+    if(!data){ hadError = true; break; }
+    for(const row of data) allData.push(row);
+    if(data.length < PAGE_SIZE) break;
+    lastId = data[data.length - 1].id;
   }
   const rows = allData.map(rowToNytRecipe);
   /* only cache on a fully clean fetch -- a partial result cached would silently
@@ -63300,6 +63295,7 @@ async function nytBoot(src){
   if(RECIPES.length !== before) render(); /* only re-render if the fetch actually added anything new vs. the cache */
   if(hadError) console.error(`nytBoot(${src}): stopped early after fetching ${allData.length} recipes -- see errors above`);
   else console.log(`nytBoot(${src}): fetch complete, ${allData.length} rows fetched, RECIPES now has ${RECIPES.length} total`);
+  return !hadError;
 }
 
 /* ---------------- offline write queue ---------------- */
