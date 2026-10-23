@@ -29,10 +29,10 @@ jobs:
           SUPABASE_URL: https://kubvqmptumftqtfqrifs.supabase.co
           SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt1YnZxbXB0dW1mdHF0ZnFyaWZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1MDc0NzcsImV4cCI6MjEwMzA4MzQ3N30.uWvku48avh5aUIp6V7lwGoNz-nk6RT1SiHaKODyWI2Q
         run: |
-          rm -rf backups/nyt_recipes
-          mkdir -p backups/nyt_recipes
+          rm -rf backups/nyt_recipes.new
+          mkdir -p backups/nyt_recipes.new
           python3 - <<'PYEOF'
-          import os, json, time, urllib.request, urllib.parse
+          import os, json, time, shutil, glob, urllib.request, urllib.parse
 
           base = os.environ['SUPABASE_URL'] + '/rest/v1/nyt_recipes'
           key = os.environ['SUPABASE_ANON_KEY']
@@ -59,7 +59,7 @@ jobs:
               if not buf:
                   return
               part_num += 1
-              path = f'backups/nyt_recipes/part-{part_num:04d}.json'
+              path = f'backups/nyt_recipes.new/part-{part_num:04d}.json'
               with open(path, 'w') as f:
                   json.dump(buf, f, ensure_ascii=False)
               print(f'wrote {path}: {len(buf)} rows, {buf_size} bytes')
@@ -101,7 +101,28 @@ jobs:
                   break
 
           flush()
-          print(f'TOTAL: {total_rows} rows written across {part_num} files in backups/nyt_recipes/')
+          print(f'TOTAL: {total_rows} rows written across {part_num} files in backups/nyt_recipes.new/')
+
+          # Guard against a "successful" but incomplete fetch (project half-restored,
+          # table truncated, a bad filter): a snapshot that silently shrinks would
+          # overwrite the only good copy. The new snapshot is built beside the old
+          # one and only swapped in if it isn't drastically smaller; otherwise this
+          # step FAILS (GitHub emails that) and the previous backup is left intact.
+          old_dir = 'backups/nyt_recipes'
+          prev_rows = None
+          if os.path.exists(f'{old_dir}/_count.txt'):
+              prev_rows = int(open(f'{old_dir}/_count.txt').read().strip())
+          elif glob.glob(f'{old_dir}/part-*.json'):
+              prev_rows = sum(len(json.load(open(f))) for f in glob.glob(f'{old_dir}/part-*.json'))
+          if total_rows == 0:
+              raise SystemExit('BACKUP ABORTED: fetched 0 rows -- previous backup left untouched')
+          if prev_rows and total_rows < prev_rows * 0.9:
+              raise SystemExit(f'BACKUP ABORTED: fetched {total_rows} rows vs {prev_rows} in the last backup '
+                               f'(>10% drop) -- previous backup left untouched; check Supabase before re-running')
+          open('backups/nyt_recipes.new/_count.txt', 'w').write(str(total_rows))
+          shutil.rmtree(old_dir, ignore_errors=True)
+          os.rename('backups/nyt_recipes.new', old_dir)
+          print(f'previous backup had {prev_rows} rows; now {total_rows}')
           PYEOF
 
       - name: Commit snapshot if it changed
