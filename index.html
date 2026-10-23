@@ -63261,6 +63261,19 @@ async function nytBoot(src){
      caller doesn't treat the source as loaded. */
   const PAGE_SIZE = 1000, MAX_ATTEMPTS = 5;
   let allData = [], hadError = false, lastId = null;
+  /* Progress + progressive display: a cold load of a big source is ~15-30s of
+     sequential pages, so show a running count (against the estimated total from
+     loadArchiveSourceCounts when that has landed) and merge+render what's arrived
+     every few pages, instead of an opaque spinner followed by everything at once.
+     Progressive rows are converted separately from the `rows` that get cached
+     below, so the cache never contains the derived _ahead/_plan fields. */
+  const MERGE_EVERY_PAGES = 6;
+  let pagesSinceMerge = 0, mergedCount = 0;
+  const showProgress = ()=>{
+    const rc = document.getElementById('resultCount');
+    const expected = archiveSourceCounts[src];
+    if(rc) rc.innerHTML = `<span class="loading-spin">&#8635;</span> Loading ${esc(src)}… ${allData.length.toLocaleString()}${expected ? ' of ~' + expected.toLocaleString() : ''}`;
+  };
   async function fetchPage(afterId){
     for(let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++){
       try{
@@ -63283,6 +63296,14 @@ async function nytBoot(src){
     for(const row of data) allData.push(row);
     if(data.length < PAGE_SIZE) break;
     lastId = data[data.length - 1].id;
+    showProgress();
+    if(++pagesSinceMerge >= MERGE_EVERY_PAGES){
+      pagesSinceMerge = 0;
+      await mergeNytRecipes(allData.slice(mergedCount).map(rowToNytRecipe));
+      mergedCount = allData.length;
+      render();
+      showProgress(); /* render() reset the count label */
+    }
   }
   const rows = allData.map(rowToNytRecipe);
   /* only cache on a fully clean fetch -- a partial result cached would silently
