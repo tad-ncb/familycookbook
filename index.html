@@ -5,7 +5,7 @@
      data.js, app.js, foot.html); run build.py or push a change to src/ and
      .github/workflows/build.yml regenerates this. -->
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>The Deemer-Berdux Family Cookbook</title>
 <meta name="robots" content="noindex, nofollow, noarchive">
 <!-- Reachable by direct link only -- deliberately not meant to show up in search results
@@ -1287,6 +1287,28 @@
     font-size:11px; color:var(--ink-faint);
   }
   .share-footer a{ color:var(--stamp); }
+  /* iOS home-screen (standalone) app: with viewport-fit=cover + a translucent status
+     bar the page draws edge to edge, so the notch/clock/home-indicator areas must be
+     padded by hand. env() is 0 everywhere else (desktop, Android, plain Safari tabs),
+     so none of this changes those layouts. Kept LAST in the stylesheet on purpose --
+     it must out-rank the earlier mobile @media rules by source order. */
+  @supports (padding: env(safe-area-inset-top)){
+    body{
+      padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom);
+      padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right);
+    }
+    /* the status bar is white-on-translucent (apple-mobile-web-app-status-bar-style:
+       black-translucent), unreadable over the light theme's paper -- always back it
+       with the dark chrome colour. */
+    body::before{
+      content:''; position:fixed; top:0; left:0; right:0; height:env(safe-area-inset-top);
+      background:#14161c; z-index:1000; pointer-events:none;
+    }
+    @media(max-width:640px){
+      .modal-overlay{ padding-top:env(safe-area-inset-top); }
+      .modal-close{ top:calc(8px + env(safe-area-inset-top)); }
+    }
+  }
 </style>
 </head>
 <body>
