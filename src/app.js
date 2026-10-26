@@ -3746,7 +3746,7 @@ async function nytBoot(src){
   const showProgress = ()=>{
     const rc = document.getElementById('resultCount');
     const expected = archiveSourceCounts[src];
-    if(rc) rc.innerHTML = `<span class="loading-spin">&#8635;</span> Loading ${esc(src)}… ${allData.length.toLocaleString()}${expected ? ' of ~' + expected.toLocaleString() : ''}`;
+    if(rc) rc.innerHTML = `<span class="loading-spin">&#8635;</span> Loading ${escapeHTML(src)}… ${allData.length.toLocaleString()}${expected ? ' of ~' + expected.toLocaleString() : ''}`;
   };
   async function fetchPage(afterId){
     for(let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++){
