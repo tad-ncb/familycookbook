@@ -149,7 +149,21 @@ const HOUSEHOLD_STORAGE_KEY = 'household';
    shopping list/pantry without anyone noticing. Callers that need a
    guaranteed value must go through resolveHousehold() below, which blocks
    on an explicit choice instead of guessing. */
+/* Memoized once resolved: this used to rebuild URLSearchParams twice and
+   rewrite localStorage on EVERY call, and timesMade()/lastMade()/avgRating()
+   (called per recipe by every filter pass and sort comparator) all go through
+   it -- on 18k+ recipes that was millions of throwaway allocations per
+   render(): ~2s of blocked main thread and a ~1GB transient memory spike
+   (measured in WebKit), the kind of thing iOS kills a home-screen app over.
+   Safe to cache because the household only changes via setHousehold()
+   (which reloads the page) or the first-run gate (null -> value, never cached
+   while null). */
+let _currentHousehold = null;
 function currentHousehold(){
+  if(_currentHousehold) return _currentHousehold;
+  return (_currentHousehold = resolveCurrentHousehold());
+}
+function resolveCurrentHousehold(){
   const fromUrl = LEGACY_HOUSEHOLD_IDS[new URLSearchParams(location.search).get('hh')] || new URLSearchParams(location.search).get('hh');
   if(fromUrl && HOUSEHOLD_LABEL[fromUrl]){
     try{ localStorage.setItem(HOUSEHOLD_STORAGE_KEY, fromUrl); }catch(e){}
@@ -1078,11 +1092,13 @@ function matchesQuery(recipe, q){
   return recipe._lite && archiveQueryFor === q && archiveQueryHits.has(recipe.id);
 }
 function passesMade(r){
-  const n = timesMade(r.id), last = lastMade(r.id), d = daysSince(last);
+  /* no "made" filter active is the overwhelmingly common case -- don't compute
+     cook stats (a cook-log scan + sort per recipe) just to return true */
+  if(!state.made || state.made === 'all') return true;
   switch(state.made){
-    case 'never':       return n === 0;
-    case 'made':        return n > 0;
-    case 'recent':      return n > 0 && d !== null && d < 30;
+    case 'never':       return timesMade(r.id) === 0;
+    case 'made':        return timesMade(r.id) > 0;
+    case 'recent':      { const d = daysSince(lastMade(r.id)); return timesMade(r.id) > 0 && d !== null && d < 30; }
     case 'interested':  return isInterested(r.id);
     default:            return true;
   }
