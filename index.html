@@ -63208,6 +63208,7 @@ async function toggleSource(src){
          after a failed load instead of just showing the failure and
          letting you retry. */
       console.error('nytBoot failed', e);
+      loadFailedSource = src; /* surface it in the result-count warning below, not just the console */
     }finally{
       archiveLoading = false;
       currentlyLoadingSource = null;
