@@ -60708,7 +60708,25 @@ function getFiltered(){
      the very top of the default view, family or not. Explicit sort modes
      (A-Z, Newest, etc) are left alone: someone who picked A-Z wants strict
      alphabetical order, not a 5-star bucket jumping the alphabet. */
+  /* Search relevance, default sort only (an explicit A-Z/Newest/etc. pick keeps its
+     strict order): a recipe whose TITLE or real named ingredients (ingredientCore --
+     "chicken breast" counts, "chicken stock" deliberately doesn't) or course/
+     cuisine/tags match leads; anything that only matched in ingredient text,
+     instructions, notes or the server full-text fallback follows. Without this,
+     searching "chicken" interleaved beef stews that merely use chicken stock with
+     the actual chicken recipes. Nothing is dropped -- a "wok"-style hit buried in
+     instructions text still appears, just after the strong matches. */
+  const qt = (state.sort === 'top' || !state.sort) && state.query ? state.query.toLowerCase() : null;
+  const tier = qt ? new Map() : null;
+  if(qt) list.forEach(r=>{
+    let t = 2;
+    if(((r.title||'') + ' ' + (r.shortTitle||'')).toLowerCase().includes(qt)) t = 0;
+    else if((r.ingredientCore||[]).some(x=>x.includes(qt)) ||
+            [r.source, r.cuisine, r.category, ...(r.tags||[])].filter(Boolean).join(' ').toLowerCase().includes(qt)) t = 1;
+    tier.set(r, t);
+  });
   return list.sort((a,b)=>{
+    if(qt){ const d = tier.get(a) - tier.get(b); if(d) return d; }
     if(state.sort === 'top' || !state.sort){
       const fiveA = (avgRating(a.id)||0) === 5, fiveB = (avgRating(b.id)||0) === 5;
       if(fiveA !== fiveB) return fiveA ? -1 : 1;
