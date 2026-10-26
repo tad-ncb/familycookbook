@@ -63224,6 +63224,34 @@ async function toggleSource(src){
 }
 /* Resolves true only when the source loaded completely (or came from a valid
    cache); false means a partial or failed fetch -- see toggleSource. */
+/* Evenly spaced ids to split one big source into parallel keyset streams.
+   Each probe is a single-row OFFSET read of just `id` (index-only, <1s with
+   nyt_recipes_archive_source_id_idx -- see migration 011), unlike the deep
+   OFFSET *pages* that used to time out. Streams cover [-inf,s1), [s1,s2) ... [sn,+inf)
+   so correctness never depends on the estimate being right: a wrong count only
+   makes the streams uneven. Any failure (or a small/unknown source) returns []
+   = the original single sequential stream. */
+const PARALLEL_STREAMS = 6, PARALLEL_MIN_ROWS = 4000;
+async function findSplitIds(src){
+  const total = archiveSourceCounts[src];
+  if(!sb || !total || total < PARALLEL_MIN_ROWS) return [];
+  try{
+    const probes = [];
+    for(let i = 1; i < PARALLEL_STREAMS; i++){
+      const off = Math.floor(total * i / PARALLEL_STREAMS);
+      let q = sb.from('nyt_recipes').select('id').eq('needs_review', false);
+      q = ARCHIVE_SOURCE_FILTERS[src](q);
+      probes.push(q.order('id').range(off, off));
+    }
+    const res = await Promise.all(probes);
+    const ids = [];
+    for(const r of res){
+      if(r.error) return [];
+      if(r.data && r.data[0]) ids.push(r.data[0].id);
+    }
+    return [...new Set(ids)]; /* already in the DB's own id order (offset probes ascend) -- do NOT re-sort in JS, collation can differ */
+  }catch(e){ return []; }
+}
 async function nytBoot(src){
   if(!sb) return false;
   const cacheKey = NYT_CACHE_KEY + ':' + src;
@@ -63261,26 +63289,34 @@ async function nytBoot(src){
      retries stops the fetch, keeps what it got, and reports failure so the
      caller doesn't treat the source as loaded. */
   const PAGE_SIZE = 1000, MAX_ATTEMPTS = 5;
-  let allData = [], hadError = false, lastId = null;
-  /* Progress + progressive display: a cold load of a big source is ~15-30s of
-     sequential pages, so show a running count (against the estimated total from
+  let allData = [], hadError = false;
+  /* Progress + progressive display: a cold load of a big source is a long run of
+     pages, so show a running count (against the estimated total from
      loadArchiveSourceCounts when that has landed) and merge+render what's arrived
-     every few pages, instead of an opaque spinner followed by everything at once.
+     every few thousand rows, instead of an opaque spinner followed by everything at once.
      Progressive rows are converted separately from the `rows` that get cached
      below, so the cache never contains the derived _ahead/_plan fields. */
-  const MERGE_EVERY_PAGES = 6;
-  let pagesSinceMerge = 0, mergedCount = 0;
+  const MERGE_EVERY_ROWS = 6000, MAX_PROGRESSIVE_RENDERS = 1;
+  /* render() over ~30k+ recipes costs ~2s of blocked main thread each (measured:
+     6 mid-load renders were 13s of a 19s cold load once paging went parallel),
+     so only ONE early merge+render -- enough to show results while the rest
+     streams in -- and the final merge below handles the remainder. */
+  let mergedCount = 0, merging = false, progressiveRenders = 0;
   const showProgress = ()=>{
     const rc = document.getElementById('resultCount');
     const expected = archiveSourceCounts[src];
     if(rc) rc.innerHTML = `<span class="loading-spin">&#8635;</span> Loading ${escapeHTML(src)}… ${allData.length.toLocaleString()}${expected ? ' of ~' + expected.toLocaleString() : ''}`;
   };
-  async function fetchPage(afterId){
+  /* lo is inclusive, hi exclusive; afterId (keyset cursor) takes over from lo once
+     a stream has fetched its first page. Both null = the whole source. */
+  async function fetchPage(lo, afterId, hi){
     for(let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++){
       try{
         let q = sb.from('nyt_recipes').select(NYT_LITE_COLUMNS).eq('needs_review', false);
         q = ARCHIVE_SOURCE_FILTERS[src](q);
         if(afterId !== null) q = q.gt('id', afterId);
+        else if(lo !== null) q = q.gte('id', lo);
+        if(hi !== null) q = q.lt('id', hi);
         const res = await q.order('id').limit(PAGE_SIZE);
         if(!res.error) return res.data;
         console.error(`nyt_recipes fetch error (${src}, after id ${afterId}, attempt ${attempt})`, res.error);
@@ -63291,21 +63327,33 @@ async function nytBoot(src){
     }
     return null;
   }
-  while(true){
-    const data = await fetchPage(lastId);
-    if(!data){ hadError = true; break; }
-    for(const row of data) allData.push(row);
-    if(data.length < PAGE_SIZE) break;
-    lastId = data[data.length - 1].id;
-    showProgress();
-    if(++pagesSinceMerge >= MERGE_EVERY_PAGES){
-      pagesSinceMerge = 0;
-      await mergeNytRecipes(allData.slice(mergedCount).map(rowToNytRecipe));
-      mergedCount = allData.length;
-      render();
-      showProgress(); /* render() reset the count label */
+  /* One stream = sequential keyset paging over [lo, hi). Several run side by side
+     (see findSplitIds) because sequential paging is what made the biggest source a
+     ~45s cold load: each page is ~1s of server time, and pages within one stream
+     can't overlap. A failed page stops every stream (hadError) but keeps what's in. */
+  async function runStream(lo, hi){
+    let lastId = null;
+    while(!hadError){
+      const data = await fetchPage(lo, lastId, hi);
+      if(!data){ hadError = true; return; }
+      for(const row of data) allData.push(row);
+      if(data.length < PAGE_SIZE) return;
+      lastId = data[data.length - 1].id;
+      showProgress();
+      if(!merging && progressiveRenders < MAX_PROGRESSIVE_RENDERS && allData.length - mergedCount >= MERGE_EVERY_ROWS){
+        merging = true; progressiveRenders++;
+        const upto = allData.length;
+        await mergeNytRecipes(allData.slice(mergedCount, upto).map(rowToNytRecipe));
+        mergedCount = upto; merging = false;
+        render();
+        showProgress(); /* render() reset the count label */
+      }
     }
   }
+  const splits = await findSplitIds(src);
+  const bounds = [null, ...splits, null];
+  await Promise.all(bounds.slice(0, -1).map((lo, i)=> runStream(lo, bounds[i + 1])));
+  allData.sort((a, b)=> a.id < b.id ? -1 : a.id > b.id ? 1 : 0); /* deterministic cache/RECIPES order regardless of which stream finished first */
   const rows = allData.map(rowToNytRecipe);
   /* only cache on a fully clean fetch -- a partial result cached would silently
      cap every future load at whatever happened to succeed this one time */
