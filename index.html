@@ -60718,11 +60718,18 @@ function getFiltered(){
      instructions text still appears, just after the strong matches. */
   const qt = (state.sort === 'top' || !state.sort) && state.query ? state.query.toLowerCase() : null;
   const tier = qt ? new Map() : null;
+  const words = qt ? qt.split(/\s+/).filter(Boolean) : [];
   if(qt) list.forEach(r=>{
     let t = 2;
-    if(((r.title||'') + ' ' + (r.shortTitle||'')).toLowerCase().includes(qt)) t = 0;
+    const ttl = ((r.title||'') + ' ' + (r.shortTitle||'')).toLowerCase();
+    if(ttl.includes(qt) || (words.length > 1 && words.every(w=>ttl.includes(w)))) t = 0;
     else if((r.ingredientCore||[]).some(x=>x.includes(qt)) ||
-            [r.source, r.cuisine, r.category, ...(r.tags||[])].filter(Boolean).join(' ').toLowerCase().includes(qt)) t = 1;
+            [r.source, r.cuisine, r.category, ...(r.tags||[])].filter(Boolean).join(' ').toLowerCase().includes(qt) ||
+            /* multi-word only: ingredientCore holds just the single-word head ("chicken"),
+               so "chicken thigh" would otherwise never reach tier 1 -- the whole phrase on
+               an ingredient LINE ("4 bone-in chicken thighs") is a real named ingredient. A
+               single word stays out of this on purpose ("chicken stock" in a beef stew). */
+            (words.length > 1 && (r.ingredients||[]).some(x=>String(x).toLowerCase().includes(qt)))) t = 1;
     tier.set(r, t);
   });
   return list.sort((a,b)=>{
@@ -63076,6 +63083,10 @@ function rowToNytRecipe(r){
    before rendering can still await it. */
 async function mergeNytRecipes(rows){
   const existingIds = new Set(RECIPES.map(r=>r.id));
+  /* No setTimeout yield between chunks any more: the whole 28k-row merge is ~25ms of
+     real work (measured), but each setTimeout(0) yield was throttled by the browser to
+     ~1s whenever the page wasn't actively foregrounded (background tab, iOS, etc.) --
+     two or three of those turned a 25ms merge into 2-3s of a cache-hit load. */
   const CHUNK = 2000;
   for(let i=0; i<rows.length; i+=CHUNK){
     rows.slice(i, i+CHUNK).forEach(r=>{
@@ -63093,7 +63104,6 @@ async function mergeNytRecipes(rows){
       r._plan     = planMinutes(r);
       RECIPES.push(r);
     });
-    if(i+CHUNK < rows.length) await new Promise(res=>setTimeout(res,0));
   }
 }
 
@@ -63188,14 +63198,22 @@ function fmtCompactCount(n){
   if(n < 1000) return String(n);
   return Math.round(n/1000) + 'k'; /* whole-k, no decimal -- every character counts to fit 5 buttons on one line */
 }
-async function loadArchiveSourceCounts(){
+async function loadArchiveSourceCounts(retryMissing = true){
   if(!sb) return;
+  /* last-known counts from the previous visit fill the buttons instantly (they're
+     only a "~N recipes" badge) and cover a failed/slow estimate this time round */
+  try{
+    const saved = JSON.parse(localStorage.getItem('archiveSourceCounts') || '{}');
+    Object.keys(saved).forEach(k=>{ if(archiveSourceCounts[k] == null && Number.isFinite(saved[k])) archiveSourceCounts[k] = saved[k]; });
+    syncToolbar();
+  }catch(e){}
   const specs = [
     ['NYT Cooking', c=>c.eq('archive_source', 'nyt')],
     ['Epicurious', c=>c.eq('archive_source', 'epicurious')],
     ['BBC Good Food', c=>c.eq('archive_source', 'bbc')],
     ['Other recipe sites', c=>c.eq('archive_source', 'other')],
   ];
+  const freshCounts = {};
   await Promise.all(specs.map(async ([src, filter])=>{
     /* this endpoint has confirmed intermittent 500s/timeouts even on the
        cheap `estimated` count (not just the `exact` one nytBoot avoids),
@@ -63209,13 +63227,19 @@ async function loadArchiveSourceCounts(){
         let q = sb.from('nyt_recipes').select('id', {count:'estimated', head:true}).eq('needs_review', false);
         q = filter(q);
         const res = await q;
-        if(!res.error && res.count != null){ archiveSourceCounts[src] = res.count; syncToolbar(); return; }
+        if(!res.error && res.count != null){
+          archiveSourceCounts[src] = res.count; freshCounts[src] = res.count; syncToolbar(); return;
+        }
       }catch(e){ /* fall through to retry */ }
       if(attempt < 5) await new Promise(r=>setTimeout(r, 500 * attempt));
     }
     console.error('archive source count failed after retries', src);
   }));
+  try{ if(Object.keys(freshCounts).length) localStorage.setItem('archiveSourceCounts', JSON.stringify({...JSON.parse(localStorage.getItem('archiveSourceCounts')||'{}'), ...freshCounts})); }catch(e){}
   syncToolbar();
+  /* any button that still has no number gets one more try a bit later, rather than
+     staying blank for the whole visit */
+  if(retryMissing && specs.some(([src])=>archiveSourceCounts[src] == null)) setTimeout(()=>loadArchiveSourceCounts(false), 8000);
 }
 /* Once fetched, archive rows stay in RECIPES for the rest of the visit --
    toggling a source off/on after that first fetch is just a filter change
