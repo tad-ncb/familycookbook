@@ -1,11 +1,13 @@
 name: Supabase keep-alive
 
-# Free-tier Supabase projects pause after ~7 days of inactivity (this one did,
-# which also broke the weekly backup). A tiny REST read every few days keeps
-# it well inside that window regardless of whether anyone opens the site.
+# Free-tier Supabase projects pause after ~7 days of inactivity. This project
+# paused twice (Oct 22 and Nov 8) -- the second time despite successful read-only
+# pings two and five days earlier -- so reads alone are not enough. This job now
+# does a read AND a write (UPSERT of a heartbeat row, see migrations/013_keepalive.sql)
+# every day, and fails loudly (GitHub emails) if either does not work.
 on:
   schedule:
-    - cron: '0 12 * * 1,4'  # Mondays and Thursdays, 12:00 UTC
+    - cron: '0 12 * * *'  # daily, 12:00 UTC
   workflow_dispatch: {}
 
 jobs:
@@ -21,8 +23,16 @@ jobs:
           # --fail makes a paused/missing project (DNS error, 4xx/5xx) fail the
           # job, so GitHub emails you right away instead of weeks later.
           curl --fail --silent --show-error --retry 3 --retry-delay 5 \
-            "$SUPABASE_URL/rest/v1/nyt_recipes?select=id&limit=1" \
+            "$SUPABASE_URL/rest/v1/keepalive?select=id&limit=1" \
             -H "apikey: $SUPABASE_ANON_KEY" \
             -H "Authorization: Bearer $SUPABASE_ANON_KEY"
           echo
-          echo "Supabase responded OK"
+          # write: heartbeat row (needs migrations/013_keepalive.sql applied once)
+          curl --fail-with-body --silent --show-error --retry 3 --retry-delay 5 \
+            -X POST "$SUPABASE_URL/rest/v1/keepalive?on_conflict=id" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: resolution=merge-duplicates,return=minimal" \
+            -d "{\"id\":1,\"pinged_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"note\":\"github-actions\"}"
+          echo "Supabase read + write OK"

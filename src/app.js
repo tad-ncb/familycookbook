@@ -106,12 +106,17 @@ function mergeStates(base, over){
     inventory: {items: [...im.values()]},
     interested: [...ntm.values()],
     shoppingLists: [...slm.values()],
+    _hh: over._hh || base._hh, /* which household this saved state belongs to -- see scopeStateToHousehold */
     prefs: ((op._t||0) >= (bp._t||0)) ? Object.assign({}, bp, op) : Object.assign({}, op, bp)
   };
 }
 function loadLocal(){ try{ const r=localStorage.getItem(LS_KEY); return r?JSON.parse(r):null; }catch(e){ return null; } }
 let DATA = mergeStates(SEED_STATE, loadLocal() || blankState());
+/* Bumped on every persist() -- which every mutation of DATA already goes
+   through -- so per-render caches (cookIndex, facetPass) know when they're stale. */
+let dataRev = 0;
 function persist(fromSync){
+  dataRev++;
   try{ localStorage.setItem(LS_KEY, JSON.stringify(DATA)); }catch(e){}
   if(!fromSync && typeof scheduleSync === 'function') scheduleSync();
 }
@@ -217,10 +222,34 @@ function toggleInterested(id){
    easy to miss -- the rating matched but the times-made/last-made didn't. */
 function cookEventsFor(id, household){ return DATA.cookLog.filter(e=>e.recipeId===id && !e._d && householdOf(e)===household).sort((a,b)=>(b.date||'').localeCompare(a.date||'')); }
 function cookEvents(id){ return cookEventsFor(id, currentHousehold()); }
-function timesMade(id){ return cookEvents(id).length; }
-function lastMade(id){ const e=cookEvents(id); return e.length ? e[0].date : null; }
+/* timesMade/lastMade/avgRating are called per recipe by filters, card rendering
+   and (many times over) by sort comparators -- each used to filter+sort the whole
+   cook log per call. One tally per data change instead, O(1) per lookup. Same
+   numbers as cookEventsFor() pinned to the current household. */
+let _cookIdx = null, _cookIdxKey = null;
+function cookIndex(){
+  const hh = currentHousehold(), key = dataRev + '|' + hh;
+  if(_cookIdx && _cookIdxKey === key) return _cookIdx;
+  const m = new Map();
+  DATA.cookLog.forEach(e=>{
+    if(e._d || householdOf(e) !== hh) return;
+    let st = m.get(e.recipeId);
+    if(!st) m.set(e.recipeId, st = {n:0, last:null, sum:0, rated:0});
+    st.n++;
+    if(e.date && (!st.last || e.date > st.last)) st.last = e.date;
+    if(typeof e.rating === 'number' && e.rating > 0){ st.sum += e.rating; st.rated++; }
+  });
+  _cookIdx = m; _cookIdxKey = key;
+  return m;
+}
+function timesMade(id){ const st = cookIndex().get(id); return st ? st.n : 0; }
+function lastMade(id){ const st = cookIndex().get(id); return st ? st.last : null; }
 function avgRating(id, household){
-  const h = household || currentHousehold();
+  if(!household || household === currentHousehold()){
+    const st = cookIndex().get(id);
+    return (st && st.rated) ? st.sum / st.rated : null;
+  }
+  const h = household;
   const rs = cookEventsFor(id, h).map(e=>e.rating).filter(n=>typeof n==='number' && n>0);
   return rs.length ? rs.reduce((a,b)=>a+b,0)/rs.length : null;
 }
@@ -285,7 +314,10 @@ function relTime(iso){
    whether the source already contains a literal "&" or an escaped one. */
 function escapeHTML(s){
   const unescaped = String(s).replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
-  return unescaped.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  /* quotes too: this is also used inside attribute values (value="...", href="...",
+     data-*="..."), where a bare " in recipe/list/submission text would end the
+     attribute and let the rest be read as markup */
+  return unescaped.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 /* zero-width space after slashes -> lets long titles/cuisines wrap without a visible gap */
 function zwsp(s){ return String(s).replace(/\/(?!​)/g, '/​'); }
@@ -676,13 +708,17 @@ function macrosLabel(r){
 }
 
 /* ---------------- derived index ---------------- */
-RECIPES.forEach(r=>{
+/* everything computed once per full-text recipe; used for the curated set here
+   and for anything that joins RECIPES later with its text in hand */
+function deriveRecipeFields(r){
   r._ahead    = detectAhead(r);
   r._servings = parseServings(r.servings);
   r._total    = totalTime(r);
   r._plan     = planMinutes(r);
   r._macros   = estimateMacros(r);
-});
+  return r;
+}
+RECIPES.forEach(deriveRecipeFields);
 
 /* ---------------- app state ---------------- */
 /* "Which databases of recipes are in play" is one unified set of 5 source
@@ -727,19 +763,15 @@ let archiveSourceCounts = {};
    fetched so re-toggling a source that's already loaded is just a filter
    change, same as before. */
 let archiveFetchedSources = new Set();
-/* Precomputed + indexed server-side (see add_archive_source_column.sql) --
-   was a mix of `source = '...'` and `id LIKE 'prefix-%'`, the latter unable
-   to use a normal index (forces a sequential table scan). BBC in
-   particular was consistently the slowest of the 4 buttons despite having
-   the fewest rows, because a sequential scan wastes proportionally more
-   work finding its ~2%-of-the-table share than NYT's ~32% share. An
-   indexed equality lookup makes every source equally fast regardless of
-   its size. */
-const ARCHIVE_SOURCE_FILTERS = {
-  'NYT Cooking': q => q.eq('archive_source', 'nyt'),
-  'Epicurious': q => q.eq('archive_source', 'epicurious'),
-  'BBC Good Food': q => q.eq('archive_source', 'bbc'),
-  'Other recipe sites': q => q.eq('archive_source', 'other'),
+/* The bulk archive is static JSON on GitHub Pages (data/archive/, built by
+   tools/build_archive_data.py), not a Supabase table -- it never changes, and
+   a free-tier Supabase project that pauses must not take the archive with it.
+   Maps the toolbar label to the key used in data/archive/manifest.json. */
+const ARCHIVE_SOURCE_KEYS = {
+  'NYT Cooking': 'nyt',
+  'Epicurious': 'epicurious',
+  'BBC Good Food': 'bbc',
+  'Other recipe sites': 'other',
 };
 let archiveLoading = false;
 /* Which specific source is currently mid-fetch, if any -- syncToolbar used
@@ -778,11 +810,9 @@ const DIET_DEFINITIONS = {
   'Gluten Free': r => !(r.ingredientDietary||[]).includes('gluten'),
   'Dairy Free':  r => !(r.ingredientDietary||[]).includes('dairy'),
 };
-function recipeDietTags(r){ return Object.keys(DIET_DEFINITIONS).filter(d=>DIET_DEFINITIONS[d](r)); }
+function recipeDietTags(r){ return r._diets || (r._diets = Object.keys(DIET_DEFINITIONS).filter(d=>DIET_DEFINITIONS[d](r))); }
 const ALL_DIETS = Object.keys(DIET_DEFINITIONS);
 const DIET_ABBREV = {Vegetarian:'V', Vegan:'VG', 'Gluten Free':'GF', 'Dairy Free':'DF'};
-function countFor(field, value){ return RECIPES.filter(r=>matchesFiltersExcept(r, field) && r[field]===value).length; }
-function countForTag(tag){ return RECIPES.filter(r=>matchesFiltersExcept(r, 'diet') && recipeDietTags(r).includes(tag)).length; }
 
 /* ---------------- ingredient include/exclude filter ----------------
    ingredientCore  = the recipe's actual named ingredients/proteins (e.g.
@@ -800,19 +830,26 @@ function countForTag(tag){ return RECIPES.filter(r=>matchesFiltersExcept(r, 'die
    Options lists are computed fresh (not cached) since the NYT recipes merge
    into RECIPES asynchronously after first paint -- same pattern as
    computeAllAuthors() above. */
-function computeIncludeIngredientOptions(){
+/* Recipes are only ever appended to RECIPES (archive merge, published
+   submissions), never edited or removed -- so anything derived from the whole
+   catalog only needs recomputing when its length changes, not on every render. */
+function memoByCatalog(fn){
+  let len = -1, val;
+  return ()=>{ if(len !== RECIPES.length){ val = fn(); len = RECIPES.length; } return val; };
+}
+const computeIncludeIngredientOptions = memoByCatalog(()=>{
   const set = new Set();
   RECIPES.forEach(r=>(r.ingredientCore||[]).forEach(x=>set.add(x)));
   return [...set].sort((a,b)=>a.localeCompare(b));
-}
-function computeExcludeIngredientOptions(){
+});
+const computeExcludeIngredientOptions = memoByCatalog(()=>{
   const set = new Set();
   RECIPES.forEach(r=>{
     (r.ingredientAll||[]).forEach(x=>set.add(x));
     (r.ingredientDietary||[]).forEach(x=>set.add(x));
   });
   return [...set].sort((a,b)=>a.localeCompare(b));
-}
+});
 const DIETARY_TAG_SET = new Set(['dairy','egg','gluten','alcohol','poultry','tree nut','shellfish','soy','fish','pork','beef','peanut','lamb']);
 function ingredientOptionLabel(value){
   return DIETARY_TAG_SET.has(value) ? `${value} (any form)` : value;
@@ -925,7 +962,11 @@ const UNKNOWN_AUTHOR = 'Individual/Unknown';
 const NYT_AUTHOR = 'NYT Cooking';
 const FAMILY_AUTHOR = 'Family Recipe';
 function isFamilyRecipe(r){ return authorOf(r) === FAMILY_AUTHOR; }
-function authorOf(r){
+/* memoized on the recipe (source/tags never change after load): this runs per
+   recipe in every filter pass and twice per comparison in every sort, and the
+   prefix scan below is ~90 startsWith() calls each time */
+function authorOf(r){ return r._author !== undefined ? r._author : (r._author = computeAuthorOf(r)); }
+function computeAuthorOf(r){
   if((r.tags||[]).includes('NYT Cooking')) return NYT_AUTHOR;
   const src = r.source || '';
   const hit = AUTHOR_GROUPS.find(([prefix]) => src.startsWith(prefix));
@@ -939,7 +980,6 @@ function authorOf(r){
   if(/family/i.test(src)) return FAMILY_AUTHOR;
   return UNKNOWN_AUTHOR;
 }
-function countForAuthor(a){ return RECIPES.filter(r=>authorOf(r)===a).length; }
 /* One pass tallying every author's count at once -- computeAllAuthors used
    to call countForAuthor (itself a full RECIPES.filter() scan) once per
    candidate in a .filter(), then AGAIN twice per comparison inside a
@@ -954,21 +994,15 @@ function countForAuthor(a){ return RECIPES.filter(r=>authorOf(r)===a).length; }
    (matchesFiltersExcept('author') leaves that one dimension unconstrained),
    which is what keeps the currently-selected option's own count from
    collapsing to itself alone. */
-function computeAuthorCounts(){
-  const m = {};
-  RECIPES.forEach(r=>{
-    if(!matchesFiltersExcept(r, 'author')) return;
-    const a = authorOf(r); m[a] = (m[a]||0)+1;
-  });
-  return m;
-}
+function computeAuthorCounts(){ return facetPass().author; }
 /* computed fresh every call, NOT a one-time const -- NYT Cooking's real count
    (and technically the whole option list) depends on the async NYT fetch having
    merged into RECIPES by the time this runs, which hasn't happened yet the very
    first time the toolbar builds. See syncToolbar(), which calls this on every
    render() rather than baking options in once like the toolbar's other controls. */
+const presentAuthors = memoByCatalog(()=> new Set(RECIPES.map(authorOf)));
 function computeAllAuthors(){
-  const present = new Set(RECIPES.map(authorOf));
+  const present = presentAuthors();
   const named = AUTHOR_GROUPS.map(g=>g[1]).filter((v,i,a)=>a.indexOf(v)===i).filter(a=>present.has(a));
   const rest = [];
   if(present.has(NYT_AUTHOR)) rest.push(NYT_AUTHOR);
@@ -981,6 +1015,19 @@ function computeAllAuthors(){
   return named.concat(rest).filter(a=>(counts[a]||0) > 2).sort((a,b)=> (counts[b]||0) - (counts[a]||0));
 }
 
+/* Chips and cards are spans/divs with click handlers -- invisible to a keyboard
+   or a screen reader. This makes one focusable and Enter/Space-activatable
+   without changing how it looks. */
+function asButton(el, pressed){
+  el.tabIndex = 0;
+  el.setAttribute('role', 'button');
+  if(pressed !== undefined) el.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+  el.addEventListener('keydown', e=>{
+    if(e.target !== el || (e.key !== 'Enter' && e.key !== ' ')) return;
+    e.preventDefault(); el.click();
+  });
+  return el;
+}
 function renderChips(){
   /* countFor/countForTag each did a full RECIPES.filter() scan PER chip --
      36 separate full-array scans (9 categories + 23 cuisines + 4 diets)
@@ -989,12 +1036,7 @@ function renderChips(){
      loading one in the first place once tens of thousands of archive rows
      were merged in. One single pass over RECIPES computes every chip's
      count at once instead. */
-  const catCounts = {}, cuiCounts = {}, dietCounts = {};
-  RECIPES.forEach(r=>{
-    if(r.category && matchesFiltersExcept(r, 'category')) catCounts[r.category] = (catCounts[r.category]||0)+1;
-    if(r.cuisine && matchesFiltersExcept(r, 'cuisine')) cuiCounts[r.cuisine] = (cuiCounts[r.cuisine]||0)+1;
-    if(matchesFiltersExcept(r, 'diet')) recipeDietTags(r).forEach(tag=>{ dietCounts[tag] = (dietCounts[tag]||0)+1; });
-  });
+  const {cat: catCounts, cui: cuiCounts, diet: dietCounts} = facetPass();
   const catWrap = document.getElementById('categoryChips');
   catWrap.innerHTML = '';
   ALL_CATEGORIES.forEach((cat,i)=>{
@@ -1010,7 +1052,7 @@ function renderChips(){
     chip.className = 'facet-link' + (state.category===cat ? ' active':'');
     chip.innerHTML = `${cat} <span class="n">${catCounts[cat]||0}</span>`;
     chip.onclick = ()=>{ state.category = state.category===cat ? null : cat; render(); };
-    catWrap.appendChild(chip);
+    catWrap.appendChild(asButton(chip, state.category===cat));
   });
   const cuiWrap = document.getElementById('cuisineChips');
   cuiWrap.innerHTML = '';
@@ -1019,7 +1061,7 @@ function renderChips(){
     chip.className = 'facet-link' + (state.cuisine===c ? ' active':'');
     chip.innerHTML = `${zwsp(escapeHTML(c))} <span class="n">${cuiCounts[c]||0}</span>`;
     chip.onclick = ()=>{ state.cuisine = state.cuisine===c ? null : c; render(); };
-    cuiWrap.appendChild(chip);
+    cuiWrap.appendChild(asButton(chip, state.cuisine===c));
   });
   const cuiSelect = document.getElementById('cuisineSelect');
   cuiSelect.innerHTML = `<option value="">All cuisines</option>` + ALL_CUISINES.map(c=>
@@ -1041,20 +1083,23 @@ function renderChips(){
       state.diets = state.diets.includes(d) ? state.diets.filter(x=>x!==d) : [...state.diets, d];
       render();
     };
-    dietWrap.appendChild(chip);
+    dietWrap.appendChild(asButton(chip, state.diets.includes(d)));
   });
   renderIngredientChips();
 }
 
 function renderIngredientChips(){
-  const includeList = document.getElementById('ingIncludeOptions');
-  includeList.innerHTML = computeIncludeIngredientOptions()
-    .filter(v=>!state.includeIngredients.includes(v))
-    .map(v=>`<option value="${escapeHTML(v)}">`).join('');
-  const excludeList = document.getElementById('ingExcludeOptions');
-  excludeList.innerHTML = computeExcludeIngredientOptions()
-    .filter(v=>!state.excludeIngredients.includes(v))
-    .map(v=>`<option value="${escapeHTML(v)}">`).join('');
+  /* thousands of <option>s once the archive is in -- only rebuild them when the
+     catalog or the already-picked chips actually changed, not on every render */
+  const fillOptions = (listId, options, picked)=>{
+    const el = document.getElementById(listId);
+    const key = RECIPES.length + '|' + picked.join('\u0001');
+    if(el.dataset.key === key) return;
+    el.dataset.key = key;
+    el.innerHTML = options.filter(v=>!picked.includes(v)).map(v=>`<option value="${escapeHTML(v)}">`).join('');
+  };
+  fillOptions('ingIncludeOptions', computeIncludeIngredientOptions(), state.includeIngredients);
+  fillOptions('ingExcludeOptions', computeExcludeIngredientOptions(), state.excludeIngredients);
 
   const includeWrap = document.getElementById('ingIncludeChips');
   includeWrap.innerHTML = '';
@@ -1063,7 +1108,7 @@ function renderIngredientChips(){
     chip.className = 'facet-link active';
     chip.innerHTML = `${zwsp(escapeHTML(tag))} <span class="n">✕</span>`;
     chip.onclick = ()=>{ state.includeIngredients = state.includeIngredients.filter(t=>t!==tag); render(); };
-    includeWrap.appendChild(chip);
+    includeWrap.appendChild(asButton(chip));
   });
   const excludeWrap = document.getElementById('ingExcludeChips');
   excludeWrap.innerHTML = '';
@@ -1072,23 +1117,29 @@ function renderIngredientChips(){
     chip.className = 'facet-link active';
     chip.innerHTML = `${zwsp(escapeHTML(ingredientOptionLabel(tag)))} <span class="n">✕</span>`;
     chip.onclick = ()=>{ state.excludeIngredients = state.excludeIngredients.filter(t=>t!==tag); render(); };
-    excludeWrap.appendChild(chip);
+    excludeWrap.appendChild(asButton(chip));
   });
 }
 
+/* Everything a search can match on, lowercased once per recipe and kept -- this
+   used to be rebuilt (a ~20-part array join over the full recipe text) for every
+   recipe, several times per render, on every keystroke. fetchRecipeDetail()
+   clears it when an archive row gains its full text. */
+function searchHay(recipe){
+  if(recipe._hay != null) return recipe._hay;
+  return (recipe._hay = [recipe.title, recipe.shortTitle, recipe.source, recipe.cuisine, recipe.category, recipe.notes,
+          ...(recipe.tags||[]), ...(recipe.ingredients||[]), ...(recipe.instructions||[]),
+          /* unopened archive rows have no ingredient text, but do carry normalized ingredient names */
+          ...(recipe._lite ? (recipe.ingredientAll||[]) : [])]
+    .filter(Boolean).join(' ').toLowerCase());
+}
 function matchesQuery(recipe, q){
   if(!q) return true;
   const t = q.toLowerCase();
-  const localHit = [recipe.title, recipe.shortTitle, recipe.source, recipe.cuisine, recipe.category, recipe.notes,
-          ...(recipe.tags||[]), ...(recipe.ingredients||[]), ...(recipe.instructions||[])]
-    .filter(Boolean).join(' ').toLowerCase().includes(t);
-  if(localHit) return true;
+  if(searchHay(recipe).includes(t)) return true;
   /* archive rows that haven't been opened yet (see _lite / fetchRecipeDetail)
-     don't have their ingredients/instructions text on hand locally to search
-     -- archiveQueryHits is the server-side full-text fallback's answer for
-     the current query (see runArchiveSearch), so a "wok"-style match buried
-     in instructions text still surfaces even though that text was never
-     downloaded in bulk. */
+     don't have their ingredient lines on the device -- archiveQueryHits is the
+     ingredient word index's answer for the current query (see runArchiveSearch) */
   return recipe._lite && archiveQueryFor === q && archiveQueryHits.has(recipe.id);
 }
 function passesMade(r){
@@ -1117,9 +1168,47 @@ function matchesFiltersExcept(r, exclude){
     passesIngredientFilters(r) &&
     passesMade(r) && matchesQuery(r, state.query);
 }
+/* One pass over RECIPES answers everything a render needs: the matching list,
+   and the "how many if I also picked this" count for every Course / Cuisine /
+   Diet / Author value. Those used to be up to six separate full filter passes
+   per render (each re-running the search match). A recipe counts toward a
+   facet's values when it passes every OTHER facet -- exactly
+   matchesFiltersExcept(r, facet), which stays as the reference definition (the
+   test suite checks this pass against it). Cached until a filter, the catalog,
+   or the data changes, so renderChips/syncToolbar/renderGrid share one pass. */
+let detailRev = 0; /* bumped when an archive row gains its full text (it may now match a search) */
+let _facetPass = null, _facetPassKey = null;
+function facetPass(){
+  const key = filterSignature() + '|' + RECIPES.length + '|' + dataRev + '|' + detailRev + '|' + currentHousehold() + '|' + archiveQueryRev;
+  if(_facetPass && _facetPassKey === key) return _facetPass;
+  const cat = {}, cui = {}, diet = {}, author = {}, list = [];
+  const nDiets = state.diets.length;
+  for(let i = 0; i < RECIPES.length; i++){
+    const r = RECIPES[i];
+    if(state.aheadOnly && !r._ahead) continue;
+    if(!enabledSources.includes(archiveSourceOf(r))) continue;
+    if(!passesIngredientFilters(r) || !passesMade(r) || !matchesQuery(r, state.query)) continue;
+    const okCat = !state.category || r.category === state.category;
+    const okCui = !state.cuisine || r.cuisine === state.cuisine;
+    const diets = recipeDietTags(r);
+    const okDiet = !nDiets || state.diets.every(d=>diets.includes(d));
+    const a = authorOf(r);
+    const okAuthor = !state.author || a === state.author;
+    const fails = (okCat?0:1) + (okCui?0:1) + (okDiet?0:1) + (okAuthor?0:1);
+    if(fails > 1) continue;
+    if(fails === 0) list.push(r);
+    if((fails === 0 || !okCat) && r.category) cat[r.category] = (cat[r.category]||0) + 1;
+    if((fails === 0 || !okCui) && r.cuisine) cui[r.cuisine] = (cui[r.cuisine]||0) + 1;
+    if(fails === 0 || !okDiet) for(const tag of diets) diet[tag] = (diet[tag]||0) + 1;
+    if(fails === 0 || !okAuthor) author[a] = (author[a]||0) + 1;
+  }
+  _facetPassKey = key;
+  return (_facetPass = {cat, cui, diet, author, list});
+}
+const TITLE_COLLATOR = new Intl.Collator(); /* same ordering as String.localeCompare, several times faster across 60k titles */
 function getFiltered(){
-  let list = RECIPES.filter(r=>matchesFiltersExcept(r, null));
-  const byTitle = (a,b)=>a.title.localeCompare(b.title);
+  let list = facetPass().list.slice(); /* copy: the sort below is in place, the cached pass is shared */
+  const byTitle = (a,b)=>TITLE_COLLATOR.compare(a.title, b.title);
   const sorters = {
     /* Default on load: highest rated, then most cooked, then most recently
        cooked, then (family is already handled below as an outer partition,
@@ -1336,6 +1425,7 @@ function importData(e){
   fr.onload = ()=>{
     try{
       DATA = mergeStates(DATA, JSON.parse(fr.result));
+      DATA._hh = currentHousehold();
       persist(); render();
       alert('Imported. ' + DATA.cookLog.filter(e=>!e._d).length + ' cook entries now on file.');
     }catch(err){ alert('That file could not be read as cookbook data.'); }
@@ -1454,6 +1544,7 @@ function renderGrid(){
       <h3 class="card-title${r.nativeName?' dual-name':''}">${zwsp(escapeHTML(displayTitle(r)))}</h3>
       <div class="card-lines">${cardLinesHTML(r)}</div>`;
     card.onclick = ()=> openModal(r);
+    asButton(card);
     const star = card.querySelector('.interested-star');
     star.onclick = (e)=>{
       e.stopPropagation();
@@ -1577,6 +1668,10 @@ function renderIngredients(){
     li.innerHTML = `<span class="ing-text">${renderInline(res.text)}${res.unscaled && f!==1 ? ' <span class="unscaled-note">· unscaled</span>' : ''}</span><span class="ing-badge-slot">${badges}</span>`;
     wrap.appendChild(li);
   });
+  /* the list was just rebuilt (open, or a scale change) -- re-attach the
+     making-mode tick handlers and repaint ticks, or changing the scale while
+     cooking silently made every ingredient un-tickable and hid the ticks */
+  wireTicks(); paintTicks();
 }
 function renderScaleBar(){
   const r = modalRecipe, sv = r._servings, f = modalFactor;
@@ -1645,11 +1740,11 @@ function renderCookPanel(){
       </div>
       ${n ? `<div class="cook-hist">${evs.map(e=>`
         <div class="cook-hist-item">
-          <span class="ch-date">${e.date}</span>
+          <span class="ch-date">${escapeHTML(e.date||'')}</span>
           ${e.rating?`<span class="stars">${starStr(e.rating)}</span>`:''}
           ${e.note?`<span class="ch-note">${escapeHTML(e.note)}</span>`:''}
           ${e.leftover?`<span class="ch-note">Leftovers: ${escapeHTML(e.leftover)}</span>`:''}
-          <span class="ch-del" data-ev="${e.id}">remove</span>
+          <span class="ch-del" data-ev="${escapeHTML(e.id)}">remove</span>
         </div>`).join('')}</div>` : `<div class="cook-empty">Log it once and this recipe joins the rotation history.</div>`}
     </div>`;
   let rating = 0;
@@ -1800,6 +1895,7 @@ function closeModal(){
   }
 }
 document.getElementById('modalClose').onclick = closeModal;
+asButton(document.getElementById('modalClose'));
 document.getElementById('modalOverlay').onclick = e=>{ if(e.target.id==='modalOverlay') closeModal(); };
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
 
@@ -1807,35 +1903,88 @@ let searchTimer;
 document.getElementById('searchInput').addEventListener('input', e=>{
   clearTimeout(searchTimer);
   const val = e.target.value;
-  searchTimer = setTimeout(()=>{ state.query = val; renderGrid(); runArchiveSearch(val); }, 80);
+  /* render(), not just renderGrid(): the Course/Cuisine/Diet/Author counts are
+     "how many under every other active filter", and the search text is one of
+     those filters -- they used to go stale while typing. Affordable now that
+     the whole render shares one filter pass (see facetPass). */
+  searchTimer = setTimeout(()=>{ state.query = val; render(); runArchiveSearch(val); }, 80);
 });
-/* Server-side full-text fallback for the ingredient/instruction text that
-   nytBoot's lite bulk load no longer carries locally (see _lite / NYT_LITE_
-   COLUMNS) -- fires one small indexed query per settled search term instead
-   of ever re-downloading that text in bulk. Local matching (title/tags/
-   already-opened recipes) is instant and unaffected; this only ADDS archive
-   hits that live purely in text nobody's fetched yet. */
-let archiveQueryHits = new Set(), archiveQueryFor = null, archiveSearchGen = 0;
-function buildPrefixTsQuery(q){
-  const words = q.toLowerCase().match(/[a-z0-9]+/g);
-  if(!words || !words.length) return null;
-  return words.map(w=>w+':*').join(' & ');
+/* Ingredient-text search for archive recipes whose full text isn't on the device
+   (see _lite). Each source has a small word index (data/archive/search/<src>.json,
+   built by tools/build_archive_data.py): for every word that appears in any
+   ingredient line, the row numbers that contain it. It is downloaded the first
+   time a search is typed with that source switched on, never before. A recipe
+   matches when EVERY word of the query is found (as a whole word or part of one)
+   somewhere in its ingredient lines -- "chicken thigh" finds "4 bone-in chicken
+   thighs". Title/tag/opened-recipe matching (searchHay) is unaffected and
+   instant; these hits are added on top, and rank after title matches.
+   archiveRowIds[source] = that source's ids in archive row order (what the
+   index's row numbers refer to) -- filled in by nytBoot. */
+let archiveQueryHits = new Set(), archiveQueryFor = null, archiveQueryRev = 0, archiveSearchGen = 0;
+const archiveRowIds = {};
+const archiveSearchIndexes = new Map(); /* source label -> Promise of {words, start, rows} | null */
+function loadArchiveSearchIndex(src){
+  if(!archiveSearchIndexes.has(src)){
+    const p = (async ()=>{
+      const manifest = await getArchiveManifest();
+      const raw = manifest && await fetchArchiveJSON(`search/${ARCHIVE_SOURCE_KEYS[src]}.json`, manifest);
+      if(!raw) return null;
+      /* un-delta the row lists into one flat typed array: ~4 bytes per entry
+         instead of a JS array per word */
+      let total = 0;
+      for(const list of raw.p) total += list.length;
+      const rows = new Uint32Array(total), start = new Uint32Array(raw.p.length + 1);
+      let at = 0;
+      raw.p.forEach((list, w)=>{
+        start[w] = at;
+        let n = 0;
+        for(let i = 0; i < list.length; i++){ n += list[i]; rows[at++] = n; }
+      });
+      start[raw.p.length] = at;
+      return {words: raw.w, start, rows};
+    })();
+    archiveSearchIndexes.set(src, p);
+    p.then(idx=>{ if(!idx) archiveSearchIndexes.delete(src); }); /* failed -> try again on the next search */
+  }
+  return archiveSearchIndexes.get(src);
+}
+function setArchiveQueryHits(hits, q){
+  const changed = hits.size || archiveQueryHits.size;
+  archiveQueryHits = hits; archiveQueryFor = q; archiveQueryRev++;
+  return changed;
 }
 async function runArchiveSearch(q){
-  if(!sb || !archiveFetchedSources.size || !enabledSources.some(s=>s!==CURATED_TIER)){ return; }
-  if(!q || q.trim().length < 2){
-    archiveQueryHits = new Set(); archiveQueryFor = null;
+  const gen = ++archiveSearchGen;
+  /* MUST match WORD_RE in tools/build_archive_data.py */
+  const words = [...new Set(String(q||'').toLowerCase().match(/[a-z][a-z'\-]{2,}/g) || [])];
+  const sources = enabledSources.filter(s=> s !== CURATED_TIER && archiveRowIds[s]);
+  if(!words.length || !sources.length){
+    if(setArchiveQueryHits(new Set(), null)) render();
     return;
   }
-  const tsQuery = buildPrefixTsQuery(q);
-  if(!tsQuery) return;
-  const gen = ++archiveSearchGen;
-  const res = await sb.from('nyt_recipes').select('id').textSearch('search_vec', tsQuery, {config:'english'}).limit(500);
-  if(gen !== archiveSearchGen) return; /* a newer keystroke already superseded this request */
-  if(res.error){ console.error('archive full-text search error', res.error); return; }
-  archiveQueryHits = new Set((res.data||[]).map(row=>row.id));
-  archiveQueryFor = q;
-  render();
+  const hits = new Set();
+  for(const src of sources){
+    const idx = await loadArchiveSearchIndex(src);
+    if(gen !== archiveSearchGen) return; /* a newer keystroke superseded this one */
+    if(!idx) continue;
+    const ids = archiveRowIds[src];
+    /* seen[row] counts how many query words matched so far; a row survives word k
+       only if it survived words 0..k-1 */
+    const seen = new Uint8Array(ids.length);
+    let alive = true;
+    for(let k = 0; k < words.length && alive; k++){
+      alive = false;
+      for(let w = 0; w < idx.words.length; w++){
+        if(!idx.words[w].includes(words[k])) continue;
+        for(let i = idx.start[w]; i < idx.start[w + 1]; i++){
+          const row = idx.rows[i];
+          if(seen[row] === k){ seen[row] = k + 1; alive = true; }
+        }
+      }
+    }
+    if(alive) for(let row = 0; row < seen.length; row++) if(seen[row] === words.length) hits.add(ids[row]);
+  }
+  if(setArchiveQueryHits(hits, q)) render();
 }
 /* Adding a chip requires an explicit action -- pressing Enter, or picking a
    suggestion from the datalist dropdown -- never just typing text that
@@ -1931,7 +2080,14 @@ function removeSlot(id){
   persist();
   if(s && typeof pushWrite === 'function') pushWrite({table:'plan_days', row:s});
 }
-function recipeById(id){ return RECIPES.find(r=>r.id===id) || null; }
+/* id -> recipe, rebuilt only when the catalog grows (was a linear scan of up to
+   60k rows per lookup, and the planner/history views look up one per row) */
+const recipeIndex = memoByCatalog(()=>{
+  const m = new Map();
+  RECIPES.forEach(r=>{ if(!m.has(r.id)) m.set(r.id, r); });
+  return m;
+});
+function recipeById(id){ return recipeIndex().get(id) || null; }
 /* recipes transcribed before we started tagging addedDate all share one
    backfilled date; anything added after 2026-08-23 carries a real one. */
 function addedDateOf(r){ return r.addedDate || '2026-08-23'; }
@@ -2156,11 +2312,20 @@ function useByStatus(iso){
 /* Pantry/fridge/freezer items with a use-by inside the urgency window,
    matched against recipes the same way haveInInventory() already does --
    reusing that matching logic rather than a second one. */
-function expiringSoonNouns(){
-  const all = [...invItems('pantry'), ...invItems('fridge'), ...invItems('freezer')];
-  return all.filter(it=> it.useBy && hasQty(it) && useByStatus(it.useBy).urgency!=='ok')
-    .map(it=> String(it.name).toLowerCase());
+/* both of these are asked once per recipe (per ingredient, even) by the
+   suggestion engine and the "What I can make now" sort -- computed once per
+   data change instead of re-filtering the inventory every time */
+let _invMemo = {rev: -1};
+function invMemo(){
+  if(_invMemo.rev === dataRev) return _invMemo;
+  const stocked = [...invItems('pantry'), ...invItems('fridge'), ...invItems('freezer')].filter(it=> it && it.name && hasQty(it));
+  return (_invMemo = {
+    rev: dataRev,
+    stocked: stocked.map(it=> ({it, name: String(it.name).toLowerCase()})),
+    expiring: stocked.filter(it=> it.useBy && useByStatus(it.useBy).urgency!=='ok').map(it=> String(it.name).toLowerCase()),
+  });
 }
+function expiringSoonNouns(){ return invMemo().expiring; }
 function usesExpiringSoon(r){
   const soon = expiringSoonNouns();
   if(!soon.length) return [];
@@ -2239,8 +2404,8 @@ function markInvEmpty(id){
 function hasQty(it){ return !(it.qty===0 || it.qty==='0' || it.qty===''); }
 /* ---------------- shopping list ---------------- */
 function haveInInventory(noun){
-  const inv = [...invItems('pantry'), ...invItems('fridge'), ...invItems('freezer')];
-  return inv.find(it=> it && it.name && hasQty(it) && noun.indexOf(String(it.name).toLowerCase()) !== -1);
+  const hit = invMemo().stocked.find(x=> noun.indexOf(x.name) !== -1);
+  return hit && hit.it;
 }
 function buildShoppingList(weekStart, listId){
   const bySection = {};
@@ -2538,7 +2703,8 @@ function renderShopInto(hostId, ws, rerender){
   const list = buildShoppingList(ws, activeId);
   const secs = SECTION_ORDER.filter(s=> list[s] && list[s].length);
   const title = ws ? `Shopping list — ${fmtRange(ws, addDays(ws,6))}` : (activeList ? activeList.name : 'Shopping list');
-  const anyChecked = Object.keys(loadShopChecked()).length > 0;
+  const checkedMap = loadShopChecked(); /* read once, not once per line */
+  const anyChecked = Object.keys(checkedMap).length > 0;
   const hasExtras = ws ? false : invItems('shopping').some(it=> it.listId===activeId);
 
   const listSwitcher = ws ? '' : `<div class="shop-lists">
@@ -2569,7 +2735,7 @@ function renderShopInto(hostId, ws, rerender){
       </div>
       <div class="shop-cols">${secs.map(s=>`
         <div class="shop-sec"><h4>${s}</h4><ul>${list[s].map(it=>{
-          const checked = isShopChecked(it.key);
+          const checked = !!checkedMap[it.key];
           return `<li class="${checked?'shop-checked':''}">
             <span class="shop-check" data-check="${escapeHTML(it.key)}" role="checkbox" aria-checked="${checked}">${checked?'☑':'☐'}</span>
             <span class="shop-item-text">${it.have?'<span class="from">[have] </span>':''}${zwsp(escapeHTML(it.text))}${it.from.length>1?` <span class="from">×${it.from.length}</span>`:''}</span>
@@ -2861,12 +3027,13 @@ function renderPicker(){
      (typing "brownie" or clicking Dessert should just work, not require first
      finding a hidden "include every course" checkbox). */
   const sug = document.getElementById('pickerSuggest');
-  if(!q && !pickerCourse){
-    const top = candidatesFor(pickerIso, ctx, false).slice(0,3);
+  const ranked = (!q && !pickerCourse) ? candidatesFor(pickerIso, ctx, false) : null; /* scored once, used for both lists */
+  if(ranked){
+    const top = ranked.slice(0,3);
     sug.innerHTML = top.length ? `<div class="picker-sug"><h4>Suggested for this night</h4>${top.map(c=>
       `<div class="prow" data-pick="${c.r.id}">
          <span class="pt">${zwsp(escapeHTML(displayTitle(c.r)))}</span>
-         <span class="why">${c.why||''}</span>
+         <span class="why">${escapeHTML(c.why||'')}</span>
          <span class="pm">${c.r._plan?fmtDur(c.r._plan):''} · ${zwsp(escapeHTML(c.r.cuisine))}</span>
        </div>`).join('')}</div>` : '';
   } else sug.innerHTML = '';
@@ -2878,7 +3045,7 @@ function renderPicker(){
     if(q) pool = pool.filter(r=> matchesQuery(r, q));
     pool.sort((a,b)=> displayTitle(a).localeCompare(displayTitle(b)));
   } else {
-    pool = candidatesFor(pickerIso, ctx, false).map(c=>c.r);
+    pool = ranked.map(c=>c.r);
   }
 
   const rows = pool.slice(0, 120);
@@ -3311,23 +3478,30 @@ window.addEventListener('hashchange', ()=>{ if(!suppressHash) openFromHash(); })
 setTimeout(openFromHash, 0);
 
 /* ============================================================
-   PHASE 4 — Supabase backend: auth-gated planner, live sync,
-   offline queue. The curated cookbook stays public and static (the
-   RECIPES array below); the bulk NYT Cooking import instead lives in
-   a public-read-only `nyt_recipes` table (see nytBoot() further down)
-   fetched once and merged into RECIPES at runtime. Everything a
-   household member writes (cook log, plan, inventory, prefs)
-   lives in Postgres behind row-level security keyed to three
-   allow-listed emails.
+   PHASE 4 — Supabase backend: live sync + offline queue. The curated
+   cookbook is static (the RECIPES array); the bulk archive is static
+   JSON too (data/archive/, see nytBoot() further down). Everything a
+   household member writes (cook log, plan, inventory, lists, prefs)
+   lives in Postgres.
+   NOTE on access: there is no login. Every table is readable and
+   writable with the public anon key below, and rows are separated by
+   household only because this app adds household_id to its own
+   queries -- not by row-level security. Anyone who has the key (it is
+   in this page's source) can read or change any household's rows.
+   That is the deliberate "family, share the right link" trust model;
+   the daily backup of these tables (backup-recipes.yml) is the safety
+   net for it.
    ============================================================ */
 
-/* Fill these in from Supabase -> Settings -> API. The anon key is
-   meant to be public; real access control is the RLS policy on
-   each table (see supabase_setup.sql), not secrecy of this key. */
+/* From Supabase -> Settings -> API. The anon key is public by design. */
 const SUPABASE_URL = 'https://kubvqmptumftqtfqrifs.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt1YnZxbXB0dW1mdHF0ZnFyaWZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1MDc0NzcsImV4cCI6MjEwMzA4MzQ3N30.uWvku48avh5aUIp6V7lwGoNz-nk6RT1SiHaKODyWI2Q';
 
-const sb = (SUPABASE_URL.startsWith('http'))
+/* window.supabase is missing when the library itself didn't load (offline with
+   nothing cached). That must degrade to "no sync right now", not throw: an
+   exception on this line used to stop the rest of this script, which took the
+   offline write queue, the household picker and the archive loader down with it. */
+const sb = (window.supabase && SUPABASE_URL.startsWith('http'))
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
 
@@ -3344,6 +3518,8 @@ const LOGGED_ERRORS = new Set();
 function logClientError(message, stack, url){
   try{
     if(!sb) return;
+    /* local testing (file://, localhost) must not write into the production error log */
+    if(location.protocol === 'file:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return;
     const trimmedMsg = String(message||'').slice(0, 500);
     const trimmedStack = String(stack||'').slice(0, 2000);
     const dedupeKey = trimmedMsg + '|' + trimmedStack.slice(0, 200);
@@ -3356,7 +3532,10 @@ function logClientError(message, stack, url){
   }catch(e){ /* logging must never itself throw */ }
 }
 window.addEventListener('error', e=>{
-  logClientError(e.message, e.error && e.error.stack, location.href);
+  /* file:line:col as a fallback "stack" -- some errors arrive with no error object
+     at all, and a bare message with nothing to locate it is not actionable */
+  const where = e.filename ? `${e.filename}:${e.lineno}:${e.colno}` : '';
+  logClientError(e.message, (e.error && e.error.stack) || where, location.href);
 });
 window.addEventListener('unhandledrejection', e=>{
   const reason = e.reason;
@@ -3385,7 +3564,8 @@ async function remoteFetchAll(){
   if(!sb) return null;
   const hh = currentHousehold();
   const otherHhs = otherHouseholdIds();
-  const [cl, pd, iv, pf, it, sl, ocl] = await Promise.all([
+  const none = Promise.resolve({data: []});
+  const [cl, pd, iv, pf, it, sl, ocl, opd, oiv, osl] = await Promise.all([
     sb.from('cook_log').select('*').eq('household_id', hh),
     sb.from('plan_days').select('*').eq('household_id', hh),
     sb.from('inventory_items').select('*').eq('household_id', hh),
@@ -3402,7 +3582,14 @@ async function remoteFetchAll(){
        planning" rules out. Fetches every OTHER household in one query
        (not just a single fixed "other one") since there can now be more
        than two. */
-    otherHhs.length ? sb.from('cook_log').select('recipe_id,rating,date,household_id').in('household_id', otherHhs) : Promise.resolve({data:[]})
+    otherHhs.length ? sb.from('cook_log').select('recipe_id,rating,date,household_id').in('household_id', otherHhs) : none,
+    /* just the ids of the other households' plan / storage / list rows -- so
+       repushLocalOnly() can tell "never reached the database" apart from
+       "belongs to another household" (a device that was switched between
+       households can still hold some of the other one's rows) */
+    otherHhs.length ? sb.from('plan_days').select('slot_id').in('household_id', otherHhs) : none,
+    otherHhs.length ? sb.from('inventory_items').select('id').in('household_id', otherHhs) : none,
+    otherHhs.length ? sb.from('shopping_lists').select('id').in('household_id', otherHhs) : none
   ]);
   if(cl.error || pd.error || iv.error || pf.error){
     console.error('Supabase fetch error', cl.error||pd.error||iv.error||pf.error);
@@ -3425,6 +3612,12 @@ async function remoteFetchAll(){
     interested: it.error ? [] : it.data.map(rowToInterested),
     shoppingLists: sl.error ? [] : sl.data.map(rowToShoppingList),
     otherCookLog: ocl.error ? [] : (ocl.data||[]).map(r=>({recipeId:r.recipe_id, rating:r.rating, date:r.date, household:r.household_id})),
+    /* null (= don't re-push anything) unless every one of these lookups worked */
+    foreignIds: (it.error || sl.error || opd.error || oiv.error || osl.error) ? null : {
+      plan: new Set((opd.data||[]).map(r=>r.slot_id)),
+      inventory: new Set((oiv.data||[]).map(r=>r.id)),
+      lists: new Set((osl.data||[]).map(r=>r.id)),
+    },
     prefs: Object.assign({household: p.household, rituals: p.rituals||[]}, {_t: Date.parse(p.updated_at)})
   };
 }
@@ -3449,7 +3642,7 @@ async function remoteFetchAll(){
    IndexedDB's quota is far higher (typically hundreds of MB+), so this actually
    persists across visits. */
 const NYT_CACHE_KEY = 'cookbook.nytRecipes';
-const NYT_CACHE_VERSION = 18; /* bumped: v17 cache still had full ingredients/instructions/notes text baked into every cached row; v18 switches the bulk fetch to a lightweight column set (see nytBoot/NYT_LITE_COLUMNS) so a cold load isn't ~94MB of JSON */
+const NYT_CACHE_VERSION = 19; /* format of the cached rows; v19 = rows built from the static archive. Data changes don't need a bump -- the cache also records manifest.version (see nytBoot). */
 /* Columns needed to browse/filter/render a card, WITHOUT the ~70%-of-payload
    ingredients/instructions/notes text -- that gets fetched per-recipe, on
    demand, only when its modal is actually opened (see fetchRecipeDetail). */
@@ -3565,14 +3758,25 @@ async function mergeNytRecipes(rows){
    request instead of that text riding along in the 46k-row bulk load that
    was stalling out on weaker connections. Mutates the row in place so it's
    only ever fetched once per visit, whichever card/link opens it next. */
+const archiveDetailBuckets = new Map(); /* bucket number -> Promise of {id: {ingredients,instructions,notes}} */
 async function fetchRecipeDetail(r){
-  if(!r._lite || !sb) return r;
-  const res = await sb.from('nyt_recipes').select('ingredients,instructions,notes').eq('id', r.id).single();
-  if(!res.error && res.data){
-    r.ingredients = res.data.ingredients || [];
-    r.instructions = res.data.instructions || [];
-    r.notes = res.data.notes || '';
+  if(!r._lite) return r;
+  const manifest = await getArchiveManifest();
+  if(!manifest) return r;
+  const b = detailBucket(r.id, manifest.detailBuckets);
+  if(!archiveDetailBuckets.has(b)){
+    const p = fetchArchiveJSON(`detail/${b}.json`, manifest);
+    archiveDetailBuckets.set(b, p);
+    p.then(d=>{ if(!d) archiveDetailBuckets.delete(b); }); /* failed -> allow a retry next open */
+  }
+  const bucket = await archiveDetailBuckets.get(b);
+  const d = bucket && bucket[r.id];
+  if(d){
+    r.ingredients = d.ingredients || [];
+    r.instructions = d.instructions || [];
+    r.notes = d.notes || '';
     r._lite = false;
+    r._hay = null; detailRev++; /* searchable text changed -- see searchHay/facetPass */
   }
   return r;
 }
@@ -3611,7 +3815,9 @@ async function familySubmissionsBoot(){
   const published = rows.filter(r=>r.status==='published').map(submissionToRecipe);
   const existingIds = new Set(RECIPES.map(r=>r.id));
   let added = false;
-  published.forEach(r=>{ if(!existingIds.has(r.id)){ RECIPES.push(r); added = true; } });
+  /* deriveRecipeFields: without it a published family recipe had no serving
+     stepper, no plan-ahead flag and no macros, unlike every other recipe */
+  published.forEach(r=>{ if(!existingIds.has(r.id)){ RECIPES.push(deriveRecipeFields(r)); added = true; } });
   if(added) render();
   renderSettings(); /* no-op if the panel's closed -- see its own dataset.open guard */
 }
@@ -3650,48 +3856,57 @@ function fmtCompactCount(n){
   if(n < 1000) return String(n);
   return Math.round(n/1000) + 'k'; /* whole-k, no decimal -- every character counts to fit 5 buttons on one line */
 }
-async function loadArchiveSourceCounts(retryMissing = true){
-  if(!sb) return;
-  /* last-known counts from the previous visit fill the buttons instantly (they're
-     only a "~N recipes" badge) and cover a failed/slow estimate this time round */
+/* fnv1a32 over the id's UTF-8 bytes % bucket count -- MUST match fnv1a32() in
+   tools/build_archive_data.py, which decides which detail file holds each id. */
+function detailBucket(id, buckets){
+  let h = 0x811c9dc5;
+  const bytes = new TextEncoder().encode(id);
+  for(let i = 0; i < bytes.length; i++){ h ^= bytes[i]; h = Math.imul(h, 0x01000193) >>> 0; }
+  return h % buckets;
+}
+let archiveManifestPromise = null;
+function getArchiveManifest(){
+  if(!archiveManifestPromise){
+    archiveManifestPromise = (async ()=>{
+      for(let attempt = 1; attempt <= 3; attempt++){
+        try{
+          const res = await fetch('data/archive/manifest.json', {cache:'no-cache'});
+          if(res.ok) return await res.json();
+        }catch(e){}
+        await new Promise(r=>setTimeout(r, 500 * attempt));
+      }
+      return null;
+    })().then(m=>{ if(!m) archiveManifestPromise = null; return m; }); /* don't memoize a failure */
+  }
+  return archiveManifestPromise;
+}
+async function fetchArchiveJSON(path, manifest){
+  for(let attempt = 1; attempt <= 4; attempt++){
+    try{
+      const res = await fetch(`data/archive/${path}?v=${manifest.version}`);
+      if(res.ok) return await res.json();
+    }catch(e){}
+    if(attempt < 4) await new Promise(r=>setTimeout(r, 600 * attempt));
+  }
+  console.error('archive fetch failed', path);
+  if(navigator.onLine !== false) logClientError('archive fetch failed: ' + path, '', location.href);
+  return null;
+}
+async function loadArchiveSourceCounts(){
+  /* last-known counts from the previous visit fill the buttons instantly */
   try{
     const saved = JSON.parse(localStorage.getItem('archiveSourceCounts') || '{}');
     Object.keys(saved).forEach(k=>{ if(archiveSourceCounts[k] == null && Number.isFinite(saved[k])) archiveSourceCounts[k] = saved[k]; });
     syncToolbar();
   }catch(e){}
-  const specs = [
-    ['NYT Cooking', c=>c.eq('archive_source', 'nyt')],
-    ['Epicurious', c=>c.eq('archive_source', 'epicurious')],
-    ['BBC Good Food', c=>c.eq('archive_source', 'bbc')],
-    ['Other recipe sites', c=>c.eq('archive_source', 'other')],
-  ];
-  const freshCounts = {};
-  await Promise.all(specs.map(async ([src, filter])=>{
-    /* this endpoint has confirmed intermittent 500s/timeouts even on the
-       cheap `estimated` count (not just the `exact` one nytBoot avoids),
-       and BBC's specifically was seen failing outright at 3 attempts (a
-       narrower id-prefix filter on this column apparently costs more to
-       plan than the wider ones, not less) -- more attempts with a longer
-       backoff clears it far more reliably than leaving a button
-       permanently blank over what's ultimately a transient blip. */
-    for(let attempt = 1; attempt <= 5; attempt++){
-      try{
-        let q = sb.from('nyt_recipes').select('id', {count:'estimated', head:true}).eq('needs_review', false);
-        q = filter(q);
-        const res = await q;
-        if(!res.error && res.count != null){
-          archiveSourceCounts[src] = res.count; freshCounts[src] = res.count; syncToolbar(); return;
-        }
-      }catch(e){ /* fall through to retry */ }
-      if(attempt < 5) await new Promise(r=>setTimeout(r, 500 * attempt));
-    }
-    console.error('archive source count failed after retries', src);
-  }));
-  try{ if(Object.keys(freshCounts).length) localStorage.setItem('archiveSourceCounts', JSON.stringify({...JSON.parse(localStorage.getItem('archiveSourceCounts')||'{}'), ...freshCounts})); }catch(e){}
+  const m = await getArchiveManifest();
+  if(!m) return;
+  const fresh = {};
+  for(const [label, key] of Object.entries(ARCHIVE_SOURCE_KEYS)){
+    if(m.counts[key] != null){ archiveSourceCounts[label] = m.counts[key]; fresh[label] = m.counts[key]; }
+  }
+  try{ localStorage.setItem('archiveSourceCounts', JSON.stringify({...JSON.parse(localStorage.getItem('archiveSourceCounts')||'{}'), ...fresh})); }catch(e){}
   syncToolbar();
-  /* any button that still has no number gets one more try a bit later, rather than
-     staying blank for the whole visit */
-  if(retryMissing && specs.some(([src])=>archiveSourceCounts[src] == null)) setTimeout(()=>loadArchiveSourceCounts(false), 8000);
 }
 /* Once fetched, archive rows stay in RECIPES for the rest of the visit --
    toggling a source off/on after that first fetch is just a filter change
@@ -3756,155 +3971,63 @@ async function toggleSource(src){
 }
 /* Resolves true only when the source loaded completely (or came from a valid
    cache); false means a partial or failed fetch -- see toggleSource. */
-/* Evenly spaced ids to split one big source into parallel keyset streams.
-   Each probe is a single-row OFFSET read of just `id` (index-only, <1s with
-   nyt_recipes_archive_source_id_idx -- see migration 011), unlike the deep
-   OFFSET *pages* that used to time out. Streams cover [-inf,s1), [s1,s2) ... [sn,+inf)
-   so correctness never depends on the estimate being right: a wrong count only
-   makes the streams uneven. Any failure (or a small/unknown source) returns []
-   = the original single sequential stream. */
-const PARALLEL_STREAMS = 6, PARALLEL_MIN_ROWS = 4000;
-async function findSplitIds(src){
-  const total = archiveSourceCounts[src];
-  if(!sb || !total || total < PARALLEL_MIN_ROWS) return [];
-  try{
-    const probes = [];
-    for(let i = 1; i < PARALLEL_STREAMS; i++){
-      const off = Math.floor(total * i / PARALLEL_STREAMS);
-      let q = sb.from('nyt_recipes').select('id').eq('needs_review', false);
-      q = ARCHIVE_SOURCE_FILTERS[src](q);
-      probes.push(q.order('id').range(off, off));
-    }
-    const res = await Promise.all(probes);
-    const ids = [];
-    for(const r of res){
-      if(r.error) return [];
-      if(r.data && r.data[0]) ids.push(r.data[0].id);
-    }
-    return [...new Set(ids)]; /* already in the DB's own id order (offset probes ascend) -- do NOT re-sort in JS, collation can differ */
-  }catch(e){ return []; }
-}
 async function nytBoot(src){
-  if(!sb) return false;
   const cacheKey = NYT_CACHE_KEY + ':' + src;
+  const manifest = await getArchiveManifest(); /* null = offline/unreachable: a cached copy is still fine */
   const cached = await loadNytCache(cacheKey);
-  if(cached && cached.version === NYT_CACHE_VERSION && Array.isArray(cached.rows)){
-    /* A version bump is a manual step (see NYT_CACHE_VERSION comment) and it's
-       been forgotten more than once after an import -- cache trust used to
-       also be double-checked against a live `count=exact` row count, but
-       that query itself started returning 500s once this table passed ~60k
-       rows (a Postgres statement timeout on the count, confirmed directly
-       against the API) -- which was the actual cause of archive loads
-       taking 20+ seconds and then locking up: a failed count silently
-       dropped the whole fetch below into a slow one-page-at-a-time fallback.
-       Trusting the cache version alone is less thorough (an in-place edit
-       that doesn't change row count needs an explicit version bump, same
-       limitation as before) but doesn't depend on a query that's now
-       unreliable at this table size. */
-    console.log(`nytBoot(${src}): cache hit, showing ${cached.rows.length} cached recipes, skipping the network fetch`);
+  if(cached && cached.version === NYT_CACHE_VERSION && Array.isArray(cached.rows)
+     && (!manifest || cached.dataVersion === manifest.version)){
+    console.log(`nytBoot(${src}): cache hit, showing ${cached.rows.length} cached recipes`);
+    archiveRowIds[src] = cached.rows.map(r=>r.id);
     await mergeNytRecipes(cached.rows);
     render();
     return true;
   }
-  console.log(`nytBoot(${src}): no usable cache, fetching from Supabase`);
-
-  /* Keyset (cursor) pagination on `id`, not .range()/OFFSET: an OFFSET page
-     makes Postgres scan and discard every prior row first, so deep pages
-     (10k+ rows in) hit Supabase's statement timeout and return HTTP 500 --
-     confirmed live for NYT/Epicurious/BBC, and the same failure that broke
-     the weekly backup earlier. `id=gt.<last id>` seeks via the index instead,
-     so every page costs about the same. Pages are inherently sequential
-     (each needs the previous page's last id), so a big source takes ~15-30s
-     on a cold load -- that's why there is no overall deadline anymore (the
-     old 15s one cut off sources mid-fetch and, worse, still marked them as
-     fully loaded). Each page retries on its own; a page that exhausts its
-     retries stops the fetch, keeps what it got, and reports failure so the
-     caller doesn't treat the source as loaded. */
-  const PAGE_SIZE = 1000, MAX_ATTEMPTS = 5;
-  let allData = [], hadError = false;
-  /* Progress + progressive display: a cold load of a big source is a long run of
-     pages, so show a running count (against the estimated total from
-     loadArchiveSourceCounts when that has landed) and merge+render what's arrived
-     every few thousand rows, instead of an opaque spinner followed by everything at once.
-     Progressive rows are converted separately from the `rows` that get cached
-     below, so the cache never contains the derived _ahead/_plan fields. */
-  const MERGE_EVERY_ROWS = 6000, MAX_PROGRESSIVE_RENDERS = 1;
-  /* render() over ~30k+ recipes costs ~2s of blocked main thread each (measured:
-     6 mid-load renders were 13s of a 19s cold load once paging went parallel),
-     so only ONE early merge+render -- enough to show results while the rest
-     streams in -- and the final merge below handles the remainder. */
-  let mergedCount = 0, merging = false, progressiveRenders = 0;
+  if(!manifest){ console.error(`nytBoot(${src}): archive manifest unreachable and no cache`); return false; }
+  const nShards = manifest.liteShards[ARCHIVE_SOURCE_KEYS[src]] || 0;
+  let hadError = false, done = 0;
+  const parts = new Array(nShards);
   const showProgress = ()=>{
     const rc = document.getElementById('resultCount');
-    const expected = archiveSourceCounts[src];
-    if(rc) rc.innerHTML = `<span class="loading-spin">&#8635;</span> Loading ${escapeHTML(src)}… ${allData.length.toLocaleString()}${expected ? ' of ~' + expected.toLocaleString() : ''}`;
+    if(rc) rc.innerHTML = `<span class="loading-spin">&#8635;</span> Loading ${escapeHTML(src)}… ${done} of ${nShards}`;
   };
-  /* lo is inclusive, hi exclusive; afterId (keyset cursor) takes over from lo once
-     a stream has fetched its first page. Both null = the whole source. */
-  async function fetchPage(lo, afterId, hi){
-    for(let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++){
-      try{
-        let q = sb.from('nyt_recipes').select(NYT_LITE_COLUMNS).eq('needs_review', false);
-        q = ARCHIVE_SOURCE_FILTERS[src](q);
-        if(afterId !== null) q = q.gt('id', afterId);
-        else if(lo !== null) q = q.gte('id', lo);
-        if(hi !== null) q = q.lt('id', hi);
-        const res = await q.order('id').limit(PAGE_SIZE);
-        if(!res.error) return res.data;
-        console.error(`nyt_recipes fetch error (${src}, after id ${afterId}, attempt ${attempt})`, res.error);
-      }catch(e){
-        console.error(`nyt_recipes fetch threw (${src}, after id ${afterId}, attempt ${attempt})`, e);
-      }
-      if(attempt < MAX_ATTEMPTS) await new Promise(r => setTimeout(r, 700 * attempt));
-    }
-    return null;
-  }
-  /* One stream = sequential keyset paging over [lo, hi). Several run side by side
-     (see findSplitIds) because sequential paging is what made the biggest source a
-     ~45s cold load: each page is ~1s of server time, and pages within one stream
-     can't overlap. A failed page stops every stream (hadError) but keeps what's in. */
-  async function runStream(lo, hi){
-    let lastId = null;
-    while(!hadError){
-      const data = await fetchPage(lo, lastId, hi);
-      if(!data){ hadError = true; return; }
-      for(const row of data) allData.push(row);
-      if(data.length < PAGE_SIZE) return;
-      lastId = data[data.length - 1].id;
-      showProgress();
-      if(!merging && progressiveRenders < MAX_PROGRESSIVE_RENDERS && allData.length - mergedCount >= MERGE_EVERY_ROWS){
-        merging = true; progressiveRenders++;
-        const upto = allData.length;
-        await mergeNytRecipes(allData.slice(mergedCount, upto).map(rowToNytRecipe));
-        mergedCount = upto; merging = false;
-        render();
-        showProgress(); /* render() reset the count label */
-      }
-    }
-  }
-  const splits = await findSplitIds(src);
-  const bounds = [null, ...splits, null];
-  await Promise.all(bounds.slice(0, -1).map((lo, i)=> runStream(lo, bounds[i + 1])));
-  allData.sort((a, b)=> a.id < b.id ? -1 : a.id > b.id ? 1 : 0); /* deterministic cache/RECIPES order regardless of which stream finished first */
+  showProgress();
+  await Promise.all(Array.from({length: nShards}, async (_, i)=>{
+    const rows = await fetchArchiveJSON(`lite/${ARCHIVE_SOURCE_KEYS[src]}-${i}.json`, manifest);
+    if(!rows){ hadError = true; return; }
+    parts[i] = rows;
+    done++; showProgress();
+  }));
+  /* shard order, not download order and not re-sorted: this is the archive's own
+     row order, which the ingredient search index's row numbers refer to */
+  const allData = parts.filter(Boolean).flat();
   const rows = allData.map(rowToNytRecipe);
-  /* only cache on a fully clean fetch -- a partial result cached would silently
-     cap every future load at whatever happened to succeed this one time */
-  if(!hadError){
-    await saveNytCache(cacheKey, {version: NYT_CACHE_VERSION, rows});
-  }
+  if(!hadError) archiveRowIds[src] = rows.map(r=>r.id);
+  /* only cache a complete load -- a partial one would cap every future load */
+  if(!hadError) await saveNytCache(cacheKey, {version: NYT_CACHE_VERSION, dataVersion: manifest.version, rows});
   const before = RECIPES.length;
   await mergeNytRecipes(rows);
-  if(RECIPES.length !== before) render(); /* only re-render if the fetch actually added anything new vs. the cache */
-  if(hadError) console.error(`nytBoot(${src}): stopped early after fetching ${allData.length} recipes -- see errors above`);
-  else console.log(`nytBoot(${src}): fetch complete, ${allData.length} rows fetched, RECIPES now has ${RECIPES.length} total`);
+  if(RECIPES.length !== before) render();
+  if(hadError) console.error(`nytBoot(${src}): stopped early after ${allData.length} recipes`);
+  else console.log(`nytBoot(${src}): loaded ${allData.length} recipes from static archive`);
   return !hadError;
 }
 
 /* ---------------- offline write queue ---------------- */
 const QUEUE_KEY = 'cookbook.pendingWrites';
+const FAILED_WRITES_KEY = 'cookbook.failedWrites';
 function loadQueue(){ try{ return JSON.parse(localStorage.getItem(QUEUE_KEY)) || []; }catch(e){ return []; } }
 function saveQueue(q){ try{ localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); }catch(e){} }
-function enqueue(op){ const q = loadQueue(); q.push(op); saveQueue(q); }
+/* Which database row an op writes. Every op is a full-row upsert, so a newer op
+   for the same row completely supersedes an older one still waiting. */
+function opKey(op){ return op.table + '|' + (op.table === 'prefs' ? '' : op.row.id) + '|' + (op.hh||''); }
+function opStamp(op){ return (op.row && op.row._t) || 0; }
+function sameOp(a, b){ return opKey(a) === opKey(b) && opStamp(a) === opStamp(b); }
+function enqueue(op){
+  const key = opKey(op);
+  const q = loadQueue().filter(o=> opKey(o) !== key);
+  q.push(op); saveQueue(q);
+}
 
 /* op.hh is the household stamped by pushWrite() at the moment an edit was
    MADE, not whatever household happens to be active when this op finally
@@ -3958,25 +4081,97 @@ async function runOp(op){
       recipe_id: op.row.id, household_id: hh, deleted: !!op.row._d, updated_at: new Date(op.row._t).toISOString()
     });
   }
+  return {error: {message: 'unknown table ' + op.table}, status: 400};
 }
 
-let flushing = false;
+/* Sends queued writes one at a time. The queue is re-read from storage for every
+   step and a finished op is removed by identity -- never by writing back a copy
+   taken before the await. (It used to do exactly that, so any write queued WHILE
+   another was in flight was erased when the first one finished: saving a
+   10-ingredient recipe to a shopping list, clearing a week, or deleting a list
+   synced only its first row; the rest existed on that one device only.)
+
+   Failures come in two kinds:
+     - can't reach the server / server-side trouble (status 0, 5xx, 408, 429):
+       stop, keep everything, and try again on a timer with backoff, and when the
+       device comes back online or the app is brought back to the foreground.
+     - the server refused this particular write (other 4xx): it won't succeed by
+       waiting, and must not hold every later write hostage behind it. It's
+       skipped for this pass; after MAX_OP_FAILS refusals it is moved to
+       FAILED_WRITES_KEY (kept, never dropped), reported via logClientError, and
+       given a fresh try on the next app start. */
+const MAX_OP_FAILS = 5;
+let flushing = false, flushRetryTimer = null, flushBackoffMs = 0;
+function isRefusal(res){
+  const st = res && res.status;
+  return st >= 400 && st < 500 && st !== 408 && st !== 429;
+}
+function scheduleFlushRetry(){
+  clearTimeout(flushRetryTimer);
+  flushBackoffMs = Math.min(flushBackoffMs ? flushBackoffMs * 2 : 5000, 5 * 60000);
+  flushRetryTimer = setTimeout(flushQueue, flushBackoffMs);
+}
 async function flushQueue(){
   if(!sb || flushing) return;
   flushing = true;
-  let q = loadQueue();
-  while(q.length){
-    const op = q[0];
-    try{
-      const {error} = await runOp(op);
-      if(error) throw error;
-      q.shift(); saveQueue(q);
-    }catch(e){ break; }  /* still offline or a real error -- stop and retry later */
-  }
-  flushing = false;
-  setSyncState(q.length ? 'error' : 'ok');
+  clearTimeout(flushRetryTimer);
+  const skipped = [];
+  try{
+    for(;;){
+      const op = loadQueue().find(o=> !skipped.some(x=> sameOp(x, o)));
+      if(!op) break;
+      let res;
+      /* supabase-js reports network failures as a result, it doesn't throw -- so an
+         exception here is this op being malformed, which waiting won't fix */
+      try{ res = await runOp(op); }catch(e){ res = {error: e, status: 400}; }
+      if(res && !res.error){
+        saveQueue(loadQueue().filter(o=> !sameOp(o, op)));
+        continue;
+      }
+      if(!isRefusal(res)) break;
+      const fails = (op.fails||0) + 1;
+      const rest = loadQueue().filter(o=> !sameOp(o, op));
+      if(fails >= MAX_OP_FAILS){
+        saveQueue(rest);
+        try{
+          const dead = JSON.parse(localStorage.getItem(FAILED_WRITES_KEY) || '[]');
+          dead.push(Object.assign({}, op, {fails, lastError: String(res.error && res.error.message || res.error).slice(0, 300)}));
+          localStorage.setItem(FAILED_WRITES_KEY, JSON.stringify(dead.slice(-200)));
+        }catch(e){}
+        logClientError('sync: write refused ' + fails + '× (' + op.table + '): ' + (res.error && res.error.message || ''), JSON.stringify(res.error || {}), location.href);
+      } else {
+        const bumped = Object.assign({}, op, {fails});
+        rest.push(bumped); saveQueue(rest);
+        skipped.push(bumped); /* comes round again on the retry timer */
+      }
+    }
+  } finally { flushing = false; }
+  const waiting = loadQueue().length;
+  setSyncState(waiting ? 'error' : 'ok');
+  if(waiting) scheduleFlushRetry();
+  else flushBackoffMs = 0;
+}
+/* writes that were refused MAX_OP_FAILS times in an earlier visit get one fresh
+   run per app start (a refusal can be temporary -- e.g. a project that is still
+   waking up answers 4xx for a few minutes) */
+function requeueFailedWrites(){
+  try{
+    const dead = JSON.parse(localStorage.getItem(FAILED_WRITES_KEY) || '[]');
+    if(!dead.length) return;
+    localStorage.removeItem(FAILED_WRITES_KEY);
+    const queued = loadQueue();
+    dead.forEach(op=>{
+      delete op.fails; delete op.lastError;
+      /* anything queued since is newer for that row -- don't let an old write overtake it */
+      if(!queued.some(o=> opKey(o) === opKey(op))) queued.push(op);
+    });
+    saveQueue(queued);
+  }catch(e){}
 }
 window.addEventListener('online', flushQueue);
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible' && loadQueue().length) flushQueue();
+});
 
 /* every local mutation goes through here instead of writing straight
    to Supabase, so the UI never blocks on network and offline edits
@@ -4014,6 +4209,7 @@ function onRemoteChange(){
     const remote = await remoteFetchAll();
     if(!remote) return;
     DATA = mergeStates(remote, DATA);
+    DATA._hh = currentHousehold();
     /* read-only cross-household view -- always just the latest fetch, never
        run through the offline merge machinery above (nothing local ever
        edits it, so there's nothing to reconcile). */
@@ -4039,7 +4235,7 @@ function syncLabel(){
    indicator, not the thing that decides which household's data you see. */
 function paintAuth(){
   const host = document.getElementById('authArea');
-  if(!sb){ host.innerHTML = `<span class="icon-btn" style="cursor:default">Supabase not configured</span>`; return; }
+  if(!sb){ host.innerHTML = `<span class="icon-btn" style="cursor:default" title="Changes are saved on this device and will sync next time the app opens with a connection">offline</span>`; return; }
   host.innerHTML = `<span class="icon-btn sync-dot s-${syncState==='error'?'error':'ok'}" style="cursor:default">${syncLabel()}</span>`;
 }
 
@@ -4050,17 +4246,92 @@ function applyAuthGate(){
   document.querySelectorAll('#viewTabsMobile option[value="plan"], #viewTabsMobile option[value="shopping"], #viewTabsMobile option[value="history"], #viewTabsMobile option[value="storage"]')
     .forEach(o=> o.style.display = '');
 }
-async function authBoot(){
-  paintAuth(); applyAuthGate();
-  if(!sb) return;
-  const remote = await remoteFetchAll();
-  if(remote){
-    DATA = mergeStates(remote, DATA);
-    DATA.otherCookLog = remote.otherCookLog || [];
-    persist(true); render();
+/* The saved state is one blob per browser, not per household. After "Switch to
+   <other household>" it still held the previous household's plan, shopping
+   lists, storage and stars, which then showed up (locally) as the new
+   household's. The state now remembers whose it is (see persist) and is cleared
+   of everything household-private when that changes. Cook-log entries carry
+   their own household tag and are kept; anything not yet synced is still in the
+   write queue, already stamped with the household it belongs to. */
+function scopeStateToHousehold(){
+  const hh = currentHousehold();
+  if(!hh) return;
+  if(DATA._hh && DATA._hh !== hh){
+    DATA.plan = []; DATA.inventory = {items: []}; DATA.interested = []; DATA.shoppingLists = []; DATA.prefs = {};
+    DATA.otherCookLog = [];
+    setActiveShopListId(null); clearShopChecked();
+    prefs();
   }
+  DATA._hh = hh;
+  persist(true);
+}
+/* Sends anything this device has that the database doesn't: rows missing there
+   altogether, and rows whose local copy is newer. Normally there are none. It
+   exists because the write queue used to lose every write but the first of a
+   burst (see flushQueue) -- those rows were left on the one device that made
+   them, and this is what finally delivers them, on that device's next visit.
+   It also makes sync self-healing from here on.
+   Deliberately skipped: rows another household owns in the database (see
+   foreignIds in remoteFetchAll), other households' cook-log entries, rows with
+   no timestamp, and deletions of rows the database never had. */
+function repushLocalOnly(remote){
+  const foreign = remote.foreignIds;
+  if(!foreign) return 0;
+  const hh = currentHousehold();
+  const queued = new Set(loadQueue().map(opKey));
+  let n = 0;
+  const sweep = (table, locals, remotes, foreignSet, extra)=>{
+    const have = new Map(remotes.map(e=> [e.id, e._t||0]));
+    locals.forEach(row=>{
+      if(!row || !row.id || !Number.isFinite(row._t)) return;
+      if(foreignSet && foreignSet.has(row.id)) return;
+      const rt = have.get(row.id);
+      if(rt === undefined ? row._d : !(row._t > rt)) return;
+      const op = Object.assign({table, row, hh}, extra ? extra(row) : null);
+      if(queued.has(opKey(op))) return;
+      enqueue(op); n++;
+    });
+  };
+  sweep('cook_log', DATA.cookLog.filter(e=> householdOf(e) === hh), remote.cookLog, null);
+  sweep('plan_days', DATA.plan, remote.plan, foreign.plan);
+  sweep('shopping_lists', DATA.shoppingLists, remote.shoppingLists, foreign.lists);
+  sweep('inventory_items', DATA.inventory.items, remote.inventory.items, foreign.inventory, row=> ({kind: row.kind}));
+  sweep('interested_recipes', DATA.interested, remote.interested, null);
+  if(n) console.log(`sync: re-sending ${n} change(s) this device had that the database did not`);
+  return n;
+}
+let bootFetchDelayMs = 0;
+async function syncFromRemote(){
+  const remote = await remoteFetchAll();
+  if(!remote){
+    /* couldn't read the household's data (offline, or the project is down/paused):
+       say so instead of showing "synced", and keep trying */
+    setSyncState('error');
+    bootFetchDelayMs = Math.min(bootFetchDelayMs ? bootFetchDelayMs * 2 : 5000, 5 * 60000);
+    setTimeout(syncFromRemote, bootFetchDelayMs);
+    return;
+  }
+  bootFetchDelayMs = 0;
+  /* compare against what was on this device BEFORE merging the remote copy in */
+  repushLocalOnly(remote);
+  DATA = mergeStates(remote, DATA);
+  DATA.otherCookLog = remote.otherCookLog || [];
+  DATA._hh = currentHousehold();
+  persist(true); render();
+  if(view==='plan') renderWeek();
+  if(view==='shopping') renderStandaloneShopping();
+  if(view==='history') renderHistory();
+  if(view==='storage') renderStorage();
   subscribeRealtime();
   flushQueue();
+}
+async function authBoot(){
+  scopeStateToHousehold();
+  paintAuth(); applyAuthGate();
+  render();
+  if(!sb) return;
+  requeueFailedWrites();
+  await syncFromRemote();
 }
 /* Nothing that reads or writes household-scoped data (authBoot, the
    submission queue, realtime sync) may run until we're sure which

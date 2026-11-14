@@ -1504,7 +1504,7 @@
 
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal" id="modalCard">
-    <div class="modal-close" id="modalClose">&times;</div>
+    <div class="modal-close" id="modalClose" role="button" tabindex="0" aria-label="Close recipe">&times;</div>
     <div class="modal-inner">
       <div class="modal-side">
         <div id="modalActionsTop"></div>
@@ -1556,4 +1556,8 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<!-- Served from this site, pinned to one version (vendor/), instead of the CDN's
+     floating "@2": works offline (sw.js caches it with the app shell), can't
+     change underneath the app, and errors thrown inside it report a real
+     message instead of the cross-origin "Script error." -->
+<script src="vendor/supabase-js-2.119.0.min.js"></script>

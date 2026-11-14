@@ -1,0 +1,16 @@
+[
+ {
+  "household": 2,
+  "household_id": "chris-jen",
+  "id": 1,
+  "rituals": [],
+  "updated_at": "2026-08-24T14:15:12.048982+00:00"
+ },
+ {
+  "household": 2,
+  "household_id": "nicholas-tyler",
+  "id": 1,
+  "rituals": [],
+  "updated_at": "2026-08-23T20:08:11.979267+00:00"
+ }
+]

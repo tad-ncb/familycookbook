@@ -1,0 +1,23 @@
+name: Tests
+
+# Fast static checks on every push: the JavaScript parses and references nothing
+# undeclared, the curated recipe data is valid, the app shell and service worker
+# agree, workflows are valid, and the static archive is internally consistent.
+# The browser suite (tests/run.sh) needs macOS WebKit and is run locally.
+on:
+  push:
+    branches: [main]
+  pull_request: {}
+  workflow_dispatch: {}
+
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install esprima pyyaml
+      - run: python3 build.py
+      - run: python3 tests/static_checks.py

@@ -37,4 +37,6 @@ jobs:
             exit 0
           fi
           git commit -m "Rebuild index.html from src/"
+          # another bot commit (build / backup) may have landed since checkout
+          git pull --rebase --quiet
           git push

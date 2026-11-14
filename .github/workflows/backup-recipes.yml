@@ -1,14 +1,16 @@
 name: Backup Supabase recipes
 
-# Databases can go away (a plan lapses, an account gets closed, a table gets
-# fat-fingered) -- git history doesn't. The curated 837 recipes already live
-# in index.html and are safe. The bulk import (NYT/RecipeNLG/Gordon
-# Ramsay/BBC Good Food, tens of thousands of rows) lives ONLY in Supabase,
-# with no copy anywhere else -- this pulls a full snapshot into the repo on
-# a schedule so that data survives even if Supabase doesn't.
+# Backs up the LIVE household data -- the tables the app writes to (plans,
+# shopping lists, cook log, prefs, interested recipes, inventory, family
+# submissions) -- to backups/live/*.json. These had no backup at all before.
+#
+# The big recipe archive (NYT/Epicurious/BBC/Other, ~60k rows) is NOT backed up
+# here any more: it no longer lives in Supabase at all. It is static JSON in
+# data/archive/ (served by GitHub Pages and versioned in git), rebuilt from the
+# frozen lossless snapshot in backups/nyt_recipes/ by tools/build_archive_data.py.
 on:
   schedule:
-    - cron: '0 6 * * 0'  # every Sunday, 06:00 UTC
+    - cron: '0 6 * * *'  # daily, 06:00 UTC
   workflow_dispatch: {}   # lets you trigger it manually from the Actions tab
 
 permissions:
@@ -20,119 +22,57 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch all recipes from Supabase
+      - name: Fetch live tables from Supabase
         env:
-          # the anon key is meant to be public (access control is Postgres
-          # row-level security, not secrecy of this key) -- same key already
-          # shipped client-side in index.html, so there's nothing extra to
-          # keep secret by putting it in this workflow file too.
+          # anon key is public by design (access control is Postgres row-level
+          # security) -- same key already shipped in index.html.
           SUPABASE_URL: https://kubvqmptumftqtfqrifs.supabase.co
           SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt1YnZxbXB0dW1mdHF0ZnFyaWZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1MDc0NzcsImV4cCI6MjEwMzA4MzQ3N30.uWvku48avh5aUIp6V7lwGoNz-nk6RT1SiHaKODyWI2Q
         run: |
-          rm -rf backups/nyt_recipes.new
-          mkdir -p backups/nyt_recipes.new
           python3 - <<'PYEOF'
-          import os, json, time, shutil, glob, urllib.request, urllib.parse
+          import os, json, time, urllib.request
 
-          base = os.environ['SUPABASE_URL'] + '/rest/v1/nyt_recipes'
+          base = os.environ['SUPABASE_URL'] + '/rest/v1/'
           key = os.environ['SUPABASE_ANON_KEY']
           headers = {'apikey': key, 'Authorization': f'Bearer {key}'}
-          page_size = 1000
-          last_id = None
-          total_rows = 0
-
-          # Sharded into multiple files instead of one, now that the table has
-          # grown past GitHub's 100MB-per-file push limit (hit at 60,633 rows /
-          # 225MB on 2026-09-20 -- this backup had in fact never once succeeded
-          # before that, so there's no old single-file format to migrate away
-          # from). Flushed by accumulated serialized size, not row count, so
-          # this stays safe even if rows get bigger later (e.g. more macro
-          # fields) rather than just more numerous -- 30MB/file leaves a wide
-          # margin below the 100MB limit.
-          FLUSH_BYTES = 30_000_000
-          part_num = 0
-          buf = []
-          buf_size = 0
-
-          def flush():
-              global part_num, buf, buf_size
-              if not buf:
-                  return
-              part_num += 1
-              path = f'backups/nyt_recipes.new/part-{part_num:04d}.json'
-              with open(path, 'w') as f:
-                  json.dump(buf, f, ensure_ascii=False)
-              print(f'wrote {path}: {len(buf)} rows, {buf_size} bytes')
-              buf = []
-              buf_size = 0
-
-          # Keyset (cursor) pagination on `id`, not offset=N: an OFFSET-based page
-          # forces Postgres to scan and discard every prior row before it can return
-          # the next page, so it gets slower as the table grows -- this table passed
-          # ~26,000 rows and started hitting Supabase's statement timeout (error
-          # 57014) partway through every run since. `id=gt.<last_id>` seeks directly
-          # via the index instead, so cost stays flat regardless of table size.
-          while True:
-              filt = f"&id=gt.{urllib.parse.quote(last_id)}" if last_id else ""
-              url = f'{base}?select=*&order=id&limit={page_size}{filt}'
+          TABLES = ['cook_log', 'plan_days', 'prefs', 'shopping_lists', 'interested_recipes',
+                    'inventory_items', 'family_submissions', 'client_errors']
+          LIMIT = 50000  # these tables are tiny; hitting the limit means truncation, so fail
+          os.makedirs('backups/live', exist_ok=True)
+          out = {}
+          for t in TABLES:
               for attempt in range(4):
                   try:
-                      req = urllib.request.Request(url, headers=headers)
-                      with urllib.request.urlopen(req, timeout=30) as resp:
-                          data = json.loads(resp.read())
+                      req = urllib.request.Request(f'{base}{t}?select=*&limit={LIMIT}', headers=headers)
+                      with urllib.request.urlopen(req, timeout=60) as resp:
+                          rows = json.loads(resp.read())
                       break
                   except Exception as e:
-                      print(f'  retry {attempt} after {type(e).__name__}: {e}')
+                      print(f'  {t}: retry {attempt} after {type(e).__name__}: {e}')
                       time.sleep(3 * (attempt + 1))
               else:
-                  raise RuntimeError(f'failed after retries at last_id={last_id!r}')
-              if not data:
-                  break
-              for row in data:
-                  row_bytes = len(json.dumps(row, ensure_ascii=False))
-                  if buf and buf_size + row_bytes > FLUSH_BYTES:
-                      flush()
-                  buf.append(row)
-                  buf_size += row_bytes
-              total_rows += len(data)
-              last_id = data[-1]['id']
-              print(f'fetched {len(data)} rows, last_id={last_id!r}, total so far={total_rows}')
-              if len(data) < page_size:
-                  break
-
-          flush()
-          print(f'TOTAL: {total_rows} rows written across {part_num} files in backups/nyt_recipes.new/')
-
-          # Guard against a "successful" but incomplete fetch (project half-restored,
-          # table truncated, a bad filter): a snapshot that silently shrinks would
-          # overwrite the only good copy. The new snapshot is built beside the old
-          # one and only swapped in if it isn't drastically smaller; otherwise this
-          # step FAILS (GitHub emails that) and the previous backup is left intact.
-          old_dir = 'backups/nyt_recipes'
-          prev_rows = None
-          if os.path.exists(f'{old_dir}/_count.txt'):
-              prev_rows = int(open(f'{old_dir}/_count.txt').read().strip())
-          elif glob.glob(f'{old_dir}/part-*.json'):
-              prev_rows = sum(len(json.load(open(f))) for f in glob.glob(f'{old_dir}/part-*.json'))
-          if total_rows == 0:
-              raise SystemExit('BACKUP ABORTED: fetched 0 rows -- previous backup left untouched')
-          if prev_rows and total_rows < prev_rows * 0.9:
-              raise SystemExit(f'BACKUP ABORTED: fetched {total_rows} rows vs {prev_rows} in the last backup '
-                               f'(>10% drop) -- previous backup left untouched; check Supabase before re-running')
-          open('backups/nyt_recipes.new/_count.txt', 'w').write(str(total_rows))
-          shutil.rmtree(old_dir, ignore_errors=True)
-          os.rename('backups/nyt_recipes.new', old_dir)
-          print(f'previous backup had {prev_rows} rows; now {total_rows}')
+                  raise SystemExit(f'BACKUP ABORTED: could not read {t} (is the project paused?) -- previous backup left untouched')
+              if len(rows) >= LIMIT:
+                  raise SystemExit(f'BACKUP ABORTED: {t} returned {len(rows)} rows (limit) -- would be truncated')
+              out[t] = rows
+              print(f'{t}: {len(rows)} rows')
+          # only write once EVERY table was read successfully
+          for t, rows in out.items():
+              rows.sort(key=lambda r: json.dumps(r, sort_keys=True))  # stable order => clean diffs
+              with open(f'backups/live/{t}.json', 'w') as f:
+                  json.dump(rows, f, ensure_ascii=False, indent=1, sort_keys=True)
           PYEOF
 
       - name: Commit snapshot if it changed
         run: |
           git config user.name "cookbook-backup-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add -A backups/nyt_recipes
+          git add -A backups/live
           if git diff --cached --quiet; then
             echo "No changes since last backup."
             exit 0
           fi
-          git commit -m "Weekly backup: nyt_recipes snapshot ($(date -u +%Y-%m-%d))"
+          git commit -m "Daily backup: live tables ($(date -u +%Y-%m-%d))"
+          # another bot commit (build / backup) may have landed since checkout
+          git pull --rebase --quiet
           git push

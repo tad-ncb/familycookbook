@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>service worker test</title>
+<!-- Run by tests/run.sh in headless Chrome (WebKit's embedded view has no service
+     workers). Loads the real app in an iframe, lets it register sw.js, then takes
+     the network away in different ways (tests/server.py: drop / slow / fail) and
+     checks the app still loads. The real sync library is used here, so Chrome is
+     started with every outside host blocked: nothing can reach Supabase. -->
+<iframe id="f" style="width:1000px;height:700px"></iframe>
+<script>
+const results = [];
+const check = (ok, msg)=> results.push((ok ? 'ok    ' : 'FAIL  ') + msg);
+const sleep = ms=> new Promise(r=> setTimeout(r, ms));
+const ctl = q=> fetch('/__test/ctl?' + q, {cache: 'no-store'});
+const f = document.getElementById('f');
+function load(url){ return new Promise(resolve=>{ f.onload = resolve; f.src = url; }); }
+async function open(url){
+  await load('about:blank');
+  const t0 = performance.now();
+  const [path, hash] = url.split('#');
+  await load(path + (path.includes('?') ? '&' : '?') + 'n=' + Math.random() + (hash ? '#' + hash : ''));
+  return Math.round(performance.now() - t0);
+}
+const inApp = code=> { try{ return f.contentWindow.eval(code); }catch(e){ return 'threw: ' + e.message; } };
+const cards = ()=> inApp('document.querySelectorAll("#grid .card").length');
+async function until(fn, ms){ const end = Date.now() + ms; while(Date.now() < end){ if(await fn()) return true; await sleep(100); } return false; }
+
+(async ()=>{
+  try{
+    await ctl('reset=1'); await ctl('raw=1');
+    let blocked = false;
+    try{ await fetch('https://kubvqmptumftqtfqrifs.supabase.co/rest/v1/', {mode: 'no-cors'}); }catch(e){ blocked = true; }
+    check(blocked, 'outside hosts are blocked for this run');
+    if(!blocked) throw new Error('refusing to continue with the real sync library and an open network');
+
+    await open('/?hh=nicholas-tyler');
+    check(cards() === 100, 'first visit (online) renders');
+    check(await until(()=> navigator.serviceWorker.controller, 20000), 'service worker installs and takes control');
+    const keys = (await (await caches.open('cookbook-shell-v2')).keys()).map(r=> new URL(r.url).pathname);
+    check(keys.includes('/') && keys.includes('/vendor/supabase-js-2.119.0.min.js') && keys.includes('/manifest.json'), 'page, sync library and manifest are in the shell cache: ' + keys.join(' '));
+
+    await ctl('drop=1');
+    await open('/?hh=nicholas-tyler');
+    check(cards() === 100, 'no network: page loads from cache and renders (' + cards() + ' cards)');
+    check(inApp('typeof window.supabase.createClient') === 'function', 'no network: sync library loaded from cache');
+    check(inApp('!!sb && typeof pushWrite === "function" && typeof QUEUE_KEY === "string"') === true, 'no network: write queue is alive (script ran to the end)');
+    await open('/?hh=chris-jen#r/beef-stroganoff'); await sleep(200);
+    check(inApp('currentHousehold()') === 'chris-jen' && inApp('!!modalRecipe') === true, 'no network: a link never opened before (other household, recipe link) still works');
+
+    await ctl('drop=0'); await ctl('slow=9000');
+    const ms = await open('/?hh=nicholas-tyler');
+    check(cards() === 100 && ms < 7000, 'very slow network: cached page shown after ~4s instead of hanging (' + ms + 'ms)');
+
+    await ctl('slow=0'); await ctl('fail=/');
+    await open('/?hh=nicholas-tyler');
+    check(cards() === 100, 'server answering with errors: cached page shown, not the error');
+    await ctl('fail='); await ctl('drop=1');
+    await open('/?hh=nicholas-tyler');
+    check(cards() === 100, 'and the error response did not replace the cached page');
+
+    await ctl('drop=0'); await ctl('reset=1'); await ctl('raw=1');
+    await open('/?hh=nicholas-tyler');
+    const log = await (await fetch('/__test/log', {cache: 'no-store'})).json();
+    check(log['/'] >= 1, 'online again: the page is fetched fresh from the network (updates are not held back by the cache)');
+    await f.contentWindow.fetch('data/archive/manifest.json').then(r=> r.text());
+    await sleep(300);
+    const after = (await (await caches.open('cookbook-shell-v2')).keys()).map(r=> new URL(r.url).pathname);
+    check(!after.some(p=> p.includes('/data/archive/')), 'recipe archive files are not duplicated into the shell cache');
+    check((await caches.keys()).join() === 'cookbook-shell-v2', 'exactly one cache exists');
+  }catch(e){ check(false, 'harness error: ' + (e && e.stack || e)); }
+  await ctl('reset=1');
+  await fetch('/__test/report', {method: 'POST', body: JSON.stringify(results)});
+})();
+</script>

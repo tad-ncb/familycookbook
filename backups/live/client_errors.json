@@ -1,0 +1,50 @@
+[
+ {
+  "created_at": "2026-09-12T15:46:54.34683+00:00",
+  "household_id": "test",
+  "id": "7b59609f-fb08-4c22-a0cb-312a78399721",
+  "message": "verification ping",
+  "stack": "n/a",
+  "url": "verification"
+ },
+ {
+  "created_at": "2026-09-25T00:37:37.641238+00:00",
+  "household_id": "nicholas-tyler",
+  "id": "ff00807d-b2ed-41d7-89bb-aca7e4a4b647",
+  "message": "Script error.",
+  "stack": "",
+  "url": "https://tad-ncb.github.io/familycookbook/?hh=nicholas-tyler"
+ },
+ {
+  "created_at": "2026-09-25T00:41:46.322021+00:00",
+  "household_id": "chris-jen",
+  "id": "7bb26a9e-567c-4873-b085-63b591405ceb",
+  "message": "Script error.",
+  "stack": "",
+  "url": "https://tad-ncb.github.io/familycookbook/?hh=chris-jen"
+ },
+ {
+  "created_at": "2026-10-26T20:26:24.984136+00:00",
+  "household_id": "nicholas-tyler",
+  "id": "5c7e435d-b113-4e50-960e-7686ac148926",
+  "message": "Script error.",
+  "stack": "",
+  "url": "https://tad-ncb.github.io/familycookbook/?hh=nicholas-tyler"
+ },
+ {
+  "created_at": "2026-10-27T00:40:10.560151+00:00",
+  "household_id": "nicholas-tyler",
+  "id": "b7db4fa2-387f-4904-b5f7-7460de02ffa9",
+  "message": "Script error.",
+  "stack": "",
+  "url": "file:///Users/tyler/familycookbook/index.html?hh=nicholas-tyler"
+ },
+ {
+  "created_at": "2026-10-27T00:40:37.880786+00:00",
+  "household_id": "nicholas-tyler",
+  "id": "32fdf705-4e39-4fa3-9f0a-4c8fbf0d4737",
+  "message": "Script error.",
+  "stack": "",
+  "url": "file:///Users/tyler/familycookbook/index.html?hh=nicholas-tyler"
+ }
+]

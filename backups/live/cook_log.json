@@ -1,0 +1,35 @@
+[
+ {
+  "date": "2026-08-23",
+  "deleted": false,
+  "household_id": "nicholas-tyler",
+  "id": "seed-ctm-1",
+  "leftover": "",
+  "note": "",
+  "rating": 5,
+  "recipe_id": "chicken-tikka-masala",
+  "updated_at": "2026-09-25T00:26:03.047188+00:00"
+ },
+ {
+  "date": "2026-08-23",
+  "deleted": true,
+  "household_id": "nicholas-tyler",
+  "id": "cmt68wzvor62z8",
+  "leftover": "",
+  "note": "",
+  "rating": null,
+  "recipe_id": "better-garlic-bread",
+  "updated_at": "2026-08-23T20:14:34.249+00:00"
+ },
+ {
+  "date": "2026-09-06",
+  "deleted": false,
+  "household_id": "nicholas-tyler",
+  "id": "cmtqhkw82m8kxx",
+  "leftover": "",
+  "note": "If using a silicone mold instead of metal add at least 10 minutes to the cook time",
+  "rating": 5,
+  "recipe_id": "bourbon-spiked-pumpkin-pecan-bundt-cake",
+  "updated_at": "2026-09-07T00:12:26.786+00:00"
+ }
+]
