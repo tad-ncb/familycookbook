@@ -16,14 +16,14 @@
   const KEY = '__mockdb';
   const PK = { cook_log:['id'], plan_days:['slot_id'], inventory_items:['id'], shopping_lists:['id'],
                prefs:['household_id'], interested_recipes:['recipe_id','household_id'],
-               family_submissions:['id'], client_errors:['id'], keepalive:['id'] };
+               family_submissions:['id'], client_errors:['id'], keepalive:['id'], recipe_collections:['id'], collection_items:['id'] };
   /* starts like production: the one seed cook-log entry is a real row there (migration 010) */
   const FRESH = ()=> ({cook_log: [{id: 'seed-ctm-1', recipe_id: 'chicken-tikka-masala', date: '2026-08-23', rating: 5, note: '', leftover: '',
                                   household_id: 'nicholas-tyler', deleted: false, updated_at: new Date(1788264000000).toISOString()}]});
   const load = ()=>{ try{ return JSON.parse(localStorage.getItem(KEY)) || FRESH(); }catch(e){ return FRESH(); } };
   const save = db=> localStorage.setItem(KEY, JSON.stringify(db));
   const ctl = window.__sb = {
-    calls: [], failWith: null, delayMs: 5, staleGuard: true, skipped: 0,
+    calls: [], clientOptions: null, failWith: null, delayMs: 5, missingTables: [], staleGuard: true, skipped: 0,
     tables: load,
     seed(table, rows){ const db = load(); db[table] = rows; save(db); },
   };
@@ -31,6 +31,7 @@
 
   function exec(q){
     ctl.calls.push({table: q.table, op: q.op, payload: q.payload});
+    if((ctl.missingTables || []).includes(q.table)) return {data: null, error: {message: "Could not find the table 'public." + q.table + "' in the schema cache", code: 'PGRST205'}, status: 404};
     const fail = ctl.failWith && ctl.failWith(q.table, q.op, q.payload);
     if(fail) return {data: null, error: fail.error || {message: 'injected', code: ''}, status: fail.status || 0};
     const db = load();
@@ -81,6 +82,7 @@
     };
     return b;
   }
-  const channel = { on(){ return channel; }, subscribe(){ return channel; } };
-  window.supabase = { createClient(){ return { from: builder, channel(){ return channel; }, removeChannel(){} }; } };
+  ctl.subscriptions = [];   /* every realtime listener the app registered: {table, filter} */
+  const channel = { on(type, opts){ ctl.subscriptions.push({table: opts.table, filter: opts.filter || null}); return channel; }, subscribe(){ return channel; } };
+  window.supabase = { createClient(url, key, options){ ctl.clientOptions = options; return { from: builder, channel(){ return channel; }, removeChannel(){} }; } };
 })();

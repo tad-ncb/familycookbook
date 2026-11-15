@@ -1,0 +1,16 @@
+name: Weekly error digest
+
+# The app reports its own JavaScript errors to the client_errors table. This looks at the last week every
+# Monday and FAILS if there is anything in it, so GitHub emails you the list instead of it sitting unread.
+# (tools/errors.py groups them and shows the build id and file:line when there is one.)
+on:
+  schedule:
+    - cron: '0 13 * * 1'   # Mondays, 13:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/errors.py 7 --fail-if-any

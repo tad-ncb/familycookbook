@@ -30,13 +30,15 @@ jobs:
           SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt1YnZxbXB0dW1mdHF0ZnFyaWZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1MDc0NzcsImV4cCI6MjEwMzA4MzQ3N30.uWvku48avh5aUIp6V7lwGoNz-nk6RT1SiHaKODyWI2Q
         run: |
           python3 - <<'PYEOF'
-          import os, json, time, urllib.request
+          import os, json, time, urllib.request, urllib.error
 
           base = os.environ['SUPABASE_URL'] + '/rest/v1/'
           key = os.environ['SUPABASE_ANON_KEY']
           headers = {'apikey': key, 'Authorization': f'Bearer {key}'}
           TABLES = ['cook_log', 'plan_days', 'prefs', 'shopping_lists', 'interested_recipes',
-                    'inventory_items', 'family_submissions', 'client_errors']
+                    'inventory_items', 'family_submissions', 'client_errors',
+                    'recipe_collections', 'collection_items']
+          OPTIONAL = {'recipe_collections', 'collection_items'}  # exist only after migration 016
           LIMIT = 50000  # these tables are tiny; hitting the limit means truncation, so fail
           os.makedirs('backups/live', exist_ok=True)
           out = {}
@@ -47,11 +49,20 @@ jobs:
                       with urllib.request.urlopen(req, timeout=60) as resp:
                           rows = json.loads(resp.read())
                       break
+                  except urllib.error.HTTPError as e:
+                      if e.code == 404 and t in OPTIONAL:
+                          rows = None
+                          break
+                      print(f'  {t}: retry {attempt} after {type(e).__name__}: {e}')
+                      time.sleep(3 * (attempt + 1))
                   except Exception as e:
                       print(f'  {t}: retry {attempt} after {type(e).__name__}: {e}')
                       time.sleep(3 * (attempt + 1))
               else:
                   raise SystemExit(f'BACKUP ABORTED: could not read {t} (is the project paused?) -- previous backup left untouched')
+              if rows is None:
+                  print(f'{t}: table does not exist yet (migration 016 not run) -- skipped')
+                  continue
               if len(rows) >= LIMIT:
                   raise SystemExit(f'BACKUP ABORTED: {t} returned {len(rows)} rows (limit) -- would be truncated')
               out[t] = rows

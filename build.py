@@ -7,7 +7,7 @@ file makes every fix a manual grep/sed line-range extraction. Splitting the
 source into src/head.html (doctype/head/style/static markup + the Supabase
 CDN <script> tag), src/data.js (the embedded RECIPES array + its precompute
 pass), src/app.js (the rest of the app logic), and src/foot.html
-(</body></html>) keeps editing sane while keeping the deployed artifact a
+(</body></html>) keeps editing sane (plus src/nutrition.js, the pure servings/scaling/macro maths, which also runs in the archive build tool) while keeping the deployed artifact a
 single file. .github/workflows/build.yml runs this on every push to main and
 commits the result if it changed.
 
@@ -26,9 +26,13 @@ def read(name):
 def main():
     head = read('head.html')
     data = read('data.js')
+    nutrition = read('nutrition.js')
     app = read('app.js')
     foot = read('foot.html')
-    out = head + '<script>\n' + data + '</script>\n' + '<script>\n' + app + '</script>\n' + foot
+    out = head + '<script>\n' + data + '</script>\n' + '<script>\n' + nutrition + app + '</script>\n' + foot
+    # short content hash of the sources: shown in the footer and attached to error reports, so "which version was that?" has an answer
+    import hashlib
+    out = out.replace('__BUILD_ID__', hashlib.sha1(out.encode('utf-8')).hexdigest()[:7])
     (ROOT / 'index.html').write_text(out, encoding='utf-8')
     print(f"wrote index.html ({len(out)} chars)")
 

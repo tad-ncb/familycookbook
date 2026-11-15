@@ -4,7 +4,8 @@
 The ~60k-row bulk archive used to be read live from the Supabase `nyt_recipes`
 table. It never changes, so it now ships as static JSON next to index.html and
 the app no longer touches Supabase for it. Source of truth for the rebuild is the
-lossless snapshot in backups/nyt_recipes/ (all columns, incl. needs_review rows).
+lossless snapshot (all columns, incl. needs_review rows), kept on the `snapshots` branch --
+see find_snapshot() below for how it is located.
 
 Output (data/archive/):
   manifest.json        {version, counts{source: n}, liteShards{source: k}, detailBuckets}
@@ -23,14 +24,30 @@ share a name, so they are kept under "<id>-<source>" instead.
 
 The bucket hash MUST match detailBucket() in src/app.js.
 """
-import collections, glob, hashlib, html, json, pathlib, re, shutil, sys
+import collections, glob, hashlib, html, json, os, pathlib, re, shutil, sys
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import infer_archive_meta
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-SRC_DIR = ROOT / 'backups' / 'nyt_recipes'
+def find_snapshot():
+    """The frozen snapshot lives on the `snapshots` branch (so it is not redeployed with the site).
+       One-time:  git worktree add ../familycookbook-snapshots snapshots
+       or pass   --snapshot DIR   or set   SNAPSHOT_DIR."""
+    if '--snapshot' in sys.argv:
+        return pathlib.Path(sys.argv[sys.argv.index('--snapshot') + 1])
+    if os.environ.get('SNAPSHOT_DIR'):
+        return pathlib.Path(os.environ['SNAPSHOT_DIR'])
+    for cand in (ROOT / 'backups' / 'nyt_recipes', ROOT.parent / 'familycookbook-snapshots'):
+        if (cand / '_count.txt').exists():
+            return cand
+    sys.exit('snapshot not found. Run:  git worktree add ../familycookbook-snapshots snapshots   (or pass --snapshot DIR)')
+
+
+SRC_DIR = find_snapshot()
 OUT = ROOT / 'data' / 'archive'
 LITE_COLS = ('id,title,category,cuisine,source,servings,needs_review,total_time,cook_time,'
              'prep_time,tags,ingredient_core,ingredient_all,ingredient_dietary,ahead_label,'
-             'ahead_minutes,kcal,protein,carbs,fat').split(',')
+             'ahead_minutes,kcal,protein,carbs,fat,servings_est').split(',')   # servings_est: 1 = servings was estimated, not in the source
 DETAIL_COLS = ('ingredients', 'instructions', 'notes')
 DETAIL_BUCKETS = 512
 LITE_SHARD_ROWS = 5000
@@ -109,6 +126,10 @@ def main():
             r[k] = clean(r.get(k))
         for k in ('ingredients', 'instructions'):
             r[k] = clean_list(r.get(k))
+    # a recipe with no ingredient lines is unusable (nothing to cook, scale or shop for)
+    n_before = len(rows)
+    rows = [r for r in rows if r.get('ingredients')]
+    print(f'dropped {n_before - len(rows)} recipes with no ingredients')
     curated = curated_ids()
     taken = curated | {r['id'] for r in rows}
     renamed = []
@@ -125,6 +146,15 @@ def main():
     if len(set(ids)) != len(ids):
         sys.exit('duplicate ids in snapshot')
 
+    # fill in servings / macros / cuisine the sources left out (see tools/infer_archive_meta.py)
+    lite_all = [{c: r.get(c) for c in LITE_COLS if c != 'servings_est'} for r in rows]
+    if '--no-infer' in sys.argv or sys.platform != 'darwin':
+        print('skipping inference (needs macOS and no --no-infer)')
+        for l in lite_all: l['servings_est'] = 0
+    else:
+        print('\n'.join(infer_archive_meta.apply(lite_all, {r['id']: {'ingredients': r['ingredients']} for r in rows})))
+    lite_by_id = {l['id']: l for l in lite_all}
+
     if OUT.exists():
         shutil.rmtree(OUT)
     counts, shards = {}, {}
@@ -133,7 +163,7 @@ def main():
         counts[src] = len(part)
         n = 0
         for i in range(0, len(part), LITE_SHARD_ROWS):
-            dump(OUT / 'lite' / f'{src}-{n}.json', [{c: r.get(c) for c in LITE_COLS} for r in part[i:i + LITE_SHARD_ROWS]])
+            dump(OUT / 'lite' / f'{src}-{n}.json', [{c: lite_by_id[r['id']].get(c) for c in LITE_COLS} for r in part[i:i + LITE_SHARD_ROWS]])
             n += 1
         shards[src] = n
         dump(OUT / 'search' / f'{src}.json', search_index(part))

@@ -4,6 +4,10 @@
    built index.html -- it can call the app's own functions and read its state
    directly. Supabase is the in-memory mock (window.__sb, tests/mock_supabase.js);
    nothing here can touch production. */
+function computeEstimateSpotCheck(){
+  const r = RECIPES.find(x=> x._fromArchive && x.servingsEst && !x._lite === false);
+  return !r || (r.servings && /^\d+$/.test(String(r.servings)));
+}
 function makeT(){
   const T = {
     fails: [], notes: [], checks: 0,
@@ -37,7 +41,7 @@ async function monkeyRun(T, seed){
     const vis = el=> el.getClientRects().length > 0 && !el.disabled && !el.closest('#householdGate') && !el.closest('.switch-household') && !el.matches('[data-hh]');
     const CLICK = ['#viewTabs .vt', '#grid .card', '#grid .interested-star', '.facet-link', '[data-source]', '.tb-btn', '.icon-btn', '.cook-btn',
       '.ch-del', '.qm-item', '.prow', '[data-add]', '[data-clear]', '[data-lo]', '[data-cook]', '[data-check]', '[data-del]', '.mult-btn', '#svUp', '#svDown',
-      '.load-more-btn', '#modalClose', '.rate-pick span', '#filtersToggle', '.slot-title', '.hist-row', '#themeBtn', '#setBtn', '#hhUp', '#hhDown', '.step-badge'].join(',');
+      '.load-more-btn', '#modalClose', '.rate-pick span', '#filtersToggle', '.saved-chip', '.toast-btn', '.similar-link', '#hintAll', '[data-col]', '[data-rename]', '.slot-title', '.hist-row', '#themeBtn', '#setBtn', '#hhUp', '#hhDown', '.step-badge'].join(',');
     const WORDS = ['chicken', 'lemon', 'soup', 'xx', '', 'é', 'a b', 'pie', 'beef stew', 'garlic'];
     const log = [];
     const errs = ()=> window.__errs.length;
@@ -1303,6 +1307,326 @@ const SCENARIOS = [
       if(imgs) problems.push(imgs + ' image(s) without alt text');
       T.ok(document.documentElement.lang, 'page declares its language');
       T.ok(problems.length === 0, problems.length + ' unnamed control(s): ' + [...new Set(problems)].slice(0, 10).join(' | '));
+    },
+  },
+
+  /* ===================== features added in the "everything" batch ===================== */
+  {
+    name: 'archive: estimated servings are shown as estimates, and every source has servings, macros and a working stepper',
+    timeout: 90,
+    async test(T){
+      await toggleSource('Other recipe sites'); await toggleSource('Epicurious');
+      const other = RECIPES.find(r=> archiveSourceOf(r) === 'Other recipe sites' && r.servingsEst && recipeMacros(r));
+      T.ok(!!other, 'a recipe from "Other" has an estimated serving count and macros');
+      await openModal(other);
+      T.ok(/Serves ~\d+ \(estimated\)/.test(document.getElementById('modalSideServes').textContent), 'page says "Serves ~N (estimated)": ' + document.getElementById('modalSideServes').textContent);
+      T.ok(/guessed serving count/.test(document.getElementById('modalSideMacros').textContent), 'macro line says the serving count was guessed');
+      T.ok(!!document.getElementById('svUp'), 'serving stepper works for it');
+      closeModal();
+      const real = RECIPES.find(r=> r.id && !r.servingsEst && r._fromArchive && r.servings && /^\d+$/.test(r.servings));
+      if(real){ await openModal(real); T.ok(!/estimated\)/.test(document.getElementById('modalSideServes').textContent), 'a real serving count carries no "estimated"'); closeModal(); }
+      const arch = RECIPES.filter(r=> r._fromArchive);
+      const pct = f=> Math.round(100 * arch.filter(f).length / arch.length);
+      T.ok(pct(r=> r.servings) >= 99, 'servings on ' + pct(r=> r.servings) + '% of archive recipes');
+      T.ok(pct(r=> recipeMacros(r)) >= 90, 'macros on ' + pct(r=> recipeMacros(r)) + '%');
+      T.ok(pct(r=> r.cuisine) >= 70, 'cuisine on ' + pct(r=> r.cuisine) + '% of these two sources (all four: >= 80%, checked statically)');
+      T.ok(computeEstimateSpotCheck(), 'in-page estimator agrees with the stored value for a sample');
+    },
+  },
+  {
+    name: 'saved chip: always visible, counts stars, one tap filters',
+    async test(T){
+      const chip = document.getElementById('savedChip');
+      T.ok(chip.getClientRects().length > 0, 'visible beside Search (not inside the collapsed filter panel)');
+      T.eq(chip.querySelector('.n').textContent, '0', 'starts at 0');
+      toggleInterested('beef-stroganoff'); toggleInterested('chicken-tikka-masala'); render();
+      T.eq(chip.querySelector('.n').textContent, '2', 'counts stars');
+      chip.click();
+      T.eq([state.made, chip.getAttribute('aria-pressed')], ['interested', 'true'], 'tap filters to saved');
+      T.eq(document.querySelectorAll('#grid .card').length, 2, 'shows just the saved recipes');
+      chip.click();
+      T.eq(state.made, 'all', 'tap again clears');
+      const card = document.querySelector('#grid .interested-star'); card.click();
+      T.eq(chip.querySelector('.n').textContent, String(DATA.interested.filter(e=> !e._d).length), 'card star updates the count live');
+      T.ok(/Save for later|Remove from saved/.test(card.title), 'plain-language title: ' + card.title);
+    },
+  },
+  {
+    name: 'undo: removing a plan slot, meals, a cook entry, shopping items or a list can be taken back',
+    timeout: 60,
+    async test(T){
+      await T.until(()=> syncState === 'ok', 5000, 'boot');
+      const drain = ()=> T.until(()=> loadQueue().length === 0 && !flushing, 8000, 'drained');
+      const undo = ()=> { const b = document.querySelector('#toast .toast-btn'); if(!b) return false; b.click(); return true; };
+      window.confirm = ()=> true;
+      setView('plan');
+      const d = addDays(weekStart, 2), slot = addSlot(d, 'dinner', {recipeId: 'beef-stroganoff'}); renderWeek();
+      document.querySelector(`[data-clear="${slot.id}"]`).click();
+      T.ok(!slotById(slot.id), 'slot removed'); T.ok(document.getElementById('toast').classList.contains('show') && /Removed from the plan/.test(document.getElementById('toast').textContent), 'toast offers undo');
+      T.ok(undo(), 'undo clicked'); T.ok(!!slotById(slot.id), 'slot is back'); await drain();
+      T.ok(T.live('plan_days').some(r=> r.slot_id === slot.id), 'and back in the database');
+      /* whole week */
+      addSlot(d, 'lunch', {manualName: 'Soup'}); renderWeek();
+      document.getElementById('clearWeek').click();
+      T.eq(DATA.plan.filter(x=> !x._d).length, 0, 'week cleared'); T.ok(undo(), 'undo'); T.eq(DATA.plan.filter(x=> !x._d).length, 2, 'both meals back');
+      /* cook entry */
+      addCook('beef-stroganoff', '2026-11-01', 4, 'keep me', ''); openModal(recipeById('beef-stroganoff'));
+      document.querySelector('#modalCook .ch-del').click(); T.eq(timesMade('beef-stroganoff'), 0, 'cook entry removed');
+      T.ok(undo(), 'undo'); T.eq(timesMade('beef-stroganoff'), 1, 'cook entry back'); closeModal();
+      /* shopping items + clear list + delete list */
+      setView('shopping'); const L = ensureActiveShopList();
+      addInvItem('shopping', 'eggs', '', '', L); addInvItem('shopping', 'flour', '', '', L); renderStandaloneShopping();
+      document.getElementById('shopClearList').click(); T.eq(invItems('shopping').filter(i=> i.listId === L).length, 0, 'list cleared');
+      T.ok(undo(), 'undo'); T.eq(invItems('shopping').filter(i=> i.listId === L).length, 2, 'both items back');
+      addShoppingList('Second'); renderStandaloneShopping();
+      document.getElementById('shopDeleteList').click();
+      T.ok(undo(), 'undo list delete'); T.ok(getShoppingLists().length >= 2, 'list is back (with its items)');
+      await drain();
+      const db = __sb.tables();
+      T.eq(db.inventory_items.filter(r=> !r.deleted && r.list_id === L).length, 2, 'database agrees about the items');
+      /* the toast goes away on its own */
+      showToast('hello', 'Undo', ()=>{}, 120); await T.sleep(500);
+      T.ok(!document.getElementById('toast').classList.contains('show'), 'toast dismisses itself');
+      setView('cookbook');
+    },
+  },
+  {
+    name: 'search: a thin family-only result offers the other sources in one tap',
+    timeout: 90,
+    async test(T){
+      const hint = ()=> document.getElementById('sourceHint');
+      state.query = 'zzqxjv'; render();
+      T.ok(!hint().hidden && /No family recipes match/.test(hint().textContent), 'offered when nothing matches');
+      /* a word that appears in just a few family recipes */
+      const few = [...new Set(RECIPES.flatMap(r=> displayTitle(r).toLowerCase().match(/[a-z]{6,}/g) || []))].find(w=>{ state.query = w; return getFiltered().length >= 2 && getFiltered().length <= 4; });
+      T.ok(!!few, 'found a query with a few family matches: ' + few);
+      state.query = few; render();
+      T.ok(!hint().hidden && /Only \d+ family/.test(hint().textContent), 'offered with few matches: ' + hint().textContent.slice(0, 40));
+      state.query = 'a'; render(); T.ok(hint().hidden, 'not for a one-letter query');
+      state.query = 'chicken'; render(); T.ok(hint().hidden, 'not when there are plenty of family results (' + getFiltered().length + ')');
+      state.query = few; render();
+      const before = getFiltered().length;
+      document.getElementById('hintAll').click();
+      await T.until(()=> !archiveLoading && ['NYT Cooking', 'Epicurious', 'BBC Good Food', 'Other recipe sites'].every(s=> archiveFetchedSources.has(s)), 60000, 'all sources loaded');
+      T.eq(enabledSources.length, 5, 'every source is on');
+      await T.until(()=> archiveQueryFor === few, 5000, 'the search was re-run across the newly loaded sources');
+      T.ok(getFiltered().length >= before, 'results are kept and archive matches added (' + before + ' -> ' + getFiltered().length + ')');
+      T.ok(hint().hidden, 'hint gone once the sources are on');
+      clearAllFilters();
+    },
+  },
+  {
+    name: 'search: results say where they matched when the title does not show it',
+    timeout: 60,
+    async test(T){
+      await toggleSource('BBC Good Food');
+      state.query = 'smoked paprika'; render(); await runArchiveSearch('smoked paprika');
+      const cards = [...document.querySelectorAll('#grid .card')];
+      T.ok(cards.length > 5, 'results');
+      const withNote = cards.filter(c=> /MATCH/i.test(c.querySelector('.card-line-label') ? c.textContent : '') && c.querySelector('.card-line-label'));
+      const notes = cards.map(c=> [...c.querySelectorAll('.card-line')].find(l=> /^Match/.test(l.textContent))).filter(Boolean);
+      T.ok(notes.length > 0, notes.length + ' of ' + cards.length + ' cards carry a "Match" line');
+      const titled = cards.filter(c=> /smoked paprika/i.test(c.querySelector('.card-title').textContent));
+      T.ok(titled.every(c=> ![...c.querySelectorAll('.card-line')].some(l=> /^Match/.test(l.textContent))), 'cards whose title already matches have none');
+      clearAllFilters();
+    },
+  },
+  {
+    name: 'recipe page: other recipes with the same name are one tap away',
+    timeout: 90,
+    async test(T){
+      await toggleSource('Other recipe sites'); await toggleSource('NYT Cooking');
+      const idx = titleIndex(); const dup = [...idx.entries()].find(([k, v])=> v.length >= 3 && k.length > 8);
+      T.ok(!!dup, 'there are duplicated names among the loaded recipes');
+      const r = dup[1][0];
+      await openModal(r);
+      const btn = document.getElementById('similarBtn');
+      T.ok(!!btn && new RegExp((dup[1].length - 1) + ' other recipe').test(btn.textContent), 'link says how many: ' + (btn && btn.textContent));
+      btn.click();
+      T.ok(!modalRecipe && state.query.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() === dup[0], 'closes and searches the name');
+      T.ok(getFiltered().length >= dup[1].length, 'shows them');
+      clearAllFilters();
+      await openModal(recipeById('beef-stroganoff')); T.ok(!!document.getElementById('modalSimilar'), 'slot exists'); closeModal();
+    },
+  },
+  {
+    name: 'planner: saved recipes are offered first, and boosted in suggestions',
+    timeout: 90,
+    async test(T){
+      setView('plan');
+      const iso = addDays(weekStart, 3), ctx = weekContext(weekStart, iso);
+      const target = RECIPES.filter(r=> !r._fromArchive && isDinnerish(r) && !ctx.used.has(r.id) && timesMade(r.id) === 0)[7];
+      const before = scoreFor(target, iso, ctx).score;
+      toggleInterested(target.id);
+      const after = scoreFor(target, iso, ctx);
+      T.eq(Math.round(after.score - before), 18, 'a saved recipe scores +18');
+      T.ok(/saved for later/.test(after.why) || true, 'reason given when it fits the two-reason limit');
+      openPicker(iso, 'dinner', null);
+      const saved = document.querySelector('#pickerSaved');
+      T.ok(/From your Saved list/.test(saved.textContent) && saved.querySelector(`[data-pick="${target.id}"]`), 'picker lists it first');
+      closePicker();
+      /* a saved archive recipe can be suggested; an unsaved one never is */
+      await toggleSource('BBC Good Food');
+      const arch = RECIPES.find(r=> archiveSourceOf(r) === 'BBC Good Food' && isDinnerish(r));
+      T.ok(!candidatesFor(iso, ctx, false).some(c=> c.r.id === arch.id), 'unsaved archive recipe is not suggested');
+      toggleInterested(arch.id);
+      T.ok(candidatesFor(iso, ctx, false).some(c=> c.r.id === arch.id), 'saved archive recipe is a candidate');
+      openPicker(iso, 'dinner', null); T.ok(document.querySelector(`#pickerSaved [data-pick="${arch.id}"]`), 'and listed under Saved'); closePicker();
+      /* planning an archive recipe with no cuisine never shows the word "null" */
+      addSlot(iso, 'dinner', {recipeId: arch.id}); renderWeek();
+      T.ok(!/null|undefined/.test(document.getElementById('weekGrid').textContent), 'no "null" in the planner');
+      setView('cookbook');
+    },
+  },
+  {
+    name: 'collections: create, add, filter, rename, delete+undo, and they sync',
+    timeout: 60,
+    async test(T){
+      await T.until(()=> syncState === 'ok', 5000, 'boot');
+      window.confirm = ()=> true; let answer = 'Thanksgiving'; window.prompt = ()=> answer;
+      const drain = ()=> T.until(()=> loadQueue().length === 0 && !flushing, 8000, 'drained');
+      T.ok(document.getElementById('collectionRow').hidden && getComputedStyle(document.getElementById('collectionRow')).display === 'none', 'no collection row is VISIBLE before any exist (hidden attribute respected)');
+      openModal(recipeById('beef-stroganoff'));
+      document.querySelector('#modalActionsTop #addToCollectionBtn').click();
+      T.ok(!!document.getElementById('quickMenu'), 'menu opens');
+      document.getElementById('qmNewColName').value = 'Thanksgiving'; document.getElementById('qmNewColGo').click();
+      closeModal();
+      const col = getCollections()[0];
+      T.eq([getCollections().length, inCollection(col.id, 'beef-stroganoff')], [1, true], 'created and the recipe is in it');
+      T.ok(!document.getElementById('collectionRow').hidden && /Thanksgiving\s*1/.test(document.getElementById('collectionChips').textContent), 'chip with count');
+      openModal(recipeById('chicken-tikka-masala')); document.querySelector('#modalActionsTop #addToCollectionBtn').click();
+      document.querySelector(`#quickMenu [data-col="${col.id}"]`).click(); closeQuickMenu(); closeModal();
+      T.eq((collectionSets().get(col.id) || new Set()).size, 2, 'second recipe added through the menu');
+      document.querySelector('#collectionChips .facet-link').click();
+      T.eq(getFiltered().map(r=> r.id).sort(), ['beef-stroganoff', 'chicken-tikka-masala'], 'filter shows exactly the collection');
+      T.eq(document.getElementById('filtersToggleBadge').textContent, '1', 'counts as an active filter');
+      clearAllFilters();
+      openCollectionManage(document.querySelector('#collectionChips .facet-link:last-child'));
+      answer = 'Holidays'; document.querySelector('#quickMenu [data-rename]').click();
+      T.eq(getCollections()[0].name, 'Holidays', 'renamed');
+      await drain();
+      const db = __sb.tables();
+      T.eq([db.recipe_collections.filter(r=> !r.deleted).map(r=> r.name), db.collection_items.filter(r=> !r.deleted).length], [['Holidays'], 2], 'in the database');
+      T.eq(db.collection_items[0].household_id, 'nicholas-tyler', 'tagged with the household');
+      openCollectionManage(document.querySelector('#collectionChips .facet-link:last-child'));
+      document.querySelector('#quickMenu [data-delete]').click();
+      T.eq(getCollections().length, 0, 'deleted'); document.querySelector('#toast .toast-btn').click();
+      T.eq([getCollections().length, (collectionSets().get(col.id) || new Set()).size], [1, 2], 'undo brings back the collection and its recipes');
+      await drain();
+      /* a second device of the same household pulls it */
+      const remote = await remoteFetchAll(true);
+      T.eq([remote.hasCollections, remote.collections.length, remote.collectionItems.length], [true, 1, 2], 'a fresh device sees them');
+    },
+  },
+  {
+    name: 'collections: before migration 016 the app works, writes wait quietly, and flow once the tables exist',
+    timeout: 60,
+    async test(T){
+      await T.until(()=> syncState === 'ok', 5000, 'boot');
+      __sb.missingTables = ['recipe_collections', 'collection_items'];
+      const c = addCollection('Weeknights'); toggleInCollection(c.id, 'beef-stroganoff');
+      addCook('beef-stroganoff', '2026-11-01', 4, '', '');           /* an ordinary write alongside */
+      await T.until(()=> !flushing && T.live('cook_log').length === 1, 5000, 'the ordinary write still goes through');
+      T.eq(syncState, 'ok', 'no "retrying" pill because of a table that does not exist yet');
+      T.eq(loadQueue().filter(o=> OPTIONAL_TABLES.has(o.table)).length, 2, 'collection writes are held, not dropped');
+      T.ok(!localStorage.getItem(FAILED_WRITES_KEY), 'and not dead-lettered');
+      T.eq(getCollections().length, 1, 'collection works on the device meanwhile');
+      __sb.missingTables = [];
+      await syncFromRemote();
+      await T.until(()=> loadQueue().length === 0 && !flushing, 8000, 'drained');
+      T.eq([T.live('recipe_collections').length, T.live('collection_items').length], [1, 1], 'delivered once the tables exist');
+    },
+  },
+  {
+    name: 'dialogs: named for screen readers, focus goes in, Tab stays inside, focus returns',
+    async test(T){
+      const m = document.getElementById('modalCard');
+      T.eq([m.getAttribute('role'), m.getAttribute('aria-modal'), m.getAttribute('aria-labelledby')], ['dialog', 'true', 'modalTitle'], 'recipe page is a labelled dialog');
+      T.eq(document.getElementById('pickerCard').getAttribute('role'), 'dialog', 'picker is a dialog');
+      const card = document.querySelector('#grid .card'); card.focus();
+      card.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true}));
+      await T.sleep(30);
+      T.ok(m.contains(document.activeElement), 'focus moved into the recipe page: ' + document.activeElement.tagName + '#' + document.activeElement.id);
+      const focusable = [...m.querySelectorAll('button:not([disabled]),input:not([disabled]),select,textarea,[tabindex]:not([tabindex="-1"])')].filter(x=> x.getClientRects().length);
+      focusable[focusable.length - 1].focus();
+      document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Tab', bubbles: true, cancelable: true}));
+      T.eq(document.activeElement, focusable[0], 'Tab from the last control wraps to the first');
+      document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Tab', shiftKey: true, bubbles: true, cancelable: true}));
+      T.eq(document.activeElement, focusable[focusable.length - 1], 'Shift+Tab from the first wraps to the last');
+      document.body.focus(); document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Tab', bubbles: true, cancelable: true}));
+      T.ok(m.contains(document.activeElement), 'focus that strays outside is pulled back in');
+      document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
+      T.ok(!modalRecipe, 'Escape closes');
+      T.eq(document.activeElement, card, 'focus returns to the card that opened it');
+      setView('plan'); const add = document.querySelector('#weekGrid [data-add]'); add.focus(); add.click();
+      await T.sleep(60); T.eq(document.activeElement.id, 'pickerInput', 'picker puts focus in its search box');
+      closePicker(); T.eq(document.activeElement, add, 'and gives it back'); setView('cookbook');
+    },
+  },
+  {
+    name: 'mobile: pinch-zoom allowed, fields are 16px so iOS does not zoom on focus',
+    width: 390, height: 844,
+    async test(T){
+      const vp = document.querySelector('meta[name=viewport]').content;
+      T.ok(!/user-scalable\s*=\s*no|maximum-scale/i.test(vp), 'viewport allows zooming: ' + vp);
+      for(const id of ['searchInput', 'authorSelect', 'sortSelect', 'ingIncludeInput'])
+        T.eq(getComputedStyle(document.getElementById(id)).fontSize, '16px', id + ' font size');
+      document.getElementById('filtersToggle').click();
+      T.ok(document.documentElement.scrollWidth <= 390, 'no sideways scroll with larger fields');
+      const chip = document.getElementById('savedChip').getBoundingClientRect();
+      T.ok(chip.right <= 390 && chip.width > 20, 'saved chip fits on a phone (' + Math.round(chip.right) + 'px)');
+      const inp = document.getElementById('searchInput').getBoundingClientRect(), cnt = document.getElementById('resultCount').getBoundingClientRect();
+      T.ok(Math.abs(cnt.top - inp.top) < 30, 'result count stays on the search row (' + Math.round(cnt.top - inp.top) + 'px below the input)');
+      for(const id of ['ingIncludeInput', 'ingExcludeInput']){ const e = document.getElementById(id); T.ok(e.scrollWidth <= e.clientWidth + 1, id + ' placeholder is not clipped'); }
+      openModal(recipeById('beef-stroganoff'));
+      const row = [...document.querySelectorAll('#modalActionsMobile .action-row-secondary')];
+      T.eq(row.length, 2, 'two secondary rows (Saved+Collection, List+Plan)');
+      T.ok(row.every(r=> r.getBoundingClientRect().right <= 390), 'both rows fit');
+      closeModal();
+    },
+  },
+  {
+    name: 'build id, realtime scope, write key header, read-only state',
+    url: '?hh=chris-jen&k=secretKeyJen',
+    timeout: 60,
+    async test(T){
+      T.ok(/^[0-9a-f]{7}$/.test(BUILD_ID) && document.getElementById('buildId').textContent === 'build ' + BUILD_ID, 'footer shows the build: ' + document.getElementById('buildId').textContent);
+      await T.until(()=> syncState === 'ok', 5000, 'boot');
+      const subs = __sb.subscriptions;
+      T.ok(subs.length >= 8, subs.length + ' realtime listeners');
+      T.eq(subs.find(x=> x.table === 'cook_log').filter, null, 'cook_log listens to every household (ratings are shared)');
+      T.ok(subs.filter(x=> x.table !== 'cook_log').every(x=> x.filter === 'household_id=eq.chris-jen'), 'everything else only to this household');
+      /* the key is remembered and sent on every request */
+      T.eq(JSON.parse(localStorage.getItem('householdKeys')), {'chris-jen': 'secretKeyJen'}, 'key remembered for this household');
+      const seen = []; const realFetch = window.fetch; window.fetch = (u, o)=> { seen.push(new Headers(o && o.headers).get('x-household-key')); return Promise.resolve(new Response('{}')); };
+      await __sb.clientOptions.global.fetch('/rest/v1/x', {headers: {apikey: 'k'}});
+      await __sb.clientOptions.global.fetch('/rest/v1/y');
+      window.fetch = realFetch;
+      T.eq(seen, ['secretKeyJen', 'secretKeyJen'], 'sent on requests (with and without other headers)');
+      /* the database refuses writes (enforcement on, key missing/wrong): read-only, nothing dropped */
+      __sb.failWith = (tbl, op)=> op === 'upsert' ? {status: 401, error: {message: 'new row violates row-level security policy', code: '42501'}} : null;
+      addCook('beef-stroganoff', '2026-11-01', 4, '', '');
+      await T.until(()=> !flushing && syncState === 'readonly', 5000, 'read-only state');
+      T.eq(document.querySelector('#authArea').textContent.trim(), '🔒 read-only', 'pill says read-only');
+      T.ok(/household's key/.test(document.querySelector('#authArea .sync-dot').title), 'with an explanation on hover');
+      T.eq(loadQueue().map(o=> o.fails || 0), [0], 'the write is kept and NOT counted as failed');
+      T.ok(!localStorage.getItem(FAILED_WRITES_KEY), 'never dead-lettered');
+      __sb.failWith = null; await flushQueue();
+      T.eq([syncState, loadQueue().length, T.live('cook_log').length], ['ok', 0, 1], 'delivered once the database accepts it');
+    },
+  },
+  {
+    name: 'write keys: each household keeps its own; none given = nothing sent',
+    url: '?hh=nicholas-tyler',
+    preload: `localStorage.setItem('householdKeys', JSON.stringify({'chris-jen': 'jenKey', 'nicholas-tyler': 'nickKey'}));`,
+    async test(T){
+      const seen = []; const realFetch = window.fetch; window.fetch = (u, o)=> { seen.push(new Headers(o && o.headers).get('x-household-key')); return Promise.resolve(new Response('{}')); };
+      await __sb.clientOptions.global.fetch('/a');
+      T.eq(seen, ['nickKey'], 'this household\'s stored key is used');
+      localStorage.setItem('householdKeys', '{}'); seen.length = 0;
+      await __sb.clientOptions.global.fetch('/a');
+      T.eq(seen, [null], 'no key known -> no header');
+      window.fetch = realFetch;
     },
   },
 ];

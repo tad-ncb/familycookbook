@@ -4,7 +4,7 @@
 
 Needs: pip install esprima pyyaml
 """
-import glob, json, pathlib, re, sys
+import collections, glob, json, pathlib, re, sys
 import esprima, yaml
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -29,7 +29,9 @@ def read(rel):
     return (ROOT / rel).read_text(encoding='utf-8')
 
 
+NUTRITION = read('src/nutrition.js')
 APP = read('src/app.js')
+APP_ALL = NUTRITION + APP   # one script in the built page
 HEAD = read('src/head.html')
 
 # Browser-provided names app.js may use without declaring.
@@ -37,12 +39,12 @@ BROWSER_GLOBALS = set('''window document location history navigator localStorage
   setTimeout clearTimeout setInterval clearInterval requestAnimationFrame performance getComputedStyle
   Promise Map Set Object Array JSON Math Date String Number Boolean RegExp Error Intl Symbol
   parseInt parseFloat isNaN isFinite encodeURIComponent decodeURIComponent undefined NaN Infinity
-  Uint8Array Uint32Array CSS DOMException URL URLSearchParams Blob FileReader TextEncoder KeyboardEvent Event caches self arguments RECIPES'''.split())
+  Uint8Array Uint32Array CSS DOMException Headers URL URLSearchParams Blob FileReader TextEncoder KeyboardEvent Event caches self arguments RECIPES'''.split())
 
 
 @check('src/app.js, sw.js and the test scripts parse as JavaScript')
 def _():
-    for rel in ['src/app.js', 'sw.js', 'tests/cases.js', 'tests/mock_supabase.js', 'tests/runner.js']:
+    for rel in ['src/nutrition.js', 'src/app.js', 'sw.js', 'tests/cases.js', 'tests/mock_supabase.js', 'tests/runner.js']:
         try:
             esprima.parseScript(read(rel))
         except Exception as e:
@@ -51,7 +53,7 @@ def _():
 
 @check('src/app.js uses no name that is never declared (the "esc() is not defined" class of bug)')
 def _():
-    tree = esprima.parseScript(APP).toDict()
+    tree = esprima.parseScript(APP_ALL).toDict()
     declared, used = set(), set()
 
     def pattern(p):
@@ -220,6 +222,19 @@ def _():
             seen.add(r['id'])
         total += len(rows)
     assert total == man['total'], f'{total} rows vs manifest total {man["total"]}'
+    # metadata coverage: filters, the serving stepper and the macro line should work across every source
+    cover = collections.Counter()
+    for src in man['counts']:
+        for f in sorted(glob.glob(str(arch / 'lite' / f'{src}-*.json'))):
+            for r in json.load(open(f, encoding='utf-8')):
+                cover['n'] += 1
+                for k in ('servings', 'kcal', 'cuisine'):
+                    if r.get(k): cover[k] += 1
+                assert r['servings_est'] in (0, 1), f'{r["id"]}: servings_est {r["servings_est"]!r}'
+                if r['servings_est']:
+                    assert str(r['servings']).isdigit() and 1 <= int(r['servings']) <= 24, f'{r["id"]}: estimated servings {r["servings"]!r}'
+    for k, floor in (('servings', 0.99), ('kcal', 0.90), ('cuisine', 0.80)):
+        assert cover[k] / cover['n'] >= floor, f'{k} present on only {cover[k] / cover["n"]:.1%} of archive recipes (floor {floor:.0%}) -- re-run tools/build_archive_data.py on macOS'
     clash = seen & curated
     assert not clash, f'archive ids shadowed by a curated recipe with the same id (rebuild with tools/build_archive_data.py): {sorted(clash)}'
     buckets = man['detailBuckets']

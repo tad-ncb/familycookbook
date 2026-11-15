@@ -5,7 +5,7 @@
      data.js, app.js, foot.html); run build.py or push a change to src/ and
      .github/workflows/build.yml regenerates this. -->
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>The Deemer-Berdux Family Cookbook</title>
 <meta name="robots" content="noindex, nofollow, noarchive">
 <!-- Reachable by direct link only -- deliberately not meant to show up in search results
@@ -1313,6 +1313,32 @@
       .modal-close{ top:calc(8px + env(safe-area-inset-top)); }
     }
   }
+
+  /* ---- additions: saved chip, source hint, toast, build id, collections, dialogs ---- */
+  .saved-chip{ font-family:'Nunito Sans',sans-serif; font-size:12.5px; padding:4px 10px; border:1px solid var(--line); border-radius:999px; background:var(--card); color:var(--ink-soft); cursor:pointer; white-space:nowrap; flex-shrink:0; }
+  .saved-chip .n{ color:var(--ink-faint); font-variant-numeric:tabular-nums; }
+  .facet-row[hidden], #collectionRow[hidden]{ display:none !important; }   /* the row's own display:flex would otherwise win over the hidden attribute */
+  @media (max-width:640px){ .saved-label{ display:none; } .saved-chip{ padding:4px 9px; } .search-row{ gap:8px; } }
+  .saved-chip.on, .saved-chip:hover{ color:var(--stamp); border-color:var(--stamp); }
+  .source-hint{ padding:6px 2px 2px; font-family:'Nunito Sans',sans-serif; font-size:12.5px; color:var(--ink-soft); display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+  .source-hint[hidden]{ display:none; }
+  .toast{ position:fixed; left:50%; bottom:calc(18px + env(safe-area-inset-bottom, 0px)); transform:translate(-50%, 24px); opacity:0; pointer-events:none; z-index:400; max-width:min(92vw, 460px);
+    display:flex; align-items:center; gap:14px; padding:10px 14px; border-radius:8px; background:#2b2f3a; color:#eef0f5; border:1px solid var(--line); box-shadow:0 6px 24px rgba(0,0,0,.4); font-family:'Nunito Sans',sans-serif; font-size:13.5px; transition:opacity .18s, transform .18s; }
+  .toast.show{ opacity:1; transform:translate(-50%, 0); pointer-events:auto; }
+  .toast-btn{ background:none; border:0; color:var(--stamp); font:inherit; font-weight:700; cursor:pointer; padding:2px 4px; text-transform:uppercase; letter-spacing:.04em; }
+  .build-id{ text-align:center; font-family:'Nunito Sans',sans-serif; font-size:10px; color:var(--ink-faint); opacity:.55; padding:0 0 calc(24px + env(safe-area-inset-bottom, 0px)); }
+  body.share-view .build-id, body.visitor .build-id{ display:none; }
+  .similar-link{ background:none; border:0; padding:2px 0; margin:0 0 8px; color:var(--stamp); font:inherit; font-size:13px; cursor:pointer; text-decoration:underline; text-align:left; }
+  #modalSimilar:empty{ display:none; }
+  .modal:focus{ outline:none; }
+  :focus-visible{ outline:2px solid var(--stamp); outline-offset:2px; }
+  .collection-menu .qm-item.on::before{ content:'✓ '; color:var(--stamp); }
+  .qm-row{ display:flex; gap:6px; align-items:center; margin:2px 0; }
+  .qm-row .qm-item{ flex:1; }
+  /* iOS zooms the page whenever a field under 16px gets focus -- with pinch-zoom allowed again, keep fields at 16px on phones */
+  @media (max-width:640px){
+    input[type=text], input[type=search], input[type=date], input:not([type]), textarea, select{ font-size:16px !important; }
+  }
 </style>
 </head>
 <body>
@@ -1353,6 +1379,7 @@
           <svg class="icon-sliders" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2.3" fill="currentColor" stroke="none"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="16" cy="12" r="2.3" fill="currentColor" stroke="none"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="2.3" fill="currentColor" stroke="none"/></svg>
           <span class="filters-toggle-badge" id="filtersToggleBadge" hidden>0</span>
         </button>
+        <button class="saved-chip" id="savedChip" type="button" aria-pressed="false" aria-label="Saved recipes" title="Recipes you starred to save for later">★<span class="saved-label"> Saved</span> <span class="n">0</span></button>
         <!-- A dedicated quick-clear icon here would have been a 2nd X right
              next to the Filters button's own X (its closed/open icon) --
              too easy to confuse which does what. Clear filters (inside the
@@ -1360,6 +1387,7 @@
         <span class="result-count" id="resultCount"></span>
       </div>
     </div>
+    <div id="sourceHint" class="source-hint" role="status" hidden></div>
     <!-- Everything below Search lives in one panel now -- on desktop this is
          just a normal always-visible block (no CSS hides it above 640px);
          on mobile it's collapsed behind the Filters button above, which
@@ -1401,14 +1429,18 @@
       <span class="facet-name mobile-hide-label">Diet</span>
       <div id="dietChips" class="chip-row"></div>
     </div>
+    <div class="facet-row" id="collectionRow" hidden>
+      <span class="facet-name mobile-hide-label">Collections</span>
+      <div id="collectionChips" class="chip-row"></div>
+    </div>
     <div class="facet-row ing-row">
       <div class="ing-col">
-        <input id="ingIncludeInput" type="text" list="ingIncludeOptions" placeholder="+ include e.g. chicken">
+        <input id="ingIncludeInput" type="text" list="ingIncludeOptions" placeholder="+ include e.g. egg">
         <datalist id="ingIncludeOptions"></datalist>
         <div id="ingIncludeChips" style="display:flex; flex-wrap:wrap; gap:4px;"></div>
       </div>
       <div class="ing-col">
-        <input id="ingExcludeInput" type="text" list="ingExcludeOptions" placeholder="− exclude e.g. cinnamon">
+        <input id="ingExcludeInput" type="text" list="ingExcludeOptions" placeholder="− exclude e.g. nut">
         <datalist id="ingExcludeOptions"></datalist>
         <div id="ingExcludeChips" style="display:flex; flex-wrap:wrap; gap:4px;"></div>
       </div>
@@ -1422,6 +1454,7 @@
 <div id="loadMoreWrap"></div>
 
 <footer id="footerCount"></footer>
+<div class="build-id" id="buildId">build __BUILD_ID__</div>
 </div><!-- /cookbookView -->
 
 <div id="planView" style="display:none">
@@ -1476,8 +1509,10 @@
   </div>
 </div>
 
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
 <div class="modal-overlay" id="pickerOverlay">
-  <div class="modal" id="pickerCard">
+  <div class="modal" id="pickerCard" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
     <div class="modal-inner">
       <div class="modal-close" id="pickerClose">&times;</div>
       <h2 id="pickerTitle">Choose a dinner</h2>
@@ -1485,6 +1520,7 @@
         <input id="pickerInput" type="text" placeholder="Search recipes…">
       </div>
       <div id="pickerCourseChips" class="picker-course-chips"></div>
+      <div id="pickerSaved"></div>
       <div id="pickerSuggest"></div>
       <div class="picker-custom" id="pickerCustom">
         <div class="pc-toggle" id="pickerCustomToggle">+ not in the cookbook — add a custom dish</div>
@@ -1500,7 +1536,7 @@
 </div>
 
 <div class="modal-overlay" id="householdGate">
-  <div class="modal" style="max-width:420px; padding:28px 24px; border-top-color:var(--stamp);">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Choose your household" style="max-width:420px; padding:28px 24px; border-top-color:var(--stamp);">
     <div style="font-family:'Bitter',serif; font-weight:600; font-size:1.2rem; margin-bottom:6px;">Whose kitchen is this?</div>
     <div class="hint" style="margin:0 0 18px;">Only asked once per device -- picking here keeps your meal plan, shopping list, and pantry separate from theirs.</div>
     <div style="display:flex; flex-direction:column; gap:10px;" id="householdGateBtns"></div>
@@ -1508,7 +1544,7 @@
 </div>
 
 <div class="modal-overlay" id="modalOverlay">
-  <div class="modal" id="modalCard">
+  <div class="modal" id="modalCard" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="modal-close" id="modalClose" role="button" tabindex="0" aria-label="Close recipe">&times;</div>
     <div class="modal-inner">
       <div class="modal-side">
@@ -1539,6 +1575,7 @@
         <div class="modal-meta-grid" id="modalMetaGrid"></div>
 
         <div id="modalAhead"></div>
+        <div id="modalSimilar"></div>
 
         <div class="section-title" id="ingredientsSectionTitle">Ingredients</div>
         <div id="modalScale"></div>

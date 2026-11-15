@@ -39,6 +39,8 @@ async function until(fn, ms){ const end = Date.now() + ms; while(Date.now() < en
     const keys = (await (await caches.open('cookbook-shell-v2')).keys()).map(r=> new URL(r.url).pathname);
     check(keys.includes('/') && keys.includes('/vendor/supabase-js-2.119.0.min.js') && keys.includes('/manifest.json'), 'page, sync library and manifest are in the shell cache: ' + keys.join(' '));
 
+    check(inApp('document.getElementById("toast").textContent') === '', 'first install shows no "new version" toast');
+
     await ctl('drop=1');
     await open('/?hh=nicholas-tyler');
     check(cards() === 100, 'no network: page loads from cache and renders (' + cards() + ' cards)');
@@ -67,6 +69,15 @@ async function until(fn, ms){ const end = Date.now() + ms; while(Date.now() < en
     const after = (await (await caches.open('cookbook-shell-v2')).keys()).map(r=> new URL(r.url).pathname);
     check(!after.some(p=> p.includes('/data/archive/')), 'recipe archive files are not duplicated into the shell cache');
     check((await caches.keys()).join() === 'cookbook-shell-v2', 'exactly one cache exists');
+
+    /* a new app version: the browser finds a changed sw.js, the page that is open offers a reload */
+    await open('/?hh=nicholas-tyler'); await sleep(300);
+    await ctl('swv=2');
+    const reg = await navigator.serviceWorker.getRegistration();
+    await reg.update();
+    check(await until(()=> /new version/i.test(inApp('document.getElementById("toast").textContent')), 15000), 'a new service worker version makes the open page offer "Reload"');
+    check(inApp('!!document.querySelector("#toast .toast-btn")') === true, 'with a Reload button');
+    await ctl('swv=');
   }catch(e){ check(false, 'harness error: ' + (e && e.stack || e)); }
   await ctl('reset=1');
   await fetch('/__test/report', {method: 'POST', body: JSON.stringify(results)});

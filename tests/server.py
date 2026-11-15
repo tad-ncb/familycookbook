@@ -9,6 +9,7 @@
   * /__test/ctl?fail=<sub>  makes any path containing <sub> return 503 (fail= clears)
     /__test/ctl?drop=1      hangs up on every non-test request = "no network" (drop=0 clears)
     /__test/ctl?slow=<ms>   delays every non-test request (slow=0 clears)
+    /__test/ctl?swv=<x>     serves /sw.js with a changed byte (a "new version"); swv= clears
     /__test/ctl?raw=1       serves index.html with the real sync library, not the mock
                             (only for the service-worker run, where the browser is
                             started with all outside hosts blocked)
@@ -25,7 +26,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 TESTS = ROOT / 'tests'
 SB_TAG = re.compile(r'<script src="[^"]*supabase[^"]*"></script>')
 FONT_TAG = re.compile(r'<link[^>]*fonts\.googleapis\.com[^>]*>\n?')
-state = {'fail': '', 'drop': False, 'slow': 0, 'raw': False, 'log': {}, 'report': ''}
+state = {'fail': '', 'drop': False, 'slow': 0, 'raw': False, 'swv': '', 'log': {}, 'report': ''}
 lock = threading.Lock()
 
 
@@ -68,8 +69,10 @@ class Handler(SimpleHTTPRequestHandler):
                     state['slow'] = int(qs['slow'][0])
                 if 'raw' in qs:
                     state['raw'] = qs['raw'][0] == '1'
+                if 'swv' in qs:
+                    state['swv'] = qs['swv'][0]
                 if 'reset' in qs:
-                    state.update(fail='', drop=False, slow=0, raw=False, log={})
+                    state.update(fail='', drop=False, slow=0, raw=False, swv='', log={})
             return self.send_bytes(b'ok', 'text/plain')
         if path == '/__test/report':
             return self.send_bytes(state['report'].encode(), 'application/json')
@@ -96,6 +99,10 @@ class Handler(SimpleHTTPRequestHandler):
             time.sleep(slow / 1000)
         if failing:
             return self.send_bytes(b'injected failure', 'text/plain', 503)
+        if path == '/sw.js' and state['swv']:
+            # a different service worker file = a new app version, for the update-toast test
+            body = (ROOT / 'sw.js').read_bytes() + ('\n// version ' + state['swv'] + '\n').encode()
+            return self.send_bytes(body, 'text/javascript')
         if path in ('/', '/index.html'):
             html = (ROOT / 'index.html').read_text(encoding='utf-8')
             mock = '' if 'nosb' in qs else '<script src="/__test/mock_supabase.js"></script>'

@@ -9,6 +9,8 @@ cd "$(dirname "$0")/.."
 python3 build.py >/dev/null || exit 1
 status=0
 if [ -f tests/static_checks.py ] && [ -z "${1:-}" ]; then python3 tests/static_checks.py || status=1; fi
+# the backup must be restorable (round trip through a scratch Postgres; skipped if Postgres.app is absent)
+if [ -z "${1:-}" ] && [ -x /Applications/Postgres.app/Contents/Versions/latest/bin/psql ]; then python3 tools/restore_live.py --check || status=1; fi
 PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1])')
 python3 tests/server.py "$PORT" 2>/dev/null & SERVER=$!
 trap 'kill $SERVER 2>/dev/null' EXIT

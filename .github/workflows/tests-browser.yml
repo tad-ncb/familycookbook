@@ -1,0 +1,19 @@
+name: Browser tests (macOS)
+
+# The browser suite drives WebKit through osascript and the service-worker test uses Chrome, so it needs a
+# Mac. Free for a public repo. NOT yet proven on GitHub's runner (headless WebKit there is untested), so a
+# failure here does not block anything (continue-on-error) -- if it turns out reliable, remove that line.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  browser:
+    runs-on: macos-latest
+    continue-on-error: true
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m pip install esprima pyyaml
+      - run: tests/run.sh

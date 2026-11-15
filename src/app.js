@@ -3,6 +3,8 @@
    followed a direct recipe link), never when a hash appears later because
    someone clicked a card while browsing. Drives the stripped-down "shared
    recipe" landing view -- see openModal() and the body.share-view CSS. */
+/* replaced at build time (build.py) with a short hash of the source -- shown in the footer, sent with error reports */
+const BUILD_ID = '__BUILD_ID__';
 const cameFromShareLink = /^#r\//.test(location.hash||'');
 if(cameFromShareLink) document.body.classList.add('share-view');
 
@@ -26,7 +28,7 @@ const LS_KEY = 'cookbook.state.v1';
    standalone/auto-added shopping-list entries ride the same synced table
    and CRUD helpers as the three real storage tiers. */
 const INVENTORY_KINDS = ['pantry','fridge','freezer'];
-function blankState(){ return {version:1, cookLog:[], plan:[], inventory:{items:[]}, interested:[], shoppingLists:[], prefs:{}}; }
+function blankState(){ return {version:1, cookLog:[], plan:[], inventory:{items:[]}, interested:[], shoppingLists:[], collections:[], collectionItems:[], prefs:{}}; }
 /* Deletes are tombstones (_d) rather than removals, and every mutable record carries
    a _t stamp -- without both, a delete on one device is silently undone by the other. */
 function newer(x, y){ return ((y && y._t)||0) >= ((x && x._t)||0) ? y : x; }
@@ -98,6 +100,9 @@ function mergeStates(base, over){
     const prev = slm.get(e.id);
     slm.set(e.id, prev ? newer(prev, e) : e);
   });
+  /* named recipe collections ("Thanksgiving", "Weeknights") and which recipes are in each --
+     same tombstone merge as everything else */
+  const mergeById = (a, b)=>{ const mm = new Map(); [...(a||[]), ...(b||[])].forEach(e=>{ if(!e || !e.id) return; const prev = mm.get(e.id); mm.set(e.id, prev ? newer(prev, e) : e); }); return [...mm.values()]; };
   const bp = base.prefs || {}, op = over.prefs || {};
   return {
     version: 1,
@@ -106,6 +111,8 @@ function mergeStates(base, over){
     inventory: {items: [...im.values()]},
     interested: [...ntm.values()],
     shoppingLists: [...slm.values()],
+    collections: mergeById(base.collections, over.collections),
+    collectionItems: mergeById(base.collectionItems, over.collectionItems),
     _hh: over._hh || base._hh, /* which household this saved state belongs to -- see scopeStateToHousehold */
     prefs: ((op._t||0) >= (bp._t||0)) ? Object.assign({}, bp, op) : Object.assign({}, op, bp)
   };
@@ -199,6 +206,33 @@ function setHousehold(hh){
   try{ localStorage.setItem(HOUSEHOLD_STORAGE_KEY, hh); }catch(e){}
   location.reload();
 }
+/* ---- household write keys ----
+   A household link may carry that household's write key (?hh=<id>&k=<key>). Once the database is set up to
+   require it (migrations/017-018), only a device that sends the matching key can CHANGE that household's data;
+   reading stays open to everyone. The key is remembered per household on the device, and also read straight from
+   the address, because a home-screen app has its own storage separate from Safari's. Until enforcement is on,
+   sending it changes nothing. */
+const HOUSEHOLD_KEYS_STORAGE = 'householdKeys';
+function loadHouseholdKeys(){ try{ return JSON.parse(localStorage.getItem(HOUSEHOLD_KEYS_STORAGE)) || {}; }catch(e){ return {}; } }
+function keyFromAddress(){
+  try{
+    const p = new URLSearchParams(location.search);
+    const hh = LEGACY_HOUSEHOLD_IDS[p.get('hh')] || p.get('hh');
+    return (hh && HOUSEHOLD_LABEL[hh] && p.get('k')) ? {hh, key: p.get('k')} : null;
+  }catch(e){ return null; }
+}
+(function rememberKey(){
+  const k = keyFromAddress();
+  if(!k) return;
+  try{ const m = loadHouseholdKeys(); if(m[k.hh] !== k.key){ m[k.hh] = k.key; localStorage.setItem(HOUSEHOLD_KEYS_STORAGE, JSON.stringify(m)); } }catch(e){}
+})();
+function currentHouseholdKey(){
+  const hh = currentHousehold();
+  if(!hh) return null;
+  const fromUrl = keyFromAddress();
+  if(fromUrl && fromUrl.hh === hh) return fromUrl.key;
+  return loadHouseholdKeys()[hh] || null;
+}
 /* cook_log rows written before household scoping existed have no tag --
    they all belong to the original (only) household. */
 function householdOf(e){ return e.household || 'nicholas-tyler'; }
@@ -220,6 +254,109 @@ function toggleInterested(id){
   persist();
   if(typeof pushWrite === 'function') pushWrite({table:'interested_recipes', row: entry});
 }
+/* ---------------- collections ---------------- */
+const EMPTY_SET = new Set();
+function getCollections(){ return DATA.collections.filter(c=>!c._d).sort((a,b)=> String(a.name).localeCompare(String(b.name))); }
+function collectionSets(){
+  if(collectionSets.rev === dataRev) return collectionSets.map;
+  const m = new Map();
+  DATA.collectionItems.forEach(e=>{ if(e._d) return; let st = m.get(e.collectionId); if(!st) m.set(e.collectionId, st = new Set()); st.add(e.recipeId); });
+  collectionSets.rev = dataRev; collectionSets.map = m;
+  return m;
+}
+function inCollection(cid, rid){ return (collectionSets().get(cid) || EMPTY_SET).has(rid); }
+function addCollection(name){
+  const row = {id: uid(), name, _t: stamp()};
+  DATA.collections.push(row); persist();
+  pushWrite({table:'recipe_collections', row});
+  return row;
+}
+function renameCollection(id, name){
+  const c = DATA.collections.find(x=> x.id === id);
+  if(!c) return;
+  c.name = name; c._t = stamp(c); persist();
+  pushWrite({table:'recipe_collections', row: c});
+}
+function deleteCollection(id){
+  const c = DATA.collections.find(x=> x.id === id);
+  if(!c) return [];
+  const items = DATA.collectionItems.filter(e=> e.collectionId === id && !e._d);
+  items.forEach(e=>{ e._d = true; e._t = stamp(e); });
+  c._d = true; c._t = stamp(c); persist();
+  items.forEach(e=> pushWrite({table:'collection_items', row: e}));
+  pushWrite({table:'recipe_collections', row: c});
+  if(state.collection === id) state.collection = null;
+  return items;
+}
+/* adds the recipe to the collection, or takes it out if it's already in; returns whether it's in now */
+function toggleInCollection(cid, rid){
+  const id = cid + '|' + rid;
+  let e = DATA.collectionItems.find(x=> x.id === id);
+  if(e){ e._d = !e._d; e._t = stamp(e); }
+  else { e = {id, collectionId: cid, recipeId: rid, _t: stamp()}; DATA.collectionItems.push(e); }
+  persist();
+  pushWrite({table:'collection_items', row: e});
+  return !e._d;
+}
+function renderCollectionChips(){
+  const row = document.getElementById('collectionRow'), wrap = document.getElementById('collectionChips');
+  if(!row || !wrap) return;
+  const cols = getCollections();
+  if(state.collection && !cols.some(c=> c.id === state.collection)) state.collection = null;
+  row.hidden = !cols.length;
+  wrap.innerHTML = '';
+  cols.forEach(c=>{
+    const chip = document.createElement('span');
+    chip.className = 'facet-link' + (state.collection === c.id ? ' active' : '');
+    chip.innerHTML = `${zwsp(escapeHTML(c.name))} <span class="n">${(collectionSets().get(c.id) || EMPTY_SET).size}</span>`;
+    chip.onclick = ()=>{ state.collection = state.collection === c.id ? null : c.id; render(); };
+    wrap.appendChild(asButton(chip, state.collection === c.id));
+  });
+  const manage = document.createElement('span');
+  manage.className = 'facet-link'; manage.textContent = 'Manage';
+  manage.onclick = ()=> openCollectionManage(manage);
+  wrap.appendChild(asButton(manage));
+}
+/* the recipe page's "Collection" button: tick the collections this recipe belongs to, or start a new one */
+function openCollectionsMenu(anchor, recipe){
+  const cols = getCollections();
+  const html = `<div class="collection-menu"><div class="qm-title">Add to collection&hellip;</div>
+    ${cols.map(c=>`<button class="qm-item${inCollection(c.id, recipe.id)?' on':''}" data-col="${escapeHTML(c.id)}">${escapeHTML(c.name)}</button>`).join('') || '<div class="cook-empty">No collections yet.</div>'}
+    <div class="qm-new"><input id="qmNewColName" type="text" placeholder="New collection (e.g. Thanksgiving)"><button class="icon-btn qm-new-btn" id="qmNewColGo">Create</button></div></div>`;
+  const el = openQuickMenu(anchor, html);
+  el.querySelectorAll('[data-col]').forEach(b=> b.onclick = ()=>{
+    const now = toggleInCollection(b.dataset.col, recipe.id);
+    b.classList.toggle('on', now); renderChips();
+  });
+  const go = ()=>{
+    const name = document.getElementById('qmNewColName').value.trim();
+    if(!name) return;
+    const c = addCollection(name); toggleInCollection(c.id, recipe.id);
+    closeQuickMenu(); renderChips(); flashButton(anchor, 'Added!');
+  };
+  el.querySelector('#qmNewColGo').onclick = go;
+  el.querySelector('#qmNewColName').addEventListener('keydown', e=>{ if(e.key === 'Enter') go(); });
+}
+function openCollectionManage(anchor){
+  const cols = getCollections();
+  const el = openQuickMenu(anchor, `<div class="collection-menu"><div class="qm-title">Collections</div>
+    ${cols.map(c=>`<div class="qm-row"><button class="qm-item" data-rename="${escapeHTML(c.id)}" title="Rename">${escapeHTML(c.name)} ✎</button><button class="qm-item" data-delete="${escapeHTML(c.id)}" title="Delete collection" style="flex:0 0 auto">Delete</button></div>`).join('')}</div>`);
+  el.querySelectorAll('[data-rename]').forEach(b=> b.onclick = ()=>{
+    const c = DATA.collections.find(x=> x.id === b.dataset.rename);
+    const name = prompt('Rename this collection:', c ? c.name : '');
+    closeQuickMenu();
+    if(name && name.trim()){ renameCollection(b.dataset.rename, name.trim()); renderChips(); }
+  });
+  el.querySelectorAll('[data-delete]').forEach(b=> b.onclick = ()=>{
+    const c = DATA.collections.find(x=> x.id === b.dataset.delete);
+    closeQuickMenu();
+    if(!c || !confirm(`Delete the collection "${c.name}"? The recipes themselves are kept.`)) return;
+    const items = deleteCollection(c.id);
+    render();
+    showToast('Collection deleted', 'Undo', ()=>{ restoreRows('collection_items', items); restoreRows('recipe_collections', [c]); });
+  });
+}
+
 /* cookEventsFor is the single source of truth -- cookEvents(id) is just it
    pinned to the CURRENT household, never "every household's rows". Before
    2026-09-21 cookEvents() read DATA.cookLog with no household filter at
@@ -446,278 +583,6 @@ function detectAhead(r){
   return null;
 }
 
-/* ---------------- servings + scaling ---------------- */
-function parseServings(s){
-  const str = String(s===undefined||s===null ? '' : s).trim();
-  if(!str) return null;
-  const m = str.match(/(\d+)/);
-  if(!m) return null;
-  const servingWord  = /servings?\b/i.test(str);
-  const pureNum      = /^\d+\s*(?:(?:-|–|to)\s*\d+)?$/i.test(str);
-  const servesPrefix = /^serves\b/i.test(str);
-  /* only a real serving count drives the +/- stepper; "Makes 2 cups",
-     "16-18 cookies" and "Two 12-inch pizzas" get multipliers only. */
-  const servingBased = pureNum || servesPrefix || servingWord;
-  let base = parseInt(m[1],10);
-  if(servingWord){ const sm = str.match(/(\d+)\s*servings?/i); if(sm) base = parseInt(sm[1],10); }
-  return { base, servingBased, raw: str };
-}
-function parseQty(tok){
-  tok = tok.trim();
-  let m = tok.match(/^(\d+)\s+(\d+)\/(\d+)$/); if(m) return +m[1] + (+m[2]/+m[3]);
-  m = tok.match(/^(\d+)\/(\d+)$/);             if(m) return +m[1]/+m[2];
-  return parseFloat(tok);
-}
-function fmtNum(n, integerOnly){
-  if(!isFinite(n)) return '';
-  if(integerOnly) return String(n < 1 ? Math.round(n*10)/10 : Math.round(n));
-  if(n >= 10) return String(Math.round(n));
-  if(Math.abs(n - Math.round(n)) < 0.001) return String(Math.round(n));
-  const whole = Math.floor(n), frac = n - whole;
-  const cands = [[1,2],[1,3],[2,3],[1,4],[3,4],[1,8],[3,8],[5,8],[7,8],[1,6],[5,6]];
-  let best=null, bd=1;
-  cands.forEach(([a,b])=>{ const d=Math.abs(frac-a/b); if(d<bd){ bd=d; best=[a,b]; } });
-  if(bd < 0.045) return (whole ? whole+' ' : '') + best[0]+'/'+best[1];
-  return String(Math.round(n*100)/100);
-}
-const NOSCALE_PHRASE = /\b(to taste|for serving|for garnish|for greasing|for frying|for dusting|for sprinkling|for brushing|for the top|for cooking|cooking spray|as needed|serving suggestion)\b/i;
-const SEASONING_HEAD = /^(kosher |sea |flaky |fine |coarse |table |freshly ground |freshly cracked |ground |cracked )*(salt|black pepper|white pepper|pepper)\b/i;
-/* Seasonings don't scale linearly. Test the HEAD NOUN, not the whole line -- otherwise
-   a product name like "Tomato Paste, No Salt Added" gets wrongly frozen. */
-function isNoScale(line){
-  if(NOSCALE_PHRASE.test(line)) return true;
-  const rest = line
-    .replace(/^(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?)\s*[A-Za-z]*\.?\s*/, '')
-    .replace(/\([^)]*\)/g, '')
-    .trim();
-  return SEASONING_HEAD.test(rest);
-}
-const UNIT_RE = /^(lbs?|pounds?|oz|ounces?|g|kg|ml|l|liters?|cups?|tbsp|tsp|tablespoons?|teaspoons?|cloves?|sprigs?|slices?|bunch|bunches|inch|quarts?|pints?|sticks?)\b/i;
-const METRIC_RE = /^\s*(g|kg|ml|l)\b/i;
-/* units that inflect in English; metric abbreviations and Tbsp/tsp never do */
-const PLURALS = [['cups','cup'],['lbs','lb'],['pounds','pound'],['ounces','ounce'],['cloves','clove'],
-                 ['sprigs','sprig'],['slices','slice'],['cans','can'],['sticks','stick'],
-                 ['tablespoons','tablespoon'],['teaspoons','teaspoon'],['quarts','quart'],['pints','pint']];
-function inflect(unit, qty){
-  if(!unit) return unit;
-  const plural = qty > 1;
-  for(const [p,s] of PLURALS){
-    if(unit.toLowerCase()===p) return plural ? unit : matchCase(unit, s);
-    if(unit.toLowerCase()===s) return plural ? matchCase(unit, p) : unit;
-  }
-  return unit;
-}
-function matchCase(src, out){ return /^[A-Z]/.test(src) ? out.charAt(0).toUpperCase()+out.slice(1) : out; }
-function scaleLine(line, f){
-  if(f === 1) return {text: line, unscaled: false};
-  if(isNoScale(line)) return {text: line, unscaled: true};
-  const lead = line.match(/^(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?)(\s*)([A-Za-z]*)/);
-  if(!lead) return {text: line, unscaled: false};
-  const hasUnit = UNIT_RE.test(lead[3]);
-  const qty = parseQty(lead[1]) * f;
-  const metricLead = METRIC_RE.test(lead[3]);
-  let out = fmtNum(qty, metricLead) + lead[2] + inflect(lead[3], qty) + line.slice(lead[0].length);
-  if(hasUnit){
-    /* the first parenthetical is a unit conversion of the leading qty -> scale it too.
-       a bare count like "1 (14 oz/400 g) can" has no unit, so its package size is left alone. */
-    out = out.replace(/\(([^)]*)\)/, (whole, inner)=>{
-      if(!/\d/.test(inner)) return whole;
-      const scaled = inner.replace(/(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?)(\s*[A-Za-z]*)/g, (mm, num, tail)=>{
-        const v = parseQty(num) * f;
-        return fmtNum(v, METRIC_RE.test(tail)) + (tail ? tail.replace(/[A-Za-z]+$/, u=>inflect(u, v)) : '');
-      });
-      return '(' + scaled + ')';
-    });
-  }
-  return {text: out, unscaled: false};
-}
-function servingsLabel(s){
-  const str = String(s);
-  return /^(makes|serves)\b/i.test(str) ? str : 'Serves ' + str;
-}
-
-/* ---------------- rough per-serving macro estimate ---------------- */
-/* Deliberately a heuristic, same spirit as the rest of this file's
-   estimates (weight/time guesses) -- ingredient text is matched against a
-   ~50-entry keyword table of per-100g macros, quantities are converted to
-   grams via generic (not ingredient-specific) unit weights, and the whole
-   thing is skipped rather than shown if too little of the recipe's mass
-   could be matched. This is nutrition-label-adjacent, not nutrition-label
-   accurate -- no ingredient database or API involved, just enough to say
-   "roughly a 600-calorie dinner" at a glance. */
-const UNIT_GRAMS = {
-  g:1, gram:1, grams:1, kg:1000, ml:1, milliliter:1, milliliters:1, l:1000, liter:1000, liters:1000,
-  oz:28, ounce:28, ounces:28, lb:454, lbs:454, pound:454, pounds:454,
-  cup:225, cups:225, tbsp:15, tablespoon:15, tablespoons:15, tsp:5, teaspoon:5, teaspoons:5,
-  clove:3, cloves:3, stick:113, sticks:113, can:400, cans:400
-};
-const UNIT_GRAMS_NO_UNIT = 50; /* bare counts: "2 eggs", "1 onion", "3 tortillas" */
-const MACRO_KEYWORD_RULES = [
-  [/chicken breast/i, {kcal:165, protein:31, carbs:0, fat:3.6}],
-  [/chicken thigh|\bchicken\b/i, {kcal:220, protein:26, carbs:0, fat:12}],
-  [/ground beef|\bbeef\b|steak/i, {kcal:250, protein:26, carbs:0, fat:17}],
-  [/ground turkey|\bturkey\b/i, {kcal:150, protein:24, carbs:0, fat:7}],
-  [/\bpork\b/i, {kcal:242, protein:27, carbs:0, fat:14}],
-  [/\bbacon\b/i, {kcal:541, protein:37, carbs:1.4, fat:42}],
-  [/sausage|chorizo/i, {kcal:300, protein:15, carbs:2, fat:26}],
-  [/\blamb\b/i, {kcal:294, protein:25, carbs:0, fat:21}],
-  [/\bduck\b/i, {kcal:337, protein:19, carbs:0, fat:28}],
-  [/salmon/i, {kcal:208, protein:20, carbs:0, fat:13}],
-  [/shrimp|prawn/i, {kcal:99, protein:24, carbs:0.2, fat:0.3}],
-  [/\btuna\b/i, {kcal:132, protein:28, carbs:0, fat:1}],
-  [/\bfish\b|cod|tilapia|halibut/i, {kcal:105, protein:23, carbs:0, fat:1}],
-  [/\begg\b|\beggs\b/i, {kcal:143, protein:13, carbs:1.1, fat:10}],
-  [/\btofu\b/i, {kcal:76, protein:8, carbs:1.9, fat:4.8}],
-  [/black beans|kidney beans|\bbeans?\b|chickpea|lentil/i, {kcal:130, protein:9, carbs:22, fat:0.5}],
-  [/\bbutter\b/i, {kcal:717, protein:0.9, carbs:0.1, fat:81}],
-  [/olive oil|vegetable oil|canola oil|sesame oil|\boil\b/i, {kcal:884, protein:0, carbs:0, fat:100}],
-  [/heavy cream/i, {kcal:340, protein:2.1, carbs:2.8, fat:36}],
-  [/sour cream/i, {kcal:198, protein:2.4, carbs:4.6, fat:20}],
-  [/cream cheese/i, {kcal:342, protein:6, carbs:4, fat:34}],
-  [/\bcream\b/i, {kcal:340, protein:2.1, carbs:2.8, fat:36}],
-  [/parmesan|parmigiano|grana padano|pecorino/i, {kcal:431, protein:38, carbs:4, fat:29}],
-  [/mozzarella|cheddar|\bfeta\b|ricotta|\bcheese\b/i, {kcal:350, protein:23, carbs:2.5, fat:28}],
-  [/whole milk|\bmilk\b|buttermilk/i, {kcal:61, protein:3.2, carbs:4.8, fat:3.3}],
-  [/yogurt|yoghurt/i, {kcal:59, protein:10, carbs:3.6, fat:0.4}],
-  [/white rice|\brice\b/i, {kcal:130, protein:2.7, carbs:28, fat:0.3}],
-  [/brown rice/i, {kcal:112, protein:2.6, carbs:24, fat:0.9}],
-  [/pasta|spaghetti|noodle|orzo|macaroni/i, {kcal:158, protein:5.8, carbs:31, fat:0.9}],
-  [/quinoa/i, {kcal:120, protein:4.4, carbs:21, fat:1.9}],
-  [/\boats?\b|oatmeal/i, {kcal:389, protein:17, carbs:66, fat:7}],
-  [/\bbread\b/i, {kcal:265, protein:9, carbs:49, fat:3.2}],
-  [/tortilla/i, {kcal:218, protein:5.7, carbs:36, fat:5.4}],
-  [/all-purpose flour|\bflour\b/i, {kcal:364, protein:10, carbs:76, fat:1}],
-  [/brown sugar/i, {kcal:380, protein:0, carbs:98, fat:0}],
-  [/\bsugar\b/i, {kcal:387, protein:0, carbs:100, fat:0}],
-  [/\bhoney\b/i, {kcal:304, protein:0.3, carbs:82, fat:0}],
-  [/maple syrup/i, {kcal:260, protein:0, carbs:67, fat:0.2}],
-  [/sweet potato(es)?/i, {kcal:86, protein:1.6, carbs:20, fat:0.1}],
-  [/\bpotato(es)?\b/i, {kcal:77, protein:2, carbs:17, fat:0.1}],
-  [/\bonions?\b|\bshallots?\b|\bscallions?\b|\bleeks?\b/i, {kcal:40, protein:1.1, carbs:9.3, fat:0.1}],
-  [/\bginger\b/i, {kcal:80, protein:1.8, carbs:18, fat:0.8}],
-  [/\bgarlic\b/i, {kcal:149, protein:6.4, carbs:33, fat:0.5}],
-  [/\bcarrot/i, {kcal:41, protein:0.9, carbs:10, fat:0.2}],
-  [/\btomato/i, {kcal:18, protein:0.9, carbs:3.9, fat:0.2}],
-  [/bell pepper|\bpepper\b(?!corn)/i, {kcal:31, protein:1, carbs:6, fat:0.3}],
-  [/broccoli/i, {kcal:34, protein:2.8, carbs:7, fat:0.4}],
-  [/brussels sprout/i, {kcal:43, protein:3.4, carbs:9, fat:0.3}],
-  [/\bzucchini\b|courgette/i, {kcal:17, protein:1.2, carbs:3.1, fat:0.3}],
-  [/\bceler(y|iac)\b/i, {kcal:16, protein:0.7, carbs:3, fat:0.2}],
-  [/spinach/i, {kcal:23, protein:2.9, carbs:3.6, fat:0.4}],
-  [/lettuce|\bgreens\b|\bkale\b|cabbage/i, {kcal:20, protein:1.6, carbs:4, fat:0.2}],
-  [/mushroom/i, {kcal:22, protein:3.1, carbs:3.3, fat:0.3}],
-  [/avocado/i, {kcal:160, protein:2, carbs:8.5, fat:15}],
-  [/almond|walnut|pecan|cashew|pistachio|\bnuts?\b/i, {kcal:600, protein:20, carbs:20, fat:52}],
-  [/sesame seeds?/i, {kcal:573, protein:17, carbs:23, fat:50}],
-  [/peanut butter/i, {kcal:588, protein:25, carbs:20, fat:50}],
-  [/coconut milk/i, {kcal:230, protein:2.3, carbs:6, fat:24}],
-  [/\bapple\b/i, {kcal:52, protein:0.3, carbs:14, fat:0.2}],
-  [/\bbanana\b/i, {kcal:89, protein:1.1, carbs:23, fat:0.3}],
-  [/lemon|lime/i, {kcal:29, protein:1.1, carbs:9.3, fat:0.3}],
-  [/\borange\b/i, {kcal:47, protein:0.9, carbs:12, fat:0.1}],
-  [/soy sauce/i, {kcal:53, protein:8, carbs:4.9, fat:0.1}],
-  [/oyster sauce/i, {kcal:51, protein:1.4, carbs:11, fat:0.3}],
-  [/worcestershire/i, {kcal:78, protein:0, carbs:19, fat:0}],
-  [/dijon|\bmustard\b/i, {kcal:66, protein:4, carbs:5, fat:4}],
-  [/\bmirin\b/i, {kcal:225, protein:0.3, carbs:49, fat:0}],
-  [/ketchup/i, {kcal:112, protein:1.2, carbs:27, fat:0.3}],
-  [/mayonnaise/i, {kcal:680, protein:1, carbs:1, fat:75}],
-  [/\bstock\b|\bbroth\b/i, {kcal:8, protein:1.2, carbs:0.7, fat:0.2}],
-  [/white wine|red wine|dry wine/i, {kcal:82, protein:0.1, carbs:2.6, fat:0}],
-  [/\bbeer\b/i, {kcal:43, protein:0.5, carbs:3.6, fat:0}],
-  /* From here down: explicit near-zero entries. These exist to fix the
-     matched/total COVERAGE ratio below, not because they move the calorie
-     total -- salt/water/dried herbs & spices at typical recipe quantities
-     contribute negligible calories either way, but left unmatched they
-     were dragging otherwise-well-covered recipes under the 35% threshold. */
-  [/\bsalt\b/i, {kcal:0, protein:0, carbs:0, fat:0}],
-  [/\bwater\b/i, {kcal:0, protein:0, carbs:0, fat:0}],
-  [/black pepper|peppercorn/i, {kcal:0, protein:0, carbs:0, fat:0}],
-  [/baking (powder|soda)/i, {kcal:0, protein:0, carbs:0, fat:0}],
-  [/\bcornstarch\b/i, {kcal:381, protein:0.3, carbs:91, fat:0.1}],
-  [/vanilla (extract|paste|bean)/i, {kcal:288, protein:0.1, carbs:13, fat:0.1}],
-  [/vinegar/i, {kcal:19, protein:0, carbs:0.4, fat:0}],
-  [/cinnamon|cumin|paprika|oregano|turmeric|coriander|nutmeg|allspice|chili (flakes|powder)|curry powder|bay leaves?|\bthyme\b|rosemary|\bsage\b|\bdill\b|\bbasil\b|parsley|cilantro|\bmint\b|red pepper flakes|\byeast\b|cream of tartar/i, {kcal:0, protein:0, carbs:0, fat:0}]
-];
-/* Many ingredient lines in this dataset already carry a metric conversion
-   in parentheses -- "2-4 lbs (910 g-1.8 kg) chicken", "6 tsp (30 ml)
-   turmeric" -- which is both more precise than the generic UNIT_GRAMS table
-   (a cup of flour and a cup of milk don't weigh the same, but the recipe's
-   own author already did that conversion per ingredient) and immune to the
-   leading-quantity regex's range problem below (ranges average cleanly).
-   Preferred over the generic table whenever present. */
-function parenGrams(line){
-  const m = line.match(/\(([^)]*)\)/);
-  if(!m) return null;
-  const nums = [...m[1].matchAll(/(\d+(?:\.\d+)?)\s*(g|kg|ml|l)\b/gi)];
-  if(!nums.length) return null;
-  const vals = nums.map(mm=>{
-    const v = parseFloat(mm[1]), u = mm[2].toLowerCase();
-    return (u==='kg'||u==='l') ? v*1000 : v;
-  });
-  return vals.reduce((a,b)=>a+b,0)/vals.length;
-}
-/* _servings.base is the recipe's as-written low end of a range (e.g. "6-8"
-   -> 6), which is correct for the +/- stepper's starting point but would
-   understate the true serving count for macro math, inflating per-serving
-   calories. Use the range's midpoint here instead, independent of the
-   stepper's base. */
-function macroServingBase(r){
-  const str = String(r.servings||'').trim();
-  const m = str.match(/(\d+(?:\.\d+)?)\s*(?:-|–|to)\s*(\d+(?:\.\d+)?)/i);
-  if(m) return (parseFloat(m[1])+parseFloat(m[2]))/2;
-  return r._servings && r._servings.base;
-}
-function estimateMacros(r){
-  const base = macroServingBase(r);
-  if(!base) return null;
-  let kcal=0, protein=0, carbs=0, fat=0, matchedGrams=0, totalGrams=0;
-  (r.ingredients||[]).forEach(line=>{
-    if(!line || line.trim().endsWith(':')) return;
-    if(isNoScale(line)) return;
-    let grams = parenGrams(line);
-    const lead = line.match(/^(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?)(\s*)([A-Za-z]*)/);
-    if(grams != null){
-      /* use it as-is */
-    } else if(lead && parseQty(lead[1])){
-      const unit = lead[3].toLowerCase().replace(/\.$/,'');
-      const perUnit = UNIT_GRAMS[unit];
-      grams = parseQty(lead[1]) * (perUnit!==undefined ? perUnit : UNIT_GRAMS_NO_UNIT);
-    } else {
-      grams = UNIT_GRAMS_NO_UNIT;
-    }
-    totalGrams += grams;
-    const rule = MACRO_KEYWORD_RULES.find(([re])=> re.test(line));
-    if(rule){
-      const m = rule[1];
-      kcal += grams/100*m.kcal; protein += grams/100*m.protein;
-      carbs += grams/100*m.carbs; fat += grams/100*m.fat;
-      matchedGrams += grams;
-    }
-  });
-  /* Under a third of the recipe's estimated mass identified -> too little
-     signal to put a number in front of someone. Silence, not a bad guess. */
-  if(totalGrams < 10 || matchedGrams/totalGrams < 0.35) return null;
-  return {
-    kcal: Math.round(kcal/base), protein: Math.round(protein/base),
-    carbs: Math.round(carbs/base), fat: Math.round(fat/base)
-  };
-}
-/* r._macros is precomputed at load for the curated set (see the RECIPES
-   forEach below); archive rows instead carry the same numbers as flat
-   kcal/protein/carbs/fat columns fetched straight from nyt_recipes (see
-   NYT_LITE_COLUMNS + migrations/004-005) -- recipeMacros() normalizes
-   either shape to one object so callers don't need to care which. */
-function recipeMacros(r){
-  if(r._macros) return r._macros;
-  if(r.kcal!=null) return {kcal:r.kcal, protein:r.protein, carbs:r.carbs, fat:r.fat};
-  return null;
-}
-function macrosLabel(r){
-  const m = recipeMacros(r);
-  return m ? `≈${m.kcal} cal per serving · ${m.protein}g protein · ${m.carbs}g carbs · ${m.fat}g fat (estimated)` : '—';
-}
-
 /* ---------------- derived index ---------------- */
 /* everything computed once per full-text recipe; used for the curated set here
    and for anything that joins RECIPES later with its text in hand */
@@ -792,7 +657,7 @@ let archiveLoading = false;
    a completely different button was fetching. */
 let currentlyLoadingSource = null;
 let loadFailedSource = null; /* set when a source's fetch ended partial/failed, to show a retry hint */
-let state = { query:"", category:null, cuisine:null, diets:[], author:null, sort:"top", sortDir:1, made:"all", aheadOnly:false, includeIngredients:[], excludeIngredients:[] };
+let state = { query:"", category:null, cuisine:null, diets:[], author:null, collection:null, sort:"top", sortDir:1, made:"all", aheadOnly:false, includeIngredients:[], excludeIngredients:[] };
 const COURSE_ORDER = ["Appetizer","Salad","Soup","Bread","Side","Main","Dessert","Breakfast","Drink"];
 const STALE_DAYS = 75;   /* "had it, but not in 2-3 months" */
 
@@ -1097,6 +962,7 @@ function renderChips(){
     dietWrap.appendChild(asButton(chip, state.diets.includes(d)));
   });
   renderIngredientChips();
+  renderCollectionChips();
 }
 
 function renderIngredientChips(){
@@ -1153,6 +1019,7 @@ function matchesQuery(recipe, q){
      ingredient word index's answer for the current query (see runArchiveSearch) */
   return recipe._lite && archiveQueryFor === q && archiveQueryHits.has(recipe.id);
 }
+function passesCollection(r){ return !state.collection || (collectionSets().get(state.collection) || EMPTY_SET).has(r.id); }
 function passesMade(r){
   /* no "made" filter active is the overwhelmingly common case -- don't compute
      cook stats (a cook-log scan + sort per recipe) just to return true */
@@ -1177,7 +1044,7 @@ function matchesFiltersExcept(r, exclude){
     (!state.aheadOnly || r._ahead) &&
     enabledSources.includes(archiveSourceOf(r)) &&
     passesIngredientFilters(r) &&
-    passesMade(r) && matchesQuery(r, state.query);
+    passesMade(r) && passesCollection(r) && matchesQuery(r, state.query);
 }
 /* One pass over RECIPES answers everything a render needs: the matching list,
    and the "how many if I also picked this" count for every Course / Cuisine /
@@ -1198,7 +1065,7 @@ function facetPass(){
     const r = RECIPES[i];
     if(state.aheadOnly && !r._ahead) continue;
     if(!enabledSources.includes(archiveSourceOf(r))) continue;
-    if(!passesIngredientFilters(r) || !passesMade(r) || !matchesQuery(r, state.query)) continue;
+    if(!passesIngredientFilters(r) || !passesMade(r) || !passesCollection(r) || !matchesQuery(r, state.query)) continue;
     const okCat = !state.category || r.category === state.category;
     const okCui = !state.cuisine || r.cuisine === state.cuisine;
     const diets = recipeDietTags(r);
@@ -1306,7 +1173,7 @@ function getFiltered(){
    toggle) -- same reset either way, just reachable without opening the
    panel first. */
 function clearAllFilters(){
-  state = {query:"", category:null, cuisine:null, diets:[], author:null, sort:"top", sortDir:1, made:"all", aheadOnly:false, includeIngredients:[], excludeIngredients:[]};
+  state = {query:"", category:null, cuisine:null, diets:[], author:null, collection:null, sort:"top", sortDir:1, made:"all", aheadOnly:false, includeIngredients:[], excludeIngredients:[]};
   document.getElementById('searchInput').value = '';
   document.getElementById('ingIncludeInput').value = '';
   document.getElementById('ingExcludeInput').value = '';
@@ -1325,7 +1192,7 @@ function renderToolbar(){
              Show state is active, not a mutually-exclusive 3rd Show option --
              sharing this row is just to save vertical space, not a grouping claim. -->
         <button class="tb-btn" id="aheadBtn" title="Needs extra prep (marinate/rest/chill ahead)">Needs Prep</button>
-        <button class="tb-btn" data-made="interested">★ Interested</button>
+        <button class="tb-btn" data-made="interested">★ Saved</button>
         <!-- Own row, deterministically -- Never made/Made/Needs Extra Prep/
              Interested stretch (flex:1) to fill THEIR row, which otherwise
              left no space for Clear filters to also land on that same line;
@@ -1420,10 +1287,24 @@ function syncToolbar(){
     computeAllAuthors().map(a=>`<option value="${escapeHTML(a)}">${escapeHTML(a)} (${authorCounts[a]||0})</option>`).join('');
   authorSel.value = state.author || '';
   document.getElementById('sortSelect').value = state.sort;
+  updateSavedChip();
   const dirBtn = document.getElementById('sortDirBtn');
   dirBtn.textContent = (state.sortDir === -1) ? '↑' : '↓';
   dirBtn.classList.toggle('on', state.sortDir === -1);
 }
+/* the always-visible "★ Saved n" button beside Search: one tap to see the recipes you starred */
+function updateSavedChip(){
+  const b = document.getElementById('savedChip');
+  if(!b) return;
+  const on = state.made === 'interested';
+  b.querySelector('.n').textContent = DATA.interested.filter(e=>!e._d).length;
+  b.classList.toggle('on', on);
+  b.setAttribute('aria-pressed', on ? 'true' : 'false');
+}
+document.getElementById('savedChip').onclick = ()=>{
+  state.made = state.made === 'interested' ? 'all' : 'interested';
+  renderToolbar(); renderGrid();
+};
 function exportData(){
   const payload = JSON.stringify(DATA, null, 2);
   const blob = new Blob([payload], {type:'application/json'});
@@ -1484,7 +1365,9 @@ function cardLinesHTML(r){
   if(typeParts.length) lines.push(cardLine('Type', typeParts.join(', ')));
   if(r._total) lines.push(cardLine('Time', fmtTime(r._total)));
 
-  if(n===0){
+  const mnote = matchNote(r);
+  if(mnote) lines.push(cardLine('Match', mnote));
+  if(n===0 && !mnote){
     /* "Never made" is true for most cards -- not worth the space. Show a
        quick ingredient preview instead, so the card hints at the dish
        without needing to open it. */
@@ -1514,16 +1397,51 @@ function ingredientPreview(r){
    the filters themselves changed since the last render (tracked via a cheap
    signature), so "load more" doesn't also silently reset when you just typed
    another search-box keystroke. */
+/* Family-only search that finds little: offer the other sources in one tap, instead of
+   leaving people to discover the source buttons inside the filter panel */
+function updateSourceHint(n){
+  const el = document.getElementById('sourceHint');
+  if(!el) return;
+  const onlyFamily = enabledSources.length === 1 && enabledSources[0] === CURATED_TIER;
+  let html = '';
+  if(!archiveLoading && onlyFamily && (state.query||'').trim().length >= 2 && n < 6){
+    html = `<span>${n ? 'Only ' + n + ' family recipe' + (n===1?'':'s') + ' match' : 'No family recipes match'} &mdash;</span> <button type="button" class="tb-btn" id="hintAll">also search NYT, Epicurious, BBC &amp; other sites</button>`;
+  }
+  if(el.dataset.html !== html){ el.dataset.html = html; el.innerHTML = html; el.hidden = !html; const b = el.querySelector('#hintAll'); if(b) b.onclick = enableAllSources; }
+}
+async function enableAllSources(){
+  for(const label of Object.keys(ARCHIVE_SOURCE_KEYS)){
+    while(archiveLoading) await new Promise(r=> setTimeout(r, 150));
+    if(archiveFetchedSources.has(label)){ if(!enabledSources.includes(label)) await toggleSource(label); }
+    else { enabledSources = enabledSources.filter(s=> s !== label); await toggleSource(label); }
+  }
+  runArchiveSearch(state.query);
+}
+/* one line saying WHERE a result matched the search, when it isn't obvious from the title */
+function matchNote(r){
+  const q = (state.query||'').trim().toLowerCase();
+  if(q.length < 2) return '';
+  const words = q.split(/\s+/).filter(Boolean);
+  const title = displayTitle(r).toLowerCase();
+  if(title.includes(q) || words.every(w=> title.includes(w))) return '';
+  const meta = [r.source, r.cuisine, r.category, ...(r.tags||[])].filter(Boolean).join(' ').toLowerCase();
+  if(words.every(w=> meta.includes(w))) return '';
+  if(r._lite) return 'in the ingredients';
+  const line = (r.ingredients||[]).find(l=> words.every(w=> String(l).toLowerCase().includes(w))) || (r.ingredients||[]).find(l=> String(l).toLowerCase().includes(words[0]));
+  if(line) return 'ingredient: ' + escapeHTML(line.length > 64 ? line.slice(0, 61) + '…' : line);
+  return 'in the method or notes';
+}
 const RENDER_PAGE = 100;
 let renderLimit = RENDER_PAGE;
 let lastFilterSig = null;
 function filterSignature(){
   return JSON.stringify([state.query, state.category, state.cuisine, state.diets, state.author,
-    state.made, state.aheadOnly, enabledSources, state.includeIngredients, state.excludeIngredients]);
+    state.made, state.aheadOnly, enabledSources, state.includeIngredients, state.excludeIngredients, state.collection]);
 }
 function renderGrid(){
   const grid = document.getElementById('grid');
   const filtered = getFiltered();
+  updateSourceHint(filtered.length);
   const sig = filterSignature();
   if(sig !== lastFilterSig){ renderLimit = RENDER_PAGE; lastFilterSig = sig; }
   grid.innerHTML = '';
@@ -1554,7 +1472,7 @@ function renderGrid(){
       : '';
     card.innerHTML = `
       <div class="card-icons">
-        <button class="interested-star${isInterested(r.id)?' on':''}" title="${isInterested(r.id)?'Remove from interested':'Mark as interested'}" aria-label="Mark as interested">${isInterested(r.id)?'★':'☆'}</button>
+        <button class="interested-star${isInterested(r.id)?' on':''}" title="${isInterested(r.id)?'Remove from saved':'Save for later'}" aria-label="Save for later">${isInterested(r.id)?'★':'☆'}</button>
         ${familyMark}
       </div>
       <h3 class="card-title${r.nativeName?' dual-name':''}">${zwsp(escapeHTML(displayTitle(r)))}</h3>
@@ -1567,7 +1485,8 @@ function renderGrid(){
       toggleInterested(r.id);
       star.classList.toggle('on');
       star.textContent = star.classList.contains('on') ? '★' : '☆';
-      star.title = star.classList.contains('on') ? 'Remove from interested' : 'Mark as interested';
+      star.title = star.classList.contains('on') ? 'Remove from saved' : 'Save for later';
+      updateSavedChip();
       if(state.made === 'interested' && !star.classList.contains('on')) renderGrid();
     };
     grid.appendChild(card);
@@ -1587,7 +1506,7 @@ function render(){ renderChips(); renderToolbar(); renderGrid(); updateFiltersTo
 function updateFiltersToggle(){
   const nonDefaultSources = enabledSources.filter(s=>s!==CURATED_TIER).length
     + (enabledSources.includes(CURATED_TIER)?0:1);
-  const n = (state.category?1:0) + (state.cuisine?1:0) + state.diets.length
+  const n = (state.category?1:0) + (state.cuisine?1:0) + (state.collection?1:0) + state.diets.length
     + state.includeIngredients.length + state.excludeIngredients.length + nonDefaultSources;
   const badge = document.getElementById('filtersToggleBadge');
   badge.textContent = n;
@@ -1601,6 +1520,37 @@ document.getElementById('filtersToggle').onclick = toggleFilterPanel;
 
 /* ---------------- modal ---------------- */
 let modalRecipe = null, modalFactor = 1, gridStale = false;
+const normTitle = r=> String(displayTitle(r) || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+const titleIndex = memoByCatalog(()=>{
+  const m = new Map();
+  RECIPES.forEach(r=>{ const k = normTitle(r); if(!k) return; const a = m.get(k); if(a) a.push(r); else m.set(k, [r]); });
+  return m;
+});
+/* ---- dialogs: put focus inside when one opens, keep Tab inside it, give focus back when it closes ---- */
+let dialogReturn = null, dialogReturnId = null;
+function focusDialog(cardId, firstId, recipeId){
+  dialogReturn = document.activeElement; dialogReturnId = recipeId || null;
+  const card = document.getElementById(cardId); card.tabIndex = -1;
+  setTimeout(()=>{ const f = firstId && document.getElementById(firstId); (f && f.getClientRects().length ? f : card).focus({preventScroll:true}); }, 0);
+}
+function restoreFocus(){
+  let el = dialogReturn; const id = dialogReturnId; dialogReturn = dialogReturnId = null;
+  if(!el || !document.contains(el)) el = id ? document.querySelector(`#grid .card[data-id="${CSS.escape(id)}"]`) : null;
+  if(el && el.focus) el.focus({preventScroll:true});
+}
+document.addEventListener('keydown', e=>{
+  if(e.key !== 'Tab') return;
+  const ov = ['householdGate', 'pickerOverlay', 'modalOverlay'].map(id=> document.getElementById(id)).find(o=> o.classList.contains('open'));
+  if(!ov) return;
+  const a = document.activeElement;
+  if(a && a.closest && a.closest('#quickMenu')) return;
+  const card = ov.querySelector('.modal');
+  const f = [...card.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')].filter(x=> x.getClientRects().length);
+  if(!f.length){ e.preventDefault(); return; }
+  if(!card.contains(a)){ e.preventDefault(); f[0].focus(); }
+  else if(e.shiftKey && (a === f[0] || a === card)){ e.preventDefault(); f[f.length-1].focus(); }
+  else if(!e.shiftKey && a === f[f.length-1]){ e.preventDefault(); f[0].focus(); }
+});
 
 /* Maps each of a recipe's already-tagged core ingredients to the FIRST step
    that mentions it -- deliberately first-only (not every occurrence), since
@@ -1776,7 +1726,7 @@ function renderCookPanel(){
     renderCookPanel(); renderGrid();
   };
   host.querySelectorAll('.ch-del').forEach(d=>{
-    d.onclick = ()=>{ removeCook(d.dataset.ev); renderCookPanel(); renderGrid(); };
+    d.onclick = ()=>{ const gone = DATA.cookLog.find(x=> x.id === d.dataset.ev); removeCook(d.dataset.ev); renderCookPanel(); renderGrid(); undoable('Cook entry removed', 'cook_log', [gone]); };
   });
 }
 async function openModal(r){
@@ -1785,7 +1735,7 @@ async function openModal(r){
   document.getElementById('modalSideCourse').innerHTML = r.category ? `<span class="stamp-badge">${escapeHTML(r.category)}</span>` : '—';
   document.getElementById('modalSideCuisine').textContent = r.cuisine ? zwsp(r.cuisine) : '—';
   document.getElementById('modalSideSource').textContent = r.source || '—';
-  document.getElementById('modalSideServes').textContent = r.servings ? servingsLabel(r.servings) : '—';
+  document.getElementById('modalSideServes').textContent = r.servings ? servesText(r) : '—';
   document.getElementById('modalSideTime').textContent =
     (p && c) ? `${fmtTime(p)} / ${fmtTime(c)}` : (t ? `${fmtTime(t)} total` : '—');
   document.getElementById('modalSideMacros').textContent = macrosLabel(r);
@@ -1824,7 +1774,7 @@ async function openModal(r){
      so nothing is lost. */
   const OWN_LINE_LEN = 20;
   const sourceVal = (r.source||'').startsWith('NYT Cooking') ? 'NYT' : (r.source || '—');
-  const servesVal = r.servings ? servingsLabel(r.servings) : '—';
+  const servesVal = r.servings ? servesText(r) : '—';
   const metaCell = (label, val)=> `<div class="modal-meta-cell"><span class="lbl">${label}</span><span class="val">${escapeHTML(String(val))}</span></div>`;
   const metaFull = (label, val)=> `<div class="modal-meta-full"><span class="lbl">${label}</span>${escapeHTML(String(val))}</div>`;
   document.getElementById('modalMetaGrid').innerHTML = [
@@ -1842,6 +1792,16 @@ async function openModal(r){
     r._ahead ? metaCell('Start ahead', `${r._ahead.label} · ${fmtDur(r._ahead.minutes)}`) : '',
   ].join('');
   document.getElementById('modalAhead').innerHTML = '';
+  /* other recipes (among those loaded) that go by the same name -- 20 different "lentil soup"s are common */
+  const simHost = document.getElementById('modalSimilar');
+  const others = cameFromShareLink ? [] : (titleIndex().get(normTitle(r)) || []).filter(x=> x !== r);
+  simHost.innerHTML = others.length ? `<button type="button" class="similar-link" id="similarBtn">${others.length} other recipe${others.length===1?'':'s'} with this name &mdash; see them</button>` : '';
+  if(others.length) simHost.querySelector('#similarBtn').onclick = ()=>{
+    const name = displayTitle(r);
+    closeModal();
+    document.getElementById('searchInput').value = name; state.query = name; render(); runArchiveSearch(name);
+    window.scrollTo(0, 0);
+  };
 
   /* Archive rows opened for the first time this visit don't have their
      ingredients/instructions/notes text on hand yet (nytBoot's bulk load
@@ -1878,6 +1838,7 @@ async function openModal(r){
   suppressHash = true;
   if(location.hash !== hashFor(r.id)) location.hash = hashFor(r.id);
   setTimeout(()=>{ suppressHash = false; }, 0);
+  focusDialog('modalCard', 'modalClose', r.id);
   document.getElementById('modalOverlay').classList.add('open');
   document.body.style.overflow = 'hidden';
   document.getElementById('modalCard').scrollTop = 0;
@@ -1920,6 +1881,7 @@ function closeModal(){
   document.body.style.overflow = '';
   modalRecipe = null;
   if(gridStale){ gridStale = false; renderGrid(); }
+  restoreFocus();
   releaseWake();
   if(/^#r\//.test(location.hash||'')){
     suppressHash = true;
@@ -2239,6 +2201,7 @@ function scoreFor(r, iso, ctx){
   else { s -= 65; }
   if(n >= 3 && d >= 30){ s += 10; why.push('a regular favourite'); }
 
+  if(isInterested(r.id)){ s += 18; why.push('saved for later'); }
   const avg = avgRating(r.id);
   if(avg) s += (avg - 3) * 4.5;
   if(avg === 5) why.unshift('5-star favorite');
@@ -2301,7 +2264,8 @@ function weekContext(weekStart, skipIso){
   return {used, cuisines, slotted};
 }
 function candidatesFor(iso, ctx, includeAll){
-  const pool = RECIPES.filter(r=> includeAll ? true : isDinnerish(r));
+  /* suggestions come from the family cookbook, plus anything you saved from the archive */
+  const pool = RECIPES.filter(r=> includeAll ? true : (isDinnerish(r) && (!r._fromArchive || isInterested(r.id))));
   return pool.map(r=>{
     const sc = scoreFor(r, iso, ctx);
     return sc === -Infinity ? null : {r, score: sc.score, why: sc.why};
@@ -2553,6 +2517,51 @@ document.getElementById('viewTabsMobile').onchange = (e)=> setView(e.target.valu
    sibling "Cookbook" button to click back to. */
 document.getElementById('homeTitle').onclick = ()=> setView('cookbook');
 
+/* ---------------- toast + undo ---------------- */
+let toastTimer = null;
+function showToast(msg, actionLabel, onAction, ms){
+  const el = document.getElementById('toast');
+  if(!el) return;
+  clearTimeout(toastTimer);
+  el.innerHTML = '<span class="toast-msg"></span>' + (actionLabel ? '<button type="button" class="toast-btn"></button>' : '');
+  el.querySelector('.toast-msg').textContent = msg;
+  if(actionLabel){ const b = el.querySelector('.toast-btn'); b.textContent = actionLabel; b.onclick = ()=>{ hideToast(); if(onAction) onAction(); }; }
+  el.classList.add('show');
+  if(ms !== 0) toastTimer = setTimeout(hideToast, ms || 6000);
+}
+function hideToast(){
+  clearTimeout(toastTimer);
+  const el = document.getElementById('toast');
+  if(el){ el.classList.remove('show'); setTimeout(()=>{ if(!el.classList.contains('show')) el.innerHTML = ''; }, 250); }
+}
+/* Deletes in this app are tombstones, so undoing one is just un-marking the row with a newer stamp --
+   looked up by id again in case a sync replaced the object in the meantime */
+function restoreRows(table, rows){
+  const home = {cook_log: DATA.cookLog, plan_days: DATA.plan, inventory_items: DATA.inventory.items, shopping_lists: DATA.shoppingLists,
+                recipe_collections: DATA.collections, collection_items: DATA.collectionItems}[table];
+  const live = rows.map(r=>{
+    let row = home.find(x=> x.id === r.id);
+    if(!row){ row = r; home.push(row); }
+    row._d = false; row._t = stamp(row);
+    return row;
+  });
+  persist();
+  live.forEach(r=> pushWrite(table === 'inventory_items' ? {table, kind: r.kind, row: r} : {table, row: r}));
+  refreshViews();
+}
+function undoable(msg, table, rows){
+  const kept = rows.filter(Boolean);
+  if(kept.length) showToast(msg, 'Undo', ()=> restoreRows(table, kept));
+}
+function refreshViews(){
+  if(view === 'plan') renderWeek();
+  if(view === 'shopping') renderStandaloneShopping();
+  if(view === 'storage') renderStorage();
+  if(view === 'history') renderHistory();
+  render();
+  if(modalRecipe) renderCookPanel();
+}
+
 /* ---------------- week rendering ---------------- */
 function slotRowHTML(s, iso){
   if(s.leftoverOf){
@@ -2583,7 +2592,7 @@ function slotRowHTML(s, iso){
   const meta = [];
   if(r._plan) meta.push(`<span>${fmtDur(r._plan)}</span>`);
   if(serv) meta.push(`<span>serves ${serv}</span>`);
-  meta.push(`<span>${zwsp(escapeHTML(r.cuisine))}</span>`);
+  if(r.cuisine) meta.push(`<span>${zwsp(escapeHTML(r.cuisine))}</span>`);
   if(serv && serv >= prefs().household * 2) meta.push(`<span class="lo-pill">makes leftovers</span>`);
   if(r._ahead) meta.push(`<span class="ahead-pill">${r._ahead.label}</span>`);
   if(cooked) meta.push(`<span class="cooked-flag">✓ cooked</span>`);
@@ -2637,7 +2646,7 @@ function renderWeek(){
   }
 
   grid.querySelectorAll('[data-add]').forEach(b=> b.onclick = ()=> openPicker(b.dataset.add, b.dataset.meal, b.dataset.swap||null));
-  grid.querySelectorAll('[data-clear]').forEach(b=> b.onclick = ()=>{ removeSlot(b.dataset.clear); renderWeek(); });
+  grid.querySelectorAll('[data-clear]').forEach(b=> b.onclick = ()=>{ const gone = slotById(b.dataset.clear); removeSlot(b.dataset.clear); renderWeek(); undoable('Removed from the plan', 'plan_days', [gone]); });
   grid.querySelectorAll('[data-open]').forEach(b=> b.onclick = ()=>{ const r=recipeById(b.dataset.open); if(r) openModal(r); });
   grid.querySelectorAll('[data-lo]').forEach(b=> b.onclick = ()=>{
     const srcId = b.dataset.lo, src = slotById(srcId);
@@ -2778,7 +2787,7 @@ function renderShopInto(hostId, ws, rerender){
     </div>`;
   }
   host.querySelectorAll('[data-check]').forEach(el=> el.onclick = ()=>{ toggleShopChecked(el.dataset.check); rerender(); });
-  host.querySelectorAll('[data-del]').forEach(b=> b.onclick = ()=>{ b.dataset.del.split(',').forEach(removeInvItem); rerender(); });
+  host.querySelectorAll('[data-del]').forEach(b=> b.onclick = ()=>{ const ids = b.dataset.del.split(','); const gone = ids.map(id=> DATA.inventory.items.find(x=> x.id === id)); ids.forEach(removeInvItem); rerender(); undoable('Item removed', 'inventory_items', gone); });
   host.querySelectorAll('[data-switch-list]').forEach(b=> b.onclick = ()=>{ setActiveShopListId(b.dataset.switchList); rerender(); });
   const newListBtn = host.querySelector('#shopNewList');
   if(newListBtn) newListBtn.onclick = ()=>{
@@ -2798,16 +2807,20 @@ function renderShopInto(hostId, ws, rerender){
   const deleteListBtn = host.querySelector('#shopDeleteList');
   if(deleteListBtn) deleteListBtn.onclick = ()=>{
     if(!confirm(`Delete "${activeList ? activeList.name : 'this list'}" and everything on it?`)) return;
+    const goneItems = invItems('shopping').filter(it=> it.listId === activeId), goneList = activeList;
     deleteShoppingList(activeId);
+    showToast('List deleted', 'Undo', ()=>{ restoreRows('inventory_items', goneItems); restoreRows('shopping_lists', [goneList]); setActiveShopListId(goneList.id); refreshViews(); });
     setActiveShopListId(null); /* ensureActiveShopList picks a fresh one next render */
     rerender();
   };
   const clearBtn = host.querySelector('#shopClearList');
   if(clearBtn) clearBtn.onclick = ()=>{
     if(!confirm('Clear this list? This removes every item on it and un-checks everything.')) return;
-    invItems('shopping').filter(it=>it.listId===activeId).forEach(it=> removeInvItem(it.id));
+    const goneItems = invItems('shopping').filter(it=>it.listId===activeId);
+    goneItems.forEach(it=> removeInvItem(it.id));
     clearShopChecked();
     rerender();
+    undoable('List cleared', 'inventory_items', goneItems);
   };
 }
 function renderShop(){ renderShopInto('shopPanel', weekStart, renderShop); }
@@ -2871,7 +2884,7 @@ function renderStorage(){
     renderStorage();
   });
   host.querySelectorAll('[data-empty]').forEach(b=> b.onclick = ()=>{ markInvEmpty(b.dataset.empty); renderStorage(); });
-  host.querySelectorAll('[data-remove]').forEach(b=> b.onclick = ()=>{ removeInvItem(b.dataset.remove); renderStorage(); });
+  host.querySelectorAll('[data-remove]').forEach(b=> b.onclick = ()=>{ const gone = DATA.inventory.items.find(x=> x.id === b.dataset.remove); removeInvItem(b.dataset.remove); renderStorage(); undoable('Item removed', 'inventory_items', [gone]); });
 }
 
 document.getElementById('weekPrev').onclick  = ()=>{ weekStart = addDays(weekStart,-7); renderWeek(); };
@@ -2879,8 +2892,10 @@ document.getElementById('weekNext').onclick  = ()=>{ weekStart = addDays(weekSta
 document.getElementById('weekToday').onclick = ()=>{ weekStart = mondayOf(todayISO()); renderWeek(); };
 document.getElementById('clearWeek').onclick = ()=>{
   if(!confirm('Clear every meal planned this week?')) return;
-  for(let i=0;i<7;i++) slotsFor(addDays(weekStart,i)).forEach(s=> removeSlot(s.id));
+  const gone = [];
+  for(let i=0;i<7;i++) slotsFor(addDays(weekStart,i)).forEach(s=>{ gone.push(s); removeSlot(s.id); });
   renderWeek();
+  undoable('Cleared ' + gone.length + ' meal' + (gone.length===1?'':'s'), 'plan_days', gone);
 };
 document.getElementById('shopBtn').onclick = ()=>{
   const p = document.getElementById('shopPanel');
@@ -2994,6 +3009,7 @@ document.getElementById('setBtn').onclick = ()=>{
 /* ---------------- picker ---------------- */
 let pickerIso = null, pickerMeal = 'dinner', pickerSwapId = null, pickerCourse = null;
 function openPicker(iso, mealType, swapId){
+  dialogReturn = document.activeElement; dialogReturnId = null;
   pickerIso = iso;
   pickerMeal = mealType || 'dinner';
   pickerSwapId = swapId || null;
@@ -3021,6 +3037,7 @@ function openPicker(iso, mealType, swapId){
 function closePicker(){
   document.getElementById('pickerOverlay').classList.remove('open');
   document.body.style.overflow=''; pickerIso=null; pickerMeal='dinner'; pickerSwapId=null;
+  restoreFocus();
 }
 async function pickRecipe(recipeId){
   if(pickerSwapId) updateSlot(pickerSwapId, {recipeId, manualName: undefined, manualIngredients: undefined, leftoverOf: undefined});
@@ -3059,6 +3076,13 @@ function renderPicker(){
      typed search should search across the FULL catalog, not just dinner dishes
      (typing "brownie" or clicking Dessert should just work, not require first
      finding a hidden "include every course" checkbox). */
+  /* stars aren't just a filter: the Saved list is offered first when picking what to cook */
+  const savedHost = document.getElementById('pickerSaved');
+  if(!q && !pickerCourse){
+    const saved = DATA.interested.filter(e=> !e._d).map(e=> recipeById(e.id)).filter(r=> r && !ctx.used.has(r.id)).slice(0, 6);
+    savedHost.innerHTML = saved.length ? `<div class="picker-sug"><h4>From your Saved list</h4>${saved.map(r=>
+      `<div class="prow" data-pick="${escapeHTML(r.id)}"><span class="pt">${zwsp(escapeHTML(displayTitle(r)))}</span><span class="pm">${r._plan?fmtDur(r._plan):''} · ${zwsp(escapeHTML(r.cuisine||''))}</span></div>`).join('')}</div>` : '';
+  } else savedHost.innerHTML = '';
   const sug = document.getElementById('pickerSuggest');
   const ranked = (!q && !pickerCourse) ? candidatesFor(pickerIso, ctx, false) : null; /* scored once, used for both lists */
   if(ranked){
@@ -3067,7 +3091,7 @@ function renderPicker(){
       `<div class="prow" data-pick="${c.r.id}">
          <span class="pt">${zwsp(escapeHTML(displayTitle(c.r)))}</span>
          <span class="why">${escapeHTML(c.why||'')}</span>
-         <span class="pm">${c.r._plan?fmtDur(c.r._plan):''} · ${zwsp(escapeHTML(c.r.cuisine))}</span>
+         <span class="pm">${c.r._plan?fmtDur(c.r._plan):''} · ${zwsp(escapeHTML(c.r.cuisine||''))}</span>
        </div>`).join('')}</div>` : '';
   } else sug.innerHTML = '';
 
@@ -3086,7 +3110,7 @@ function renderPicker(){
     const n = timesMade(r.id), last = lastMade(r.id);
     return `<div class="prow" data-pick="${r.id}">
       <span class="pt">${zwsp(escapeHTML(displayTitle(r)))}</span>
-      <span class="pm">${n?`made ${n}× · ${relTime(last)}`:'never made'} · ${r._plan?fmtDur(r._plan):''} · ${zwsp(escapeHTML(r.cuisine))}</span>
+      <span class="pm">${n?`made ${n}× · ${relTime(last)}`:'never made'} · ${r._plan?fmtDur(r._plan):''} · ${zwsp(escapeHTML(r.cuisine||''))}</span>
     </div>`;
   }).join('') || `<div class="cook-empty">Nothing matches that.</div>`;
 
@@ -3286,6 +3310,7 @@ function renderModalActionsTop(){
   const shareIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="7 8 12 3 17 8"/><path d="M5 21h14a2 2 0 0 0 2-2v-5"/><path d="M5 21a2 2 0 0 1-2-2v-5"/></svg>`;
   const printIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>`;
   const listIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/><polyline points="4 6 5 7 7 5"/><polyline points="4 12 5 13 7 11"/></svg>`;
+  const folderIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>`;
   const planIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="10" y1="16" x2="14" y2="16"/></svg>`;
   /* Save to list / Add to plan: get their own row rather than crowding into
      action-row-top -- they're lower-frequency than Start Making/Cooked/
@@ -3294,7 +3319,8 @@ function renderModalActionsTop(){
   /* someone who opened a shared link with no household of their own gets no personal actions */
   const starOn = !!currentHousehold() && isInterested(modalRecipe.id);
   const starBtn = currentHousehold()
-    ? `<button class="icon-btn modal-star${starOn?' on':''}" id="modalStar" aria-pressed="${starOn}" title="Save to your Interested list">${starOn?'★':'☆'} Interested</button>` : '';
+    ? `<button class="icon-btn modal-star${starOn?' on':''}" id="modalStar" aria-pressed="${starOn}" title="Save for later">${starOn?'★':'☆'} Saved</button>` : '';
+  const colBtn = currentHousehold() ? '<button class="icon-btn" id="addToCollectionBtn">%ICON% %LABEL%</button>' : '';
   host.innerHTML = mobile
     ? `<div class="action-row-top">
         <button class="icon-btn make-btn ${making?'on':''}" id="makeToggle">${making?'⏸':'▶'} ${making?'Making mode on':'Start making'}</button>
@@ -3304,7 +3330,9 @@ function renderModalActionsTop(){
       </div>
       ${making ? `<div class="make-sub"><span class="make-prog" id="makeProg"></span><button class="icon-btn" id="makeReset">reset ticks</button></div>` : ''}
       <div class="action-row-secondary">
-        ${starBtn}
+        ${starBtn}${colBtn.replace('%ICON%', folderIcon).replace('%LABEL%', 'Collection')}
+      </div>
+      <div class="action-row-secondary">
         <button class="icon-btn" id="addToListBtn">${listIcon} Save to list</button>
         <button class="icon-btn" id="addToPlanBtn">${planIcon} Add to plan</button>
       </div>`
@@ -3318,7 +3346,9 @@ function renderModalActionsTop(){
         <button class="icon-btn" id="printRecipe">Print</button>
       </div>
       <div class="action-row-secondary">
-        ${starBtn}
+        ${starBtn}${colBtn.replace('%ICON%', '').replace('%LABEL%', 'Add to collection&hellip;')}
+      </div>
+      <div class="action-row-secondary">
         <button class="icon-btn" id="addToListBtn">Save to list&hellip;</button>
         <button class="icon-btn" id="addToPlanBtn">Add to plan&hellip;</button>
       </div>`;
@@ -3376,17 +3406,21 @@ function renderModalActionsTop(){
     toggleInterested(modalRecipe.id);
     const on = isInterested(modalRecipe.id);
     document.querySelectorAll('#modalStar').forEach(b=>{
-      b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); b.textContent = (on ? '★' : '☆') + ' Interested';
+      b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); b.textContent = (on ? '★' : '☆') + ' Saved';
     });
     /* keep the grid card's own star in step without rebuilding the grid behind the open page */
     const card = document.querySelector(`#grid .card[data-id="${CSS.escape(modalRecipe.id)}"]`);
     if(card){
       const cs = card.querySelector('.interested-star');
       cs.classList.toggle('on', on); cs.textContent = on ? '★' : '☆';
-      cs.title = on ? 'Remove from interested' : 'Mark as interested';
+      cs.title = on ? 'Remove from saved' : 'Save for later';
+      updateSavedChip();
     }
+    updateSavedChip();
     if(state.made === 'interested' && !on) gridStale = true; /* drops off the filtered list once the page closes */
   };
+  const colB = host.querySelector('#addToCollectionBtn');
+  if(colB) colB.onclick = e=> openCollectionsMenu(e.currentTarget, modalRecipe);
   host.querySelector('#addToListBtn').onclick = e=> openAddToListMenu(e.currentTarget);
   host.querySelector('#addToPlanBtn').onclick = e=> openAddToPlanMenu(e.currentTarget);
   });
@@ -3562,7 +3596,16 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
    exception on this line used to stop the rest of this script, which took the
    offline write queue, the household picker and the archive loader down with it. */
 const sb = (window.supabase && SUPABASE_URL.startsWith('http'))
-  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {global: {
+      /* every request to the database carries this household's key (when this device has one) */
+      fetch: (input, init)=>{
+        const key = currentHouseholdKey();
+        if(!key) return fetch(input, init);
+        const headers = new Headers((init && init.headers) || (input && input.headers) || undefined);
+        headers.set('x-household-key', key);
+        return fetch(input, Object.assign({}, init, {headers}));
+      }
+    }})
   : null;
 
 let realtimeChannel = null;
@@ -3581,7 +3624,7 @@ function logClientError(message, stack, url){
     /* local testing (file://, localhost) must not write into the production error log */
     if(location.protocol === 'file:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return;
     const trimmedMsg = String(message||'').slice(0, 500);
-    const trimmedStack = String(stack||'').slice(0, 2000);
+    const trimmedStack = (String(stack||'') + '\n[build ' + BUILD_ID + ']').slice(0, 2000);
     const dedupeKey = trimmedMsg + '|' + trimmedStack.slice(0, 200);
     if(LOGGED_ERRORS.has(dedupeKey)) return;
     LOGGED_ERRORS.add(dedupeKey);
@@ -3618,6 +3661,8 @@ function rowToPlan(r){
 }
 function rowToInv(r){ return {id:r.id, kind:r.kind, name:r.name, qty:r.qty, unit:r.unit, listId:r.list_id||null, useBy:r.use_by||null, _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
 function rowToInterested(r){ return {id:r.recipe_id, _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
+function rowToCollection(r){ return {id:r.id, name:r.name, _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
+function rowToCollectionItem(r){ return {id:r.id, collectionId:r.collection_id, recipeId:r.recipe_id, _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
 function rowToShoppingList(r){ return {id:r.id, name:r.name, _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
 
 async function remoteFetchAll(withForeignIds){
@@ -3625,7 +3670,7 @@ async function remoteFetchAll(withForeignIds){
   const hh = currentHousehold();
   const otherHhs = otherHouseholdIds();
   const none = Promise.resolve({data: []});
-  const [cl, pd, iv, pf, it, sl, ocl, opd, oiv, osl] = await Promise.all([
+  const [cl, pd, iv, pf, it, sl, ocl, opd, oiv, osl, rcol, rcit] = await Promise.all([
     sb.from('cook_log').select('*').eq('household_id', hh),
     sb.from('plan_days').select('*').eq('household_id', hh),
     sb.from('inventory_items').select('*').eq('household_id', hh),
@@ -3649,7 +3694,9 @@ async function remoteFetchAll(withForeignIds){
        households can still hold some of the other one's rows) */
     withForeignIds && otherHhs.length ? sb.from('plan_days').select('slot_id').in('household_id', otherHhs) : none,
     withForeignIds && otherHhs.length ? sb.from('inventory_items').select('id').in('household_id', otherHhs) : none,
-    withForeignIds && otherHhs.length ? sb.from('shopping_lists').select('id').in('household_id', otherHhs) : none
+    withForeignIds && otherHhs.length ? sb.from('shopping_lists').select('id').in('household_id', otherHhs) : none,
+    sb.from('recipe_collections').select('*').eq('household_id', hh),
+    sb.from('collection_items').select('*').eq('household_id', hh)
   ]);
   if(cl.error || pd.error || iv.error || pf.error){
     console.error('Supabase fetch error', cl.error||pd.error||iv.error||pf.error);
@@ -3671,6 +3718,10 @@ async function remoteFetchAll(withForeignIds){
     inventory: {items: iv.data.map(rowToInv)},
     interested: it.error ? [] : it.data.map(rowToInterested),
     shoppingLists: sl.error ? [] : sl.data.map(rowToShoppingList),
+    /* collections are newer than everything else: until migration 016 has been run these tables don't exist -- degrade to empty */
+    hasCollections: !rcol.error && !rcit.error,
+    collections: rcol.error ? [] : rcol.data.map(rowToCollection),
+    collectionItems: rcit.error ? [] : rcit.data.map(rowToCollectionItem),
     otherCookLog: ocl.error ? [] : (ocl.data||[]).map(r=>({recipeId:r.recipe_id, rating:r.rating, date:r.date, household:r.household_id})),
     /* only looked up at boot (the only time it's used) -- not on every realtime refresh.
        null = don't re-push anything unless every one of these lookups worked */
@@ -3703,11 +3754,11 @@ async function remoteFetchAll(withForeignIds){
    IndexedDB's quota is far higher (typically hundreds of MB+), so this actually
    persists across visits. */
 const NYT_CACHE_KEY = 'cookbook.nytRecipes';
-const NYT_CACHE_VERSION = 19; /* format of the cached rows; v19 = rows built from the static archive. Data changes don't need a bump -- the cache also records manifest.version (see nytBoot). */
+const NYT_CACHE_VERSION = 20; /* format of the cached rows; v19 = rows built from the static archive. Data changes don't need a bump -- the cache also records manifest.version (see nytBoot). */
 /* Columns needed to browse/filter/render a card, WITHOUT the ~70%-of-payload
    ingredients/instructions/notes text -- that gets fetched per-recipe, on
    demand, only when its modal is actually opened (see fetchRecipeDetail). */
-const NYT_LITE_COLUMNS = 'id,title,category,cuisine,source,servings,needs_review,total_time,cook_time,prep_time,tags,ingredient_core,ingredient_all,ingredient_dietary,ahead_label,ahead_minutes,kcal,protein,carbs,fat';
+const NYT_LITE_COLUMNS = 'id,title,category,cuisine,source,servings,needs_review,total_time,cook_time,prep_time,tags,ingredient_core,ingredient_all,ingredient_dietary,ahead_label,ahead_minutes,kcal,protein,carbs,fat,servings_est';
 const NYT_DB_NAME = 'cookbookCache', NYT_DB_STORE = 'nytRecipes';
 
 function openNytDB(){
@@ -3749,6 +3800,10 @@ function rowToNytRecipe(r){
     cuisine: r.cuisine || null,
     source: r.source,
     servings: r.servings || '',
+    servingsEst: !!r.servings_est, /* the serving count was estimated from the ingredients, not in the source recipe */
+    /* per-serving macros: the archive build supplies them (the app's own estimator, run at build time). They were fetched
+       but never copied onto the recipe, so recipeMacros() never saw them -- no archive recipe showed any macros. */
+    kcal: r.kcal, protein: r.protein, carbs: r.carbs, fat: r.fat,
     ingredients: r.ingredients || [],
     instructions: r.instructions || [],
     notes: r.notes || '',
@@ -4179,6 +4234,18 @@ async function runOp(op){
       updated_at: new Date(op.row._t).toISOString()
     });
   }
+  if(op.table === 'recipe_collections'){
+    return sb.from('recipe_collections').upsert({
+      id: op.row.id, household_id: hh, name: op.row.name,
+      deleted: !!op.row._d, updated_at: new Date(op.row._t).toISOString()
+    });
+  }
+  if(op.table === 'collection_items'){
+    return sb.from('collection_items').upsert({
+      id: op.row.id, household_id: hh, collection_id: op.row.collectionId, recipe_id: op.row.recipeId,
+      deleted: !!op.row._d, updated_at: new Date(op.row._t).toISOString()
+    });
+  }
   if(op.table === 'interested_recipes'){
     return sb.from('interested_recipes').upsert({
       recipe_id: op.row.id, household_id: hh, deleted: !!op.row._d, updated_at: new Date(op.row._t).toISOString()
@@ -4204,7 +4271,17 @@ async function runOp(op){
        FAILED_WRITES_KEY (kept, never dropped), reported via logClientError, and
        given a fresh try on the next app start. */
 const MAX_OP_FAILS = 5;
-let flushing = false, flushRetryTimer = null, flushBackoffMs = 0;
+let flushing = false, flushRetryTimer = null, flushBackoffMs = 0, writeBlocked = false;
+/* tables that only exist once a migration has been run: until then their writes just wait (they are not failures) */
+const OPTIONAL_TABLES = new Set(['recipe_collections', 'collection_items']);
+const missingTables = new Set();
+/* the database refused the write because this device has no (or the wrong) household key */
+function isWriteBlocked(res){
+  return !!(res && res.error && (res.status === 401 || res.status === 403 || (res.error.code || '') === '42501'));
+}
+function isMissingTable(res){
+  return !!(res && res.error && (res.status === 404 || /PGRST205|42P01|does not exist|Could not find the table/i.test((res.error.code || '') + ' ' + (res.error.message || ''))));
+}
 function isRefusal(res){
   const st = res && res.status;
   return st >= 400 && st < 500 && st !== 408 && st !== 429;
@@ -4221,7 +4298,7 @@ async function flushQueue(){
   const skipped = [];
   try{
     for(;;){
-      const op = loadQueue().find(o=> !skipped.some(x=> sameOp(x, o)));
+      const op = loadQueue().find(o=> !missingTables.has(o.table) && !skipped.some(x=> sameOp(x, o)));
       if(!op) break;
       let res;
       /* supabase-js reports network failures as a result, it doesn't throw -- so an
@@ -4229,8 +4306,11 @@ async function flushQueue(){
       try{ res = await runOp(op); }catch(e){ res = {error: e, status: 400}; }
       if(res && !res.error){
         saveQueue(loadQueue().filter(o=> !sameOp(o, op)));
+        writeBlocked = false;
         continue;
       }
+      if(isWriteBlocked(res)){ writeBlocked = true; break; }   /* kept, not counted as a failure: it will go through once the key is in place */
+      if(OPTIONAL_TABLES.has(op.table) && isMissingTable(res)){ missingTables.add(op.table); continue; }
       if(!isRefusal(res)) break;
       /* a newer write of the same row was queued while this one was in flight: this one is obsolete,
          and putting it back would let it overwrite the newer one */
@@ -4252,8 +4332,8 @@ async function flushQueue(){
       }
     }
   } finally { flushing = false; }
-  const waiting = loadQueue().length;
-  setSyncState(waiting ? 'error' : 'ok');
+  const waiting = loadQueue().filter(o=> !missingTables.has(o.table)).length;
+  setSyncState(writeBlocked && waiting ? 'readonly' : (waiting ? 'error' : 'ok'));
   if(waiting) scheduleFlushRetry();
   else flushBackoffMs = 0;
 }
@@ -4294,13 +4374,18 @@ function pushWrite(op){
 /* ---------------- realtime ---------------- */
 function subscribeRealtime(){
   if(!sb || realtimeChannel) return;
+  const mine = 'household_id=eq.' + currentHousehold();
   realtimeChannel = sb.channel('household-sync')
+    /* cook_log is shared across households (ratings/last-made), so it listens to everyone; everything else is private to
+       one household, so a change in someone else's kitchen no longer makes this device re-download all its data */
     .on('postgres_changes', {event:'*', schema:'public', table:'cook_log'}, onRemoteChange)
-    .on('postgres_changes', {event:'*', schema:'public', table:'plan_days'}, onRemoteChange)
-    .on('postgres_changes', {event:'*', schema:'public', table:'inventory_items'}, onRemoteChange)
-    .on('postgres_changes', {event:'*', schema:'public', table:'prefs'}, onRemoteChange)
-    .on('postgres_changes', {event:'*', schema:'public', table:'interested_recipes'}, onRemoteChange)
-    .on('postgres_changes', {event:'*', schema:'public', table:'shopping_lists'}, onRemoteChange)
+    .on('postgres_changes', {event:'*', schema:'public', table:'plan_days', filter:mine}, onRemoteChange)
+    .on('postgres_changes', {event:'*', schema:'public', table:'inventory_items', filter:mine}, onRemoteChange)
+    .on('postgres_changes', {event:'*', schema:'public', table:'prefs', filter:mine}, onRemoteChange)
+    .on('postgres_changes', {event:'*', schema:'public', table:'interested_recipes', filter:mine}, onRemoteChange)
+    .on('postgres_changes', {event:'*', schema:'public', table:'shopping_lists', filter:mine}, onRemoteChange)
+    .on('postgres_changes', {event:'*', schema:'public', table:'recipe_collections', filter:mine}, onRemoteChange)
+    .on('postgres_changes', {event:'*', schema:'public', table:'collection_items', filter:mine}, onRemoteChange)
     .subscribe();
 }
 function unsubscribeRealtime(){
@@ -4332,7 +4417,7 @@ function onRemoteChange(){
 let syncState = 'off';
 function setSyncState(s){ syncState = s; paintAuth(); }
 function syncLabel(){
-  return {off:'', ok:'● synced', error:'▲ retrying…', syncing:'◍ syncing…'}[syncState] || '';
+  return {off:'', ok:'● synced', error:'▲ retrying…', syncing:'◍ syncing…', readonly:'🔒 read-only'}[syncState] || '';
 }
 
 /* ---------------- sync status ---------------- */
@@ -4342,7 +4427,8 @@ function syncLabel(){
 function paintAuth(){
   const host = document.getElementById('authArea');
   if(!sb){ host.innerHTML = `<span class="icon-btn" style="cursor:default" title="Changes are saved on this device and will sync next time the app opens with a connection">offline</span>`; return; }
-  host.innerHTML = `<span class="icon-btn sync-dot s-${syncState==='error'?'error':'ok'}" style="cursor:default">${syncLabel()}</span>`;
+  const tip = syncState === 'readonly' ? "Your changes are saved on this device but the shared database is refusing them: this device doesn't have your household's key. Open the personal link you were sent." : '';
+  host.innerHTML = `<span class="icon-btn sync-dot s-${syncState==='error'||syncState==='readonly'?'error':'ok'}" style="cursor:default" title="${escapeHTML(tip)}">${syncLabel()}</span>`;
 }
 
 /* ---------------- boot ---------------- */
@@ -4363,7 +4449,7 @@ function scopeStateToHousehold(){
   const hh = currentHousehold();
   if(!hh) return;
   if(DATA._hh && DATA._hh !== hh){
-    DATA.plan = []; DATA.inventory = {items: []}; DATA.interested = []; DATA.shoppingLists = []; DATA.prefs = {};
+    DATA.plan = []; DATA.inventory = {items: []}; DATA.interested = []; DATA.shoppingLists = []; DATA.collections = []; DATA.collectionItems = []; DATA.prefs = {};
     DATA.otherCookLog = [];
     setActiveShopListId(null); clearShopChecked();
     prefs();
@@ -4403,6 +4489,10 @@ function repushLocalOnly(remote){
   sweep('shopping_lists', DATA.shoppingLists, remote.shoppingLists, foreign.lists);
   sweep('inventory_items', DATA.inventory.items, remote.inventory.items, foreign.inventory, row=> ({kind: row.kind}));
   sweep('interested_recipes', DATA.interested, remote.interested, null);
+  if(remote.hasCollections){
+    sweep('recipe_collections', DATA.collections, remote.collections, null);
+    sweep('collection_items', DATA.collectionItems, remote.collectionItems, null);
+  }
   if(n) console.log(`sync: re-sending ${n} change(s) this device had that the database did not`);
   return n;
 }
@@ -4418,6 +4508,7 @@ function pruneStaleOps(remote){
     cook_log: remote.cookLog, plan_days: remote.plan, inventory_items: remote.inventory.items,
     shopping_lists: remote.shoppingLists, interested_recipes: remote.interested,
   };
+  if(remote.hasCollections){ newest.recipe_collections = remote.collections; newest.collection_items = remote.collectionItems; }
   const maps = {};
   Object.keys(newest).forEach(t=>{ maps[t] = new Map((newest[t]||[]).map(e=> [e.id, e._t||0])); });
   const q = loadQueue();
@@ -4446,6 +4537,7 @@ async function syncFromRemote(){
     return;
   }
   bootFetchDelayMs = 0;
+  if(remote.hasCollections){ missingTables.delete('recipe_collections'); missingTables.delete('collection_items'); }
   /* compare against what was on this device BEFORE merging the remote copy in */
   pruneStaleOps(remote);
   repushLocalOnly(remote);
@@ -4498,6 +4590,7 @@ function resolveHouseholdThenBoot(){
     };
   });
   gate.classList.add('open');
+  focusDialog('householdGate', null);
 }
 resolveHouseholdThenBoot();
 
@@ -4558,7 +4651,20 @@ window.addEventListener('afterprint', ()=>{
    last, after boot, so a slow/failed registration never delays first paint. */
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('sw.js').catch(e=> console.error('sw registration failed', e));
+    const hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      /* a home-screen app can stay open for days: look for a newer version whenever it comes back to the front */
+      let lastCheck = Date.now();
+      document.addEventListener('visibilitychange', ()=>{
+        if(document.visibilityState === 'visible' && Date.now() - lastCheck > 30*60*1000){ lastCheck = Date.now(); reg.update().catch(()=>{}); }
+      });
+    }).catch(e=> console.error('sw registration failed', e));
+    /* the worker swaps itself in (skipWaiting + claim); the page already running is still the old code */
+    let reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+      if(!hadController || reloading) return;
+      showToast('A new version of the cookbook is ready.', 'Reload', ()=>{ reloading = true; location.reload(); }, 0);
+    });
   });
 }
 
