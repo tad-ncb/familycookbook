@@ -23,7 +23,7 @@ share a name, so they are kept under "<id>-<source>" instead.
 
 The bucket hash MUST match detailBucket() in src/app.js.
 """
-import collections, glob, hashlib, json, pathlib, re, shutil, sys
+import collections, glob, hashlib, html, json, pathlib, re, shutil, sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SRC_DIR = ROOT / 'backups' / 'nyt_recipes'
@@ -37,6 +37,35 @@ LITE_SHARD_ROWS = 5000
 SOURCES = ('nyt', 'epicurious', 'bbc', 'other')
 # MUST match the tokenizer in runArchiveSearch() in src/app.js
 WORD_RE = re.compile(r"[a-z][a-z'\-]{2,}")
+
+
+# Misspelt entities seen in the scraped text (html.unescape leaves these alone)
+ENTITY_FIXES = {
+    '&eauce;': '\u00e9', '&eaacute;': '\u00e9', '&eucate;': '\u00e9', '&e;': '\u00e9', '&until;': '\u00e9 until',
+    '&nitilde;': '\u00f1', '&entilde;': '\u00f1', '&ircirc;': '\u00ee',
+    '&Deg;': '\u00b0', '&def;': '\u00b0',
+    # "M&M's" / "S&B" / "s&p" were mangled into "&M;" style by an earlier HTML pass
+    '&M;': '&M', '&B;': '&B', '&p;': '&p',
+}
+TAG_RE = re.compile(r'</?[A-Za-z][^<>]*>')          # leftover markup such as <epi recipelink="" id="123">
+CTRL_RE = re.compile(r'[\x00-\x08\x0b-\x1f\x7f]')
+
+
+def clean(v):
+    """Scraped text arrives with stray markup, HTML entities the app would show literally
+    (425&deg;F, pur&eacute;e), control characters and ragged whitespace."""
+    if not isinstance(v, str):
+        return v
+    for bad, good in ENTITY_FIXES.items():
+        v = v.replace(bad, good)
+    v = html.unescape(v)
+    v = TAG_RE.sub('', v)
+    v = CTRL_RE.sub('', v)
+    return re.sub(r'[ \t]{2,}', ' ', v).strip()
+
+
+def clean_list(v):
+    return [clean(x) for x in v] if isinstance(v, list) else v
 
 
 def curated_ids():
@@ -75,6 +104,11 @@ def main():
     if len(rows) != expected:
         sys.exit(f'snapshot has {len(rows)} rows but _count.txt says {expected}')
     rows = [r for r in rows if not r['needs_review']]
+    for r in rows:
+        for k in ('title', 'notes'):
+            r[k] = clean(r.get(k))
+        for k in ('ingredients', 'instructions'):
+            r[k] = clean_list(r.get(k))
     curated = curated_ids()
     taken = curated | {r['id'] for r in rows}
     renamed = []

@@ -1327,7 +1327,7 @@
       <button class="vt" data-view="history" style="display:none">History</button>
       <button class="vt" data-view="storage" style="display:none">Storage</button>
     </div>
-    <select class="viewtabs-mobile" id="viewTabsMobile">
+    <select class="viewtabs-mobile" id="viewTabsMobile" aria-label="Go to">
       <option value="cookbook">Cookbook</option>
       <option value="plan" style="display:none">Plan the week</option>
       <option value="shopping" style="display:none">Shopping</option>
@@ -1379,7 +1379,7 @@
            lines even shrunk -- below 640px this dropdown replaces the chip
            row entirely (see .cuisine-select-mobile); desktop keeps the
            chips, which have room to wrap and still show counts at a glance. -->
-      <select id="cuisineSelect" class="tb-select cuisine-select-mobile"></select>
+      <select id="cuisineSelect" class="tb-select cuisine-select-mobile" aria-label="Cuisine"></select>
     </div>
     <!-- Same facet-row markup as Course/Cuisine above. A bare <select>
          as a direct flex item (what #cuisineSelect still is) has a known
@@ -1394,7 +1394,7 @@
     <div class="facet-row">
       <span class="facet-name mobile-hide-label">Author/Cookbook</span>
       <div class="chip-row" id="authorSelectWrap">
-        <select class="tb-select" id="authorSelect"></select>
+        <select class="tb-select" id="authorSelect" aria-label="Author or cookbook"></select>
       </div>
     </div>
     <div class="facet-row">

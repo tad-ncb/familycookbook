@@ -1,5 +1,6 @@
 #!/bin/bash
 # Runs the whole test suite:  tests/run.sh [browser-test-name-filter]
+#   TESTS_EXTRA=1 tests/run.sh monkey   adds 30 more random-clicking seeds (bug hunting)
 #   1. static checks  (tests/static_checks.py -- also what CI runs)
 #   2. browser tests  (tests/cases.js in headless WebKit; macOS only)
 # Nothing here talks to the real Supabase project.
@@ -12,7 +13,7 @@ PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); pr
 python3 tests/server.py "$PORT" 2>/dev/null & SERVER=$!
 trap 'kill $SERVER 2>/dev/null' EXIT
 for i in $(seq 50); do curl -s -o /dev/null "http://127.0.0.1:$PORT/__test/log" && break; sleep 0.1; done
-export TESTS_DIR="$PWD/tests"
+export TESTS_DIR="$PWD/tests"; export TESTS_EXTRA="${TESTS_EXTRA:-}"
 pass=0; fail=0
 while IFS=$'\t' read -r idx name; do
   [ "${1:-}" = "sw" ] && continue   # "sw" = only the service-worker run below

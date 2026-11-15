@@ -121,6 +121,17 @@ function persist(fromSync){
   if(!fromSync && typeof scheduleSync === 'function') scheduleSync();
 }
 function uid(){ return 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+/* The edit timestamp (_t) every synced row carries, and which decides "newest edit wins" on
+   every device and in the database. Strictly increasing, never a repeat: two edits to the
+   same row in the same millisecond used to get the SAME stamp, which the sync queue then
+   treated as one edit (the newer was dropped -- a list created and deleted in one instant
+   stayed alive in the database). prev = the row being edited, so a device whose clock was
+   set back still stamps its edit after that row's own earlier one. */
+let lastStamp = 0;
+function stamp(prev){
+  lastStamp = Math.max(Date.now(), lastStamp + 1, ((prev && prev._t) || 0) + 1);
+  return lastStamp;
+}
 
 /* ---------------- households ---------------- */
 /* Re-activated 2026-09-11 for a second real household ("berdux" / Jen and
@@ -204,7 +215,7 @@ function householdOf(e){ return e.household || 'nicholas-tyler'; }
 function isInterested(id){ return DATA.interested.some(e=>e.id===id && !e._d); }
 function toggleInterested(id){
   const on = !isInterested(id);
-  const entry = {id, _d: !on, _t: Date.now()};
+  const entry = {id, _d: !on, _t: stamp(DATA.interested.find(e=>e.id===id))};
   DATA.interested = [...DATA.interested.filter(e=>e.id!==id), entry];
   persist();
   if(typeof pushWrite === 'function') pushWrite({table:'interested_recipes', row: entry});
@@ -272,7 +283,7 @@ function otherAvgRating(id, household){
   return rs.length ? rs.reduce((a,b)=>a+b,0)/rs.length : null;
 }
 function addCook(recipeId, date, rating, note, leftover){
-  const row = {id:uid(), recipeId, date, rating: rating||null, note: note||'', leftover: leftover||'', household: currentHousehold(), _t: Date.now()};
+  const row = {id:uid(), recipeId, date, rating: rating||null, note: note||'', leftover: leftover||'', household: currentHousehold(), _t: stamp()};
   DATA.cookLog.unshift(row);
   DATA.cookLog.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   persist();
@@ -280,7 +291,7 @@ function addCook(recipeId, date, rating, note, leftover){
 }
 function removeCook(evId){
   const e = DATA.cookLog.find(x=>x.id===evId);
-  if(e){ e._d = true; e._t = Date.now(); }
+  if(e){ e._d = true; e._t = stamp(e); }
   persist();
   if(e && typeof pushWrite === 'function') pushWrite({table:'cook_log', row:e});
 }
@@ -1206,8 +1217,12 @@ function facetPass(){
   return (_facetPass = {cat, cui, diet, author, list});
 }
 const TITLE_COLLATOR = new Intl.Collator(); /* same ordering as String.localeCompare, several times faster across 60k titles */
+let pantryRatios = null;
 function getFiltered(){
   let list = facetPass().list.slice(); /* copy: the sort below is in place, the cached pass is shared */
+  /* "What I can make now": each recipe's pantry match is worked out ONCE, not again for every comparison */
+  pantryRatios = null;
+  if(state.sort === 'pantry'){ pantryRatios = new Map(); list.forEach(r=> pantryRatios.set(r, inventoryMatchRatio(r))); }
   const byTitle = (a,b)=>TITLE_COLLATOR.compare(a.title, b.title);
   const sorters = {
     /* Default on load: highest rated, then most cooked, then most recently
@@ -1233,7 +1248,7 @@ function getFiltered(){
     rating: (a,b)=>{ const A=avgRating(a.id)||-1, B=avgRating(b.id)||-1; return B-A || byTitle(a,b); },
     quick:  (a,b)=>{ const A=a._plan===null?1e9:a._plan, B=b._plan===null?1e9:b._plan; return A-B || byTitle(a,b); },
     newest: (a,b)=> addedDateOf(b).localeCompare(addedDateOf(a)) || byTitle(a,b),
-    pantry: (a,b)=> inventoryMatchRatio(b)-inventoryMatchRatio(a) || byTitle(a,b)
+    pantry: (a,b)=> pantryRatios.get(b)-pantryRatios.get(a) || byTitle(a,b)
   };
   const base = sorters[state.sort] || byTitle;
   const dir = state.sortDir || 1;
@@ -1319,7 +1334,7 @@ function renderToolbar(){
              the wrap happens to fall out. -->
         <div class="sort-row">
           <button class="tb-btn clear-btn" id="clearFilters">Clear filters</button>
-          <select class="tb-select" id="sortSelect">
+          <select class="tb-select" id="sortSelect" aria-label="Sort recipes">
             <option value="top">Sort by</option>
             <option value="az">A – Z</option>
             <option value="recent">Recently made</option>
@@ -2079,7 +2094,7 @@ function slotsFor(iso){
 function dinnerSlotsFor(iso){ return slotsFor(iso).filter(s=> s.mealType!=='lunch'); }
 function slotById(id){ return DATA.plan.find(s=> s.id===id && !s._d) || null; }
 function addSlot(iso, mealType, data){
-  const row = Object.assign({id:uid(), iso, mealType: mealType||'dinner'}, data, {_t: Date.now()});
+  const row = Object.assign({id:uid(), iso, mealType: mealType||'dinner'}, data, {_t: stamp()});
   DATA.plan.push(row);
   persist();
   if(typeof pushWrite === 'function') pushWrite({table:'plan_days', row});
@@ -2088,13 +2103,13 @@ function addSlot(iso, mealType, data){
 function updateSlot(id, patch){
   const s = slotById(id);
   if(!s) return;
-  Object.assign(s, patch, {_t: Date.now()});
+  Object.assign(s, patch, {_t: stamp(s)});
   persist();
   if(typeof pushWrite === 'function') pushWrite({table:'plan_days', row:s});
 }
 function removeSlot(id){
   const s = DATA.plan.find(x=>x.id===id);
-  if(s){ s._d = true; s._t = Date.now(); }
+  if(s){ s._d = true; s._t = stamp(s); }
   persist();
   if(s && typeof pushWrite === 'function') pushWrite({table:'plan_days', row:s});
 }
@@ -2312,7 +2327,7 @@ function prepTasks(weekStart){
 /* ---------------- inventory (pantry / fridge / freezer / shopping) ---------------- */
 function invItems(kind){ return DATA.inventory.items.filter(it=> it.kind===kind && !it._d); }
 function addInvItem(kind, name, qty, unit, listId, useBy){
-  const row = {id:uid(), kind, name, qty: qty||'', unit: unit||'', listId: listId||null, useBy: useBy||null, _t: Date.now()};
+  const row = {id:uid(), kind, name, qty: qty||'', unit: unit||'', listId: listId||null, useBy: useBy||null, _t: stamp()};
   DATA.inventory.items.push(row);
   persist();
   if(typeof pushWrite === 'function') pushWrite({table:'inventory_items', kind, row});
@@ -2358,7 +2373,7 @@ function usesExpiringSoon(r){
    be looking at different lists on their own phones at the same time. */
 function getShoppingLists(){ return DATA.shoppingLists.filter(l=>!l._d).sort((a,b)=>(a._t||0)-(b._t||0)); }
 function addShoppingList(name){
-  const row = {id:uid(), name, _t: Date.now()};
+  const row = {id:uid(), name, _t: stamp()};
   DATA.shoppingLists.push(row);
   persist();
   if(typeof pushWrite === 'function') pushWrite({table:'shopping_lists', row});
@@ -2367,16 +2382,16 @@ function addShoppingList(name){
 function renameShoppingList(id, name){
   const l = DATA.shoppingLists.find(x=>x.id===id);
   if(!l) return;
-  l.name = name; l._t = Date.now();
+  l.name = name; l._t = stamp(l);
   persist();
   if(typeof pushWrite === 'function') pushWrite({table:'shopping_lists', row:l});
 }
 function deleteShoppingList(id){
   const l = DATA.shoppingLists.find(x=>x.id===id);
   if(!l) return;
-  l._d = true; l._t = Date.now();
+  l._d = true; l._t = stamp(l);
   DATA.inventory.items.filter(it=> it.kind==='shopping' && it.listId===id && !it._d).forEach(it=>{
-    it._d = true; it._t = Date.now();
+    it._d = true; it._t = stamp(it);
     if(typeof pushWrite === 'function') pushWrite({table:'inventory_items', kind: it.kind, row: it});
   });
   persist();
@@ -2403,7 +2418,7 @@ function ensureActiveShopList(){
 }
 function removeInvItem(id){
   const it = DATA.inventory.items.find(x=>x.id===id);
-  if(it){ it._d = true; it._t = Date.now(); }
+  if(it){ it._d = true; it._t = stamp(it); }
   persist();
   if(it && typeof pushWrite === 'function') pushWrite({table:'inventory_items', kind: it.kind, row: it});
 }
@@ -2413,7 +2428,7 @@ function removeInvItem(id){
 function markInvEmpty(id){
   const it = DATA.inventory.items.find(x=>x.id===id);
   if(!it) return;
-  it.qty = 0; it._t = Date.now();
+  it.qty = 0; it._t = stamp(it);
   const already = invItems('shopping').some(s=> s.name.toLowerCase() === it.name.toLowerCase());
   persist();
   if(typeof pushWrite === 'function') pushWrite({table:'inventory_items', kind: it.kind, row: it});
@@ -2934,7 +2949,7 @@ function renderSettings(){
     </div>` : ''}
   </div>`;
   const setHH = n =>{
-    p.household = Math.max(1, Math.min(20, n)); p._t = Date.now(); persist(); renderSettings(); renderWeek();
+    p.household = Math.max(1, Math.min(20, n)); p._t = stamp(p); persist(); renderSettings(); renderWeek();
     if(typeof pushWrite === 'function') pushWrite({table:'prefs', row:p});
   };
   host.querySelector('#hhUp').onclick   = ()=> setHH(p.household+1);
@@ -4106,8 +4121,12 @@ function saveQueue(q){
    for the same row completely supersedes an older one still waiting. */
 function opKey(op){ return op.table + '|' + (op.table === 'prefs' ? '' : op.row.id) + '|' + (op.hh||''); }
 function opStamp(op){ return (op.row && op.row._t) || 0; }
-function sameOp(a, b){ return opKey(a) === opKey(b) && opStamp(a) === opStamp(b); }
+/* each queued write gets its own id: the SAME row can be written again (a newer edit) while an older write
+   of it is being sent, and finishing the old one must not remove the new one */
+function sameOp(a, b){ return opKey(a) === opKey(b) && a.seq === b.seq && opStamp(a) === opStamp(b); }
+let opCounter = 0;
 function enqueue(op){
+  if(!op.seq) op.seq = Date.now().toString(36) + '-' + (++opCounter) + '-' + Math.random().toString(36).slice(2, 6);
   const key = opKey(op);
   const q = loadQueue().filter(o=> opKey(o) !== key);
   q.push(op); saveQueue(q);
@@ -4213,6 +4232,9 @@ async function flushQueue(){
         continue;
       }
       if(!isRefusal(res)) break;
+      /* a newer write of the same row was queued while this one was in flight: this one is obsolete,
+         and putting it back would let it overwrite the newer one */
+      if(loadQueue().some(o=> opKey(o) === opKey(op) && !sameOp(o, op))){ saveQueue(loadQueue().filter(o=> !sameOp(o, op))); continue; }
       const fails = (op.fails||0) + 1;
       const rest = loadQueue().filter(o=> !sameOp(o, op));
       if(fails >= MAX_OP_FAILS){
@@ -4384,6 +4406,34 @@ function repushLocalOnly(remote){
   if(n) console.log(`sync: re-sending ${n} change(s) this device had that the database did not`);
   return n;
 }
+/* Drops queued writes that the database already has a NEWER version of -- another
+   device edited that row after this device did, while this one was offline. Sending
+   them would overwrite the newer edit (the database only refuses that once
+   migrations/014 is applied), and the merge below makes this device adopt the newer
+   version anyway, so the older write is simply obsolete. Writes made under another
+   household are left alone (this only knows the current household's rows). */
+function pruneStaleOps(remote){
+  const hh = currentHousehold();
+  const newest = {
+    cook_log: remote.cookLog, plan_days: remote.plan, inventory_items: remote.inventory.items,
+    shopping_lists: remote.shoppingLists, interested_recipes: remote.interested,
+  };
+  const maps = {};
+  Object.keys(newest).forEach(t=>{ maps[t] = new Map((newest[t]||[]).map(e=> [e.id, e._t||0])); });
+  const q = loadQueue();
+  const keep = q.filter(op=>{
+    if((op.hh || hh) !== hh) return true;
+    if(op.table === 'prefs') return !((remote.prefs && remote.prefs._t || 0) > (op.row._t || 0));
+    const m = maps[op.table];
+    if(!m || op.table === 'cook_log' && op.row.household && op.row.household !== hh) return true;
+    const rt = m.get(op.row.id);
+    return !(rt !== undefined && rt > (op.row._t || 0));
+  });
+  if(keep.length !== q.length){
+    console.log(`sync: dropped ${q.length - keep.length} queued change(s) the database already has newer versions of`);
+    saveQueue(keep);
+  }
+}
 let bootFetchDelayMs = 0;
 async function syncFromRemote(){
   const remote = await remoteFetchAll(true);
@@ -4397,6 +4447,7 @@ async function syncFromRemote(){
   }
   bootFetchDelayMs = 0;
   /* compare against what was on this device BEFORE merging the remote copy in */
+  pruneStaleOps(remote);
   repushLocalOnly(remote);
   DATA = mergeStates(remote, DATA);
   DATA.otherCookLog = remote.otherCookLog || [];

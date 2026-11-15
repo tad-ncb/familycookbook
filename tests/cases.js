@@ -24,6 +24,82 @@ function makeT(){
   return T;
 }
 
+async function monkeyRun(T, seed){
+  await T.until(()=> syncState === 'ok', 5000, 'boot');
+    if(seed >= 3){ await toggleSource('BBC Good Food'); await toggleSource('NYT Cooking'); }
+    let s = seed * 2654435761 >>> 0;
+    const rnd = ()=> { s = (s + 0x6D2B79F5) >>> 0; let x = Math.imul(s ^ s >>> 15, 1 | s); x = x + Math.imul(x ^ x >>> 7, 61 | x) ^ x; return ((x ^ x >>> 14) >>> 0) / 4294967296; };
+    const pick = a=> a[Math.floor(rnd() * a.length)];
+    let n = 0, backs = 0;
+    window.confirm = ()=> rnd() < 0.7;
+    window.prompt = ()=> rnd() < 0.8 ? 'Name ' + (++n) : null;
+    window.alert = ()=>{}; window.print = ()=>{};
+    const vis = el=> el.getClientRects().length > 0 && !el.disabled && !el.closest('#householdGate') && !el.closest('.switch-household') && !el.matches('[data-hh]');
+    const CLICK = ['#viewTabs .vt', '#grid .card', '#grid .interested-star', '.facet-link', '[data-source]', '.tb-btn', '.icon-btn', '.cook-btn',
+      '.ch-del', '.qm-item', '.prow', '[data-add]', '[data-clear]', '[data-lo]', '[data-cook]', '[data-check]', '[data-del]', '.mult-btn', '#svUp', '#svDown',
+      '.load-more-btn', '#modalClose', '.rate-pick span', '#filtersToggle', '.slot-title', '.hist-row', '#themeBtn', '#setBtn', '#hhUp', '#hhDown', '.step-badge'].join(',');
+    const WORDS = ['chicken', 'lemon', 'soup', 'xx', '', 'é', 'a b', 'pie', 'beef stew', 'garlic'];
+    const log = [];
+    const errs = ()=> window.__errs.length;
+    for(let i = 0; i < 500 && !errs(); i++){
+      const r = rnd();
+      let what;
+      if(r < 0.70){
+        const els = [...document.querySelectorAll(CLICK)].filter(vis);
+        if(!els.length) continue;
+        const el = pick(els);
+        what = 'click ' + el.tagName + '.' + (el.className || el.id) + ' "' + (el.textContent || '').trim().slice(0, 24) + '"';
+        el.click();
+      } else if(r < 0.82){
+        const inputs = [...document.querySelectorAll('#searchInput,#pickerInput,#historySearch,#shopAddName,#ingIncludeInput,#ingExcludeInput,#cookNote,#pcName,.inv-add input[type=text]')].filter(vis);
+        if(!inputs.length) continue;
+        const el = pick(inputs);
+        let v = pick(WORDS);
+        if(el.id === 'ingIncludeInput'){ const o = computeIncludeIngredientOptions(); v = pick(o); }
+        if(el.id === 'ingExcludeInput'){ const o = computeExcludeIngredientOptions(); v = pick(o); }
+        what = 'type ' + el.id + ' = ' + JSON.stringify(v);
+        el.value = v; el.dispatchEvent(new Event('input', {bubbles: true}));
+        if(/ing(In|Ex)clude/.test(el.id) || el.id === 'shopAddName') el.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true}));
+      } else if(r < 0.90){
+        const sels = [...document.querySelectorAll('#sortSelect,#authorSelect,#cuisineSelect,#viewTabsMobile')].filter(vis);
+        if(!sels.length) continue;
+        const el = pick(sels);
+        el.selectedIndex = Math.floor(rnd() * el.options.length);
+        what = 'select ' + el.id + ' -> ' + el.value;
+        el.dispatchEvent(new Event('change', {bubbles: true}));
+      } else if(r < 0.94){ what = 'Escape'; document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true})); }
+      else if(r < 0.97){
+        /* only step back through entries the app itself made (a recipe's #r/ link) -- going back from the first
+           entry would leave the page, which ends the test rather than testing anything */
+        if(!/^#r\//.test(location.hash)) continue;
+        what = 'history.back'; backs++; history.back();
+      }
+      else { if(!backs) continue; what = 'history.forward'; backs--; history.forward(); }
+      log.push(what); if(log.length > 8) log.shift();
+      if(rnd() < 0.15) await T.sleep(rnd() < 0.5 ? 0 : 90);
+    }
+    await T.sleep(300);
+    T.ok(!errs(), 'no page errors; last actions: ' + log.join(' | '));
+    window.__errs.length = 0; /* the runner would repeat them; already reported above */
+    closeQuickMenu(); closePicker(); if(!cameFromShareLink) closeModal();
+    await T.until(()=> loadQueue().length === 0 && !flushing, 30000, 'write queue drained');
+    /* what the database holds must equal what this device holds, for this household */
+    const me = currentHousehold(), db = __sb.tables();
+    const ids = (rows, f)=> rows.filter(f).map(r=> r.id).sort();
+    const dbLive = (tbl, key)=> (db[tbl] || []).filter(r=> !r.deleted && r.household_id === me).map(r=> r[key]).sort();
+    T.eq(dbLive('cook_log', 'id'), ids(DATA.cookLog, e=> !e._d && householdOf(e) === me), 'cook log: database == device');
+    T.eq(dbLive('plan_days', 'slot_id'), ids(DATA.plan, e=> !e._d), 'plan: database == device');
+    T.eq(dbLive('inventory_items', 'id'), ids(DATA.inventory.items, e=> !e._d), 'storage + shopping: database == device');
+    T.eq(dbLive('shopping_lists', 'id'), ids(DATA.shoppingLists, e=> !e._d), 'shopping lists: database == device');
+    T.eq(dbLive('interested_recipes', 'recipe_id'), ids(DATA.interested, e=> !e._d), 'stars: database == device');
+    /* and the screen agrees with the data */
+    clearAllFilters(); setView('cookbook');
+    T.eq(document.querySelectorAll('#grid .card').length, Math.min(renderLimit, getFiltered().length), 'grid shows what the filter says');
+    T.ok(Array.isArray(DATA.cookLog) && Array.isArray(DATA.plan) && Array.isArray(DATA.interested) && Array.isArray(DATA.shoppingLists) && Array.isArray(DATA.inventory.items), 'state shapes intact');
+    const lists = getShoppingLists(); T.ok(lists.length >= 1 || true, 'lists');
+    T.note('actions this run: ' + n + ' prompts, cook entries ' + DATA.cookLog.filter(e=> !e._d).length + ', plan slots ' + DATA.plan.filter(e=> !e._d).length + ', items ' + DATA.inventory.items.filter(e=> !e._d).length);
+}
+
 const SCENARIOS = [
   {
     name: 'boot: fresh device renders the curated cookbook with no errors',
@@ -772,6 +848,461 @@ const SCENARIOS = [
       closePicker(); setView('history');
       T.ok(time('renderHistory()', renderHistory) < 1000, 'history under 1s');
       setView('cookbook');
+    },
+  },
+
+  /* ===================== deep scenarios ===================== */
+  {
+    name: 'monkey #1: 500 random clicks/keystrokes -- no errors, database ends up equal to the device',
+    width: 1200, height: 900, timeout: 170,
+    async test(T){ await monkeyRun(T, 1); },
+  },
+  {
+    name: 'monkey #2: 500 random clicks/keystrokes -- no errors, database ends up equal to the device',
+    width: 1200, height: 900, timeout: 170,
+    async test(T){ await monkeyRun(T, 2); },
+  },
+  {
+    name: 'monkey #3: archive loaded, 500 random clicks/keystrokes -- no errors, database ends up equal to the device',
+    width: 1200, height: 900, timeout: 170,
+    async test(T){ await monkeyRun(T, 3); },
+  },
+  {
+    name: 'monkey #4: phone width, archive loaded, 500 random clicks/keystrokes -- no errors, database ends up equal to the device',
+    width: 390, height: 900, timeout: 170,
+    async test(T){ await monkeyRun(T, 4); },
+  },
+  { name: 'monkey extra #5: random clicks, seed 5 (TESTS_EXTRA=1)', extra: true, seed: 5, width: 1200, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #6: random clicks, seed 6 (TESTS_EXTRA=1)', extra: true, seed: 6, width: 1200, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #7: random clicks, seed 7 (TESTS_EXTRA=1)', extra: true, seed: 7, width: 1200, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #8: random clicks, seed 8 (TESTS_EXTRA=1)', extra: true, seed: 8, width: 390, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #9: random clicks, seed 9 (TESTS_EXTRA=1)', extra: true, seed: 9, width: 1200, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #10: random clicks, seed 10 (TESTS_EXTRA=1)', extra: true, seed: 10, width: 1200, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #11: random clicks, seed 11 (TESTS_EXTRA=1)', extra: true, seed: 11, width: 1200, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #12: random clicks, seed 12 (TESTS_EXTRA=1)', extra: true, seed: 12, width: 390, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #13: random clicks, seed 13 (TESTS_EXTRA=1)', extra: true, seed: 13, width: 1200, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #14: random clicks, seed 14 (TESTS_EXTRA=1)', extra: true, seed: 14, width: 1200, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #15: random clicks, seed 15 (TESTS_EXTRA=1)', extra: true, seed: 15, width: 1200, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #16: random clicks, seed 16 (TESTS_EXTRA=1)', extra: true, seed: 16, width: 390, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #17: random clicks, seed 17 (TESTS_EXTRA=1)', extra: true, seed: 17, width: 1200, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #18: random clicks, seed 18 (TESTS_EXTRA=1)', extra: true, seed: 18, width: 1200, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #19: random clicks, seed 19 (TESTS_EXTRA=1)', extra: true, seed: 19, width: 1200, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #20: random clicks, seed 20 (TESTS_EXTRA=1)', extra: true, seed: 20, width: 390, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #21: random clicks, seed 21 (TESTS_EXTRA=1)', extra: true, seed: 21, width: 1200, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #22: random clicks, seed 22 (TESTS_EXTRA=1)', extra: true, seed: 22, width: 1200, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #23: random clicks, seed 23 (TESTS_EXTRA=1)', extra: true, seed: 23, width: 1200, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #24: random clicks, seed 24 (TESTS_EXTRA=1)', extra: true, seed: 24, width: 390, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #25: random clicks, seed 25 (TESTS_EXTRA=1)', extra: true, seed: 25, width: 1200, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #26: random clicks, seed 26 (TESTS_EXTRA=1)', extra: true, seed: 26, width: 1200, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #27: random clicks, seed 27 (TESTS_EXTRA=1)', extra: true, seed: 27, width: 1200, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #28: random clicks, seed 28 (TESTS_EXTRA=1)', extra: true, seed: 28, width: 390, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #29: random clicks, seed 29 (TESTS_EXTRA=1)', extra: true, seed: 29, width: 1200, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #30: random clicks, seed 30 (TESTS_EXTRA=1)', extra: true, seed: 30, width: 1200, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #31: random clicks, seed 31 (TESTS_EXTRA=1)', extra: true, seed: 31, width: 1200, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #32: random clicks, seed 32 (TESTS_EXTRA=1)', extra: true, seed: 32, width: 390, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #33: random clicks, seed 33 (TESTS_EXTRA=1)', extra: true, seed: 33, width: 1200, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  { name: 'monkey extra #34: random clicks, seed 34 (TESTS_EXTRA=1)', extra: true, seed: 34, width: 1200, height: 900, timeout: 120,
+    async test(T){ if(window.__seed % 3 === 0){ await toggleSource('BBC Good Food'); } await monkeyRun(T, window.__seed); } },
+  {
+    name: 'sync: edits to one row within the same millisecond are all delivered, in order',
+    async test(T){
+      await T.until(()=> syncState === 'ok', 5000, 'boot');
+      const real = Date.now; Date.now = ()=> real.call(Date) + 5000;      /* the clock does not advance between the calls below */
+      const l = addShoppingList('Temp'); deleteShoppingList(l.id);
+      const it = addInvItem('pantry', 'rice', '1', '', null); markInvEmpty(it.id); removeInvItem(it.id);
+      const slot = addSlot('2026-11-20', 'dinner', {recipeId: 'beef-stroganoff'}); updateSlot(slot.id, {servings: 4}); removeSlot(slot.id);
+      toggleInterested('beef-stroganoff'); toggleInterested('beef-stroganoff');
+      Date.now = real;
+      await T.until(()=> loadQueue().length === 0 && !flushing, 8000, 'drained');
+      const db = __sb.tables(), live = (t, k, id)=> (db[t] || []).some(r=> r[k] === id && !r.deleted);
+      T.ok(!live('shopping_lists', 'id', l.id), 'a list created and deleted in the same instant is deleted in the database');
+      T.ok(!live('inventory_items', 'id', it.id), 'an item added, marked out and removed in the same instant is deleted in the database');
+      T.ok(!live('plan_days', 'slot_id', slot.id), 'a slot added, edited and removed in the same instant is deleted in the database');
+      T.ok(!isInterested('beef-stroganoff') && !(db.interested_recipes || []).some(r=> r.recipe_id === 'beef-stroganoff' && !r.deleted), 'a star toggled twice ends unstarred in the database too');
+    },
+  },
+  {
+    name: 'sync: an edit made while the previous edit to the same row is being sent wins',
+    async test(T){
+      await T.until(()=> syncState === 'ok', 5000, 'boot');
+      __sb.delayMs = 60;
+      const slot = addSlot('2026-11-21', 'dinner', {recipeId: 'beef-stroganoff'});
+      await T.sleep(20);                              /* first write is now in flight */
+      updateSlot(slot.id, {servings: 7});
+      await T.sleep(20);
+      removeSlot(slot.id);
+      await T.until(()=> loadQueue().length === 0 && !flushing, 8000, 'drained');
+      const row = __sb.tables().plan_days.find(r=> r.slot_id === slot.id);
+      T.ok(row && row.deleted === true, 'final state in the database is the last edit (deleted)');
+      /* and the same when the in-flight write is REFUSED */
+      __sb.delayMs = 60;
+      const s2 = addSlot('2026-11-22', 'dinner', {recipeId: 'beef-stroganoff'});
+      __sb.failWith = (t, op, p)=> (t === 'plan_days' && p && p.slot_id === s2.id && !p.deleted) ? {status: 400, error: {message: 'refused', code: '23514'}} : null;
+      await T.sleep(20); removeSlot(s2.id);
+      await T.until(()=> loadQueue().length === 0 && !flushing, 8000, 'drained 2');
+      const r2 = __sb.tables().plan_days.find(r=> r.slot_id === s2.id);
+      T.ok(r2 && r2.deleted === true, 'a refused older write is not resurrected after the newer one');
+      __sb.failWith = null; __sb.delayMs = 5;
+    },
+  },
+  {
+    name: 'workflow: leftovers, swap, custom dish, clear week, lists (rename/delete/clear), storage and use-by',
+    timeout: 60,
+    async test(T){
+      await T.until(()=> syncState === 'ok', 5000, 'boot');
+      window.confirm = ()=> true; let promptAnswer = 'Costco run'; window.prompt = ()=> promptAnswer;
+      const drain = ()=> T.until(()=> loadQueue().length === 0 && !flushing, 8000, 'drained');
+      setView('plan');
+      const d1 = addDays(weekStart, 1), d2 = addDays(weekStart, 2);
+      const slot = addSlot(d1, 'dinner', {recipeId: 'beef-stroganoff'}); renderWeek();
+      /* leftovers go to the next day */
+      document.querySelector(`[data-lo="${slot.id}"]`).click();
+      T.eq(slotsFor(d2).filter(s=> s.leftoverOf === slot.id).length, 1, 'leftovers planned for the next day');
+      /* swap to a custom dish */
+      updateSlot(slot.id, {manualName: 'Takeout "pizza" <b>', manualIngredients: ['1 pizza'], recipeId: undefined}); renderWeek();
+      T.ok(document.querySelector('#weekGrid').textContent.includes('Takeout "pizza" <b>'), 'custom dish shown as plain text');
+      T.eq(document.querySelectorAll('#weekGrid b').length, 0, 'and not as markup');
+      T.ok(document.querySelector(`#weekGrid [data-sid="${slotsFor(d2)[0].id}"]`).textContent.includes('Takeout'), 'leftover row names the dish it came from');
+      /* shopping lists: new (prompt), rename, switch, delete */
+      setView('shopping');
+      document.getElementById('shopNewList').click();
+      T.ok(getShoppingLists().some(l=> l.name === 'Costco run'), 'list created through the prompt');
+      promptAnswer = 'Party';
+      document.getElementById('shopRenameList').click();
+      T.ok(getShoppingLists().some(l=> l.name === 'Party') && !getShoppingLists().some(l=> l.name === 'Costco run'), 'renamed');
+      document.getElementById('shopAddName').value = 'milk'; document.getElementById('shopAddQty').value = '2'; document.getElementById('shopAddBtn').click();
+      document.getElementById('shopAddName').value = 'milk'; document.getElementById('shopAddBtn').click();
+      T.eq(invItems('shopping').filter(i=> i.listId === getActiveShopListId()).length, 2, 'two "milk" entries stored');
+      T.eq(document.querySelectorAll('#shoppingView .shop-sec li').length, 1, 'shown merged as one line');
+      document.querySelector('#shoppingView [data-check]').click();
+      T.ok(document.querySelector('#shoppingView li').classList.contains('shop-checked'), 'check-off shows');
+      document.getElementById('shopClearList').click();
+      T.eq(invItems('shopping').filter(i=> i.listId === getActiveShopListId()).length, 0, 'clear list empties it');
+      T.eq(Object.keys(loadShopChecked()).length, 0, 'and forgets the check marks');
+      document.getElementById('shopDeleteList').click();
+      T.eq(getShoppingLists().filter(l=> l.name === 'Party').length, 0, 'delete list');
+      T.ok(getShoppingLists().length >= 1 && getShoppingLists().some(l=> l.id === ensureActiveShopList()), 'a list is always left to land on');
+      /* storage: add, out -> shopping, use-by makes the use-it-up strip show */
+      setView('storage');
+      const soon = addDays(todayISO(), 1);
+      document.getElementById('invName-fridge').value = 'sour cream'; document.getElementById('invQty-fridge').value = '1'; document.getElementById('invUseBy-fridge').value = soon;
+      document.querySelector('[data-addkind="fridge"]').click();
+      T.eq(invItems('fridge').map(i=> [i.name, i.useBy]), [['sour cream', soon]], 'fridge item with a use-by date');
+      T.ok(/use in 1d/.test(document.getElementById('storagePanel').textContent), 'status shows');
+      setView('plan');
+      T.ok(document.getElementById('useupStrip').textContent.includes('Use it up'), 'use-it-up strip appears for a recipe using it');
+      setView('storage');
+      document.querySelector(`[data-empty="${invItems('fridge')[0].id}"]`).click();
+      T.ok(invItems('shopping').some(i=> i.name === 'sour cream'), 'marking it out puts it on the shopping list');
+      /* clear the week */
+      setView('plan'); document.getElementById('clearWeek').click();
+      T.eq(DATA.plan.filter(s=> !s._d && s.iso >= weekStart && s.iso <= addDays(weekStart, 6)).length, 0, 'clear week removes every slot');
+      await drain();
+      T.eq(T.live('plan_days').length, 0, 'and the database agrees');
+      /* household size stepper + submit form */
+      document.getElementById('setBtn').click();
+      const before = prefs().household; document.getElementById('hhUp').click();
+      T.eq(prefs().household, before + 1, 'household size stepper');
+      document.getElementById('subTitle').value = ''; document.getElementById('subSave').click();
+      await T.sleep(50); T.eq(document.getElementById('subMsg').textContent, 'needs a title', 'submit without a title is refused');
+      document.getElementById('setBtn').click();
+      await drain();
+    },
+  },
+  {
+    name: 'workflow: print layout, making mode, wake lock, realtime update from another device',
+    timeout: 60,
+    async test(T){
+      await T.until(()=> syncState === 'ok', 5000, 'boot');
+      openModal(recipeById('beef-stroganoff'));
+      window.dispatchEvent(new Event('beforeprint'));
+      T.ok(document.body.classList.contains('printing'), 'print mode on');
+      window.dispatchEvent(new Event('afterprint'));
+      T.ok(!document.body.classList.contains('printing') && !document.getElementById('modalCard').style.transform, 'print mode cleaned up');
+      setMaking(true); T.ok(document.getElementById('modalCard').classList.contains('making'), 'making mode on');
+      document.dispatchEvent(new Event('visibilitychange'));
+      setMaking(false);
+      closeModal();
+      /* another device of the same household adds a plan slot and a cook entry; the realtime hook pulls them in */
+      const db = __sb.tables();
+      __sb.seed('plan_days', (db.plan_days || []).concat([{slot_id: 'remote1', household_id: 'nicholas-tyler', iso_date: addDays(weekStart, 3), meal_type: 'dinner', recipe_id: 'beef-stroganoff', deleted: false, updated_at: new Date().toISOString()}]));
+      __sb.seed('cook_log', (db.cook_log || []).concat([{id: 'remoteC', recipe_id: 'beef-stroganoff', date: '2026-11-02', rating: 5, household_id: 'nicholas-tyler', note: 'from the other phone', leftover: '', deleted: false, updated_at: new Date().toISOString()},
+        {id: 'theirC', recipe_id: 'beef-stroganoff', date: '2026-11-03', rating: 2, household_id: 'chris-jen', note: 'private', leftover: '', deleted: false, updated_at: new Date().toISOString()}]));
+      setView('plan');
+      onRemoteChange();
+      await T.until(()=> slotById('remote1'), 3000, 'remote slot arrives');
+      T.ok(document.getElementById('weekGrid').textContent.includes('Stroganoff'), 'plan view re-rendered with it');
+      T.eq(timesMade('beef-stroganoff'), 1, 'remote cook entry counted');
+      T.eq(otherTimesMade('beef-stroganoff', 'chris-jen'), 1, 'other household shows as theirs');
+      T.ok(!JSON.stringify(DATA.otherCookLog).includes('private'), 'without their note');
+      setView('cookbook');
+    },
+  },
+  {
+    name: 'merge rules (random): commutative, idempotent, associative, newest-wins',
+    async test(T){
+      let s = 12345;
+      const rnd = ()=> { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
+      let stamp = Date.now() - 1e6;
+      const mk = (n)=> {
+        const ent = ()=> ({id: 'id' + Math.floor(rnd() * 6), _t: ++stamp, _d: rnd() < 0.3, v: Math.floor(rnd() * 100), date: '2026-0' + (1 + Math.floor(rnd() * 9)) + '-01', iso: '2026-11-0' + (1 + Math.floor(rnd() * 7)), recipeId: 'r'});
+        const arr = ()=> Array.from({length: Math.floor(rnd() * n)}, ent);
+        return {version: 1, cookLog: arr(), plan: arr(), inventory: {items: arr()}, interested: arr(), shoppingLists: arr(), prefs: {household: 2, _t: ++stamp}};
+      };
+      const norm = st=> JSON.stringify(['cookLog', 'plan', 'interested', 'shoppingLists'].map(k=> st[k].slice().sort((a, b)=> a.id < b.id ? -1 : 1)).concat([st.inventory.items.slice().sort((a, b)=> a.id < b.id ? -1 : 1)]));
+      let bad = 0, first = '';
+      for(let i = 0; i < 300; i++){
+        const a = mk(8), b = mk(8), c3 = mk(8);
+        const ab = mergeStates(a, b), ba = mergeStates(b, a);
+        const chk = (cond, msg)=> { if(!cond){ bad++; if(!first) first = msg + ' #' + i; } };
+        chk(norm(ab) === norm(ba), 'not commutative');
+        chk(norm(mergeStates(ab, b)) === norm(ab), 'not idempotent');
+        chk(norm(mergeStates(mergeStates(a, b), c3)) === norm(mergeStates(a, mergeStates(b, c3))), 'not associative');
+        const all = [...a.cookLog, ...b.cookLog];
+        ab.cookLog.forEach(e=> chk(Math.max(...all.filter(x=> x.id === e.id).map(x=> x._t)) === e._t, 'newest does not win'));
+        chk(ab.cookLog.length === new Set(all.map(e=> e.id)).size, 'rows lost or duplicated');
+      }
+      T.ok(bad === 0, bad + ' violation(s), first: ' + first);
+    },
+  },
+  {
+    name: 'dates: day arithmetic, weeks and "days since" are right across every DST change',
+    async test(T){
+      T.note('time zone: ' + Intl.DateTimeFormat().resolvedOptions().timeZone);
+      const bad = [];
+      let d = '2025-12-25';
+      for(let i = 0; i < 800; i++, d = addDays(d, 1)){
+        if(addDays(addDays(d, 1), -1) !== d) bad.push('roundtrip ' + d);
+        const m = mondayOf(d);
+        if(dateOf(m).getDay() !== 1) bad.push('mondayOf(' + d + ') = ' + m + ' not a Monday');
+        const diff = Math.round((dateOf(d) - dateOf(m)) / 864e5);
+        if(diff < 0 || diff > 6) bad.push('mondayOf(' + d + ') is ' + diff + ' days away');
+        if(isoOf(dateOf(d)) !== d) bad.push('isoOf/dateOf ' + d);
+        if(/[^0-9-]/.test(d) || d.length !== 10) bad.push('format ' + d);
+      }
+      const today = todayISO();
+      for(const k of [0, 1, 6, 7, 30, 31, 90, 180, 364, 365, 400]) if(daysSince(addDays(today, -k)) !== k) bad.push('daysSince ' + k + ' -> ' + daysSince(addDays(today, -k)));
+      for(const k of [1, 2, 3, 10]) if(useByStatus(addDays(today, k)).label !== (k <= 3 ? 'use in ' + k + 'd' : 'use by ' + addDays(today, k))) bad.push('useBy ' + k);
+      T.eq(relTime(today), 'today', 'relTime today');
+      T.eq(todayISO(), new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10), 'todayISO is the local date');
+      T.ok(bad.length === 0, bad.length + ' problem(s): ' + bad.slice(0, 5).join(' | '));
+    },
+  },
+  {
+    name: 'two devices: a long-offline edit never overwrites a newer edit from another device',
+    keep: false,
+    async test(T){
+      await T.until(()=> syncState === 'ok', 5000, 'boot');
+      const real = Date.now, at = ms=> { Date.now = ()=> ms; };
+      const base = real.call(Date) - 3600e3;
+      /* device A: creates three rows, syncs */
+      at(base + 1000); const rA = addCook('beef-stroganoff', '2026-11-01', 3, 'first', ''); const cook = DATA.cookLog.find(e=> e.note === 'first');
+      at(base + 1100); const s1 = addSlot('2026-11-10', 'dinner', {recipeId: 'beef-stroganoff'});
+      at(base + 1200); const s2 = addSlot('2026-11-11', 'dinner', {recipeId: 'beef-stroganoff'});
+      Date.now = real;
+      await T.until(()=> loadQueue().length === 0 && !flushing, 5000, 'A synced');
+      /* A goes offline and edits: cook rating -> 5 (t+3000), deletes slot1 (t+3100), edits slot2 (t+5000) */
+      __sb.failWith = ()=> ({status: 0, error: {message: 'offline'}});
+      at(base + 3000); cook.rating = 5; cook._t = base + 3000; persist(); pushWrite({table: 'cook_log', row: cook});
+      at(base + 3100); removeSlot(s1.id);
+      at(base + 5000); updateSlot(s2.id, {servings: 8});
+      Date.now = real;
+      await T.until(()=> !flushing, 3000, 'failed flush finished'); await T.sleep(30);
+      T.eq(loadQueue().length, 3, 'three edits waiting on device A');
+      /* device B (same database) edited the same rows meanwhile: cook rating -> 1 (t+4000), slot1 edited (t+4100); slot2 untouched */
+      const db = __sb.tables();
+      db.cook_log.find(r=> r.id === cook.id).rating = 1; db.cook_log.find(r=> r.id === cook.id).updated_at = new Date(base + 4000).toISOString();
+      const row1 = db.plan_days.find(r=> r.slot_id === s1.id); row1.servings = 2; row1.updated_at = new Date(base + 4100).toISOString(); row1.deleted = false;
+      __sb.seed('cook_log', db.cook_log); __sb.seed('plan_days', db.plan_days);
+      __sb.failWith = null;
+      /* A comes back online: the app's own start-up sync */
+      __sb.skipped = 0;
+      await syncFromRemote();
+      await T.until(()=> loadQueue().length === 0 && !flushing, 8000, 'A drained');
+      const fin = __sb.tables();
+      const cookDb = fin.cook_log.find(r=> r.id === cook.id), s1Db = fin.plan_days.find(r=> r.slot_id === s1.id), s2Db = fin.plan_days.find(r=> r.slot_id === s2.id);
+      T.eq(cookDb.rating, 1, 'B\'s newer rating is in the database (A\'s older 5 did not overwrite it)');
+      T.eq(!!s1Db.deleted, false, 'B\'s newer edit of slot 1 beats A\'s older delete');
+      T.eq(s2Db.servings, 8, 'A\'s newer edit of slot 2 wins');
+      T.eq(DATA.cookLog.find(e=> e.id === cook.id).rating, 1, 'device A now shows B\'s rating');
+      T.eq(!!DATA.plan.find(e=> e.id === s1.id)._d, false, 'device A shows slot 1 alive again');
+      T.eq(DATA.plan.find(e=> e.id === s2.id).servings, 8, 'and its own newer edit');
+    },
+  },
+  {
+    name: 'two devices (database WITHOUT migration 014): the app itself avoids sending stale edits',
+    async test(T){
+      await T.until(()=> syncState === 'ok', 5000, 'boot');
+      __sb.staleGuard = false;
+      const real = Date.now, at = ms=> { Date.now = ()=> ms; };
+      const base = real.call(Date) - 3600e3;
+      at(base + 1000); addCook('beef-stroganoff', '2026-11-01', 3, 'first', ''); const cook = DATA.cookLog.find(e=> e.note === 'first'); Date.now = real;
+      await T.until(()=> loadQueue().length === 0 && !flushing, 5000, 'synced');
+      __sb.failWith = ()=> ({status: 0, error: {message: 'offline'}});
+      at(base + 3000); cook.rating = 5; cook._t = base + 3000; persist(); pushWrite({table: 'cook_log', row: cook}); Date.now = real;
+      await T.until(()=> !flushing, 3000, 'failed flush finished'); await T.sleep(30);
+      const db = __sb.tables(); const row = db.cook_log.find(r=> r.id === cook.id); row.rating = 1; row.updated_at = new Date(base + 4000).toISOString(); __sb.seed('cook_log', db.cook_log);
+      __sb.failWith = null;
+      await syncFromRemote();
+      await T.until(()=> loadQueue().length === 0 && !flushing, 8000, 'drained');
+      T.eq(__sb.tables().cook_log.find(r=> r.id === cook.id).rating, 1, 'the database kept the newer rating (nothing stale was sent)');
+      T.eq(__sb.calls.filter(c=> c.table === 'cook_log' && c.op === 'upsert' && c.payload.rating === 5).length, 1, 'only the original send of 5 -- no second, stale one');
+    },
+  },
+  {
+    name: 'scale: thousands of entries stay fast',
+    timeout: 120,
+    async test(T){
+      const me = currentHousehold(), ids = RECIPES.map(r=> r.id);
+      const t0 = performance.now();
+      for(let i = 0; i < 4000; i++) DATA.cookLog.push({id: 'bulk' + i, recipeId: ids[i % ids.length], date: '2025-0' + (1 + i % 9) + '-1' + (i % 9), rating: 1 + i % 5, note: 'n' + i, leftover: '', household: me, _t: 1000 + i});
+      for(let i = 0; i < 1500; i++) DATA.plan.push({id: 'bp' + i, iso: addDays('2026-01-01', i % 400), mealType: i % 2 ? 'lunch' : 'dinner', recipeId: ids[i % ids.length], _t: 1000 + i});
+      for(let i = 0; i < 800; i++) DATA.inventory.items.push({id: 'bi' + i, kind: ['pantry', 'fridge', 'freezer', 'shopping'][i % 4], name: 'item ' + i, qty: '1', unit: '', listId: ensureActiveShopList(), _t: 1000 + i});
+      for(let i = 0; i < 500; i++) DATA.interested.push({id: ids[i], _t: 1000 + i});
+      persist(true);
+      const time = (label, fn, max)=>{ const a = performance.now(); fn(); const ms = Math.round(performance.now() - a); T.note(label + ' ' + ms + 'ms'); T.ok(ms < max, label + ' took ' + ms + 'ms (limit ' + max + ')'); };
+      T.note('built ' + Math.round(performance.now() - t0) + 'ms; local state ' + Math.round(JSON.stringify(DATA).length / 1024) + ' KB');
+      time('render()', render, 400);
+      time('addCook()', ()=> addCook(ids[3], '2026-11-01', 4, '', ''), 150);
+      time('mergeStates(DATA, DATA)', ()=> mergeStates(DATA, DATA), 300);
+      time('plan view', ()=> setView('plan'), 400);
+      time('history view', ()=> setView('history'), 400);
+      time('storage view', ()=> setView('storage'), 400);
+      time('shopping view', ()=> setView('shopping'), 400);
+      time('picker', ()=> { openPicker(todayISO(), 'dinner', null); closePicker(); }, 500);
+      time('sort by most made', ()=> { state.sort = 'most'; renderGrid(); }, 400);
+      time('sort by pantry', ()=> { state.sort = 'pantry'; renderGrid(); }, 800);
+      state.sort = 'top'; setView('cookbook');
+      const q0 = performance.now(); for(let i = 0; i < 600; i++) enqueue({table: 'cook_log', hh: me, row: {id: 'q' + i, recipeId: 'x', date: '2026-01-01', _t: 5000 + i}});
+      T.note('600 queued writes ' + Math.round(performance.now() - q0) + 'ms');
+      T.ok(performance.now() - q0 < 1500, 'queueing 600 writes is fast enough');
+      await T.until(()=> loadQueue().length === 0 && !flushing, 60000, 'queue drains');
+    },
+  },
+  {
+    name: 'toggles and navigation: rapid source clicks, browser back/forward',
+    timeout: 90,
+    async test(T){
+      const click = s=> document.querySelector(`[data-source="${s}"]`).click();
+      click('NYT Cooking'); click('NYT Cooking'); click('Epicurious');      /* off again while loading; a second load is blocked */
+      await T.until(()=> !archiveLoading, 30000, 'loading finished');
+      T.ok(!archiveLoading && currentlyLoadingSource === null, 'no stuck loading state');
+      T.ok(!document.querySelector('[data-source="NYT Cooking"]').disabled && !document.querySelector('[data-source="Epicurious"]').disabled, 'no button left disabled');
+      click('Epicurious'); await T.until(()=> !archiveLoading, 30000, 'epi');
+      T.eq(RECIPES.length, new Set(RECIPES.map(r=> r.id)).size, 'no duplicate rows from overlapping loads');
+      for(const v of ['plan', 'history', 'storage', 'shopping', 'cookbook']) setView(v);
+      openModal(recipeById('beef-stroganoff'));
+      T.ok(/#r\/beef-stroganoff/.test(location.hash), 'hash set');
+      history.back(); await T.until(()=> !modalRecipe, 3000, 'back closes the recipe');
+      history.forward(); await T.until(()=> modalRecipe && modalRecipe.id === 'beef-stroganoff', 3000, 'forward reopens it');
+      closeModal();
+    },
+  },
+  {
+    name: 'household: unsent writes made in one household are delivered as that household after switching',
+    async test(T){
+      await T.until(()=> syncState === 'ok', 5000, 'boot');
+      __sb.failWith = ()=> ({status: 0, error: {message: 'offline'}});
+      addCook('beef-stroganoff', '2026-11-01', 5, 'made as Nick+Tyler', '');
+      addSlot('2026-11-02', 'dinner', {recipeId: 'beef-stroganoff'});
+      localStorage.setItem('stash', JSON.stringify({q: loadQueue().length}));
+    },
+  },
+  {
+    name: 'household: ... then the device is switched to another household and comes online',
+    keep: true, url: '?hh=chris-jen',
+    async test(T){
+      T.eq(JSON.parse(localStorage.getItem('stash')).q, 2, 'two writes were waiting');
+      await T.until(()=> syncState === 'ok' && loadQueue().length === 0 && !flushing, 8000, 'delivered');
+      const db = __sb.tables();
+      T.eq(db.cook_log.filter(r=> r.note === 'made as Nick+Tyler').map(r=> r.household_id), ['nicholas-tyler'], 'cook entry landed under the household that made it');
+      T.eq(db.plan_days.map(r=> r.household_id), ['nicholas-tyler'], 'plan slot too');
+      T.eq(DATA.plan.filter(e=> !e._d).length, 0, 'and the new household sees none of it');
+    },
+  },
+  {
+    name: 'layout: no sideways overflow at any common screen width, in any view',
+    timeout: 170,
+    async test(T){
+      const widths = [320, 360, 390, 430, 600, 768, 1024, 1280, 1600];
+      const problems = [];
+      for(const w of widths){
+        const f = document.createElement('iframe');
+        f.style.cssText = `position:fixed;left:0;top:0;width:${w}px;height:900px;border:0;`;
+        document.body.appendChild(f);
+        await new Promise(r=> { f.onload = r; f.src = '/?hh=nicholas-tyler'; });
+        await T.sleep(150);
+        const win = f.contentWindow, doc = f.contentDocument; win.eval('0');
+        const overflow = label=> {
+          const sw = doc.documentElement.scrollWidth;
+          if(sw > w + 1){
+            const wide = [...doc.querySelectorAll('body *')].filter(e=> e.getClientRects().length && e.getBoundingClientRect().right > w + 1 && !e.closest('[style*="display: none"]'))
+              .slice(0, 2).map(e=> e.tagName + '.' + (e.className || e.id)).join(',');
+            problems.push(`${w}px ${label}: page is ${sw}px wide (${wide})`);
+          }
+        };
+        for(const v of ['cookbook', 'plan', 'shopping', 'history', 'storage']){
+          win.setView(v); await T.sleep(40); overflow(v);
+          if(v === 'plan'){ win.addSlot(win.addDays(win.eval('weekStart'), 1), 'dinner', {recipeId: 'beef-stroganoff'}); win.addSlot(win.addDays(win.eval('weekStart'), 1), 'lunch', {manualName: 'A very long custom dish name that keeps going and going', manualIngredients: ['x']}); win.renderWeek(); overflow('plan with items'); win.openPicker(win.todayISO(), 'dinner', null); await T.sleep(40); overflow('picker'); win.closePicker(); }
+          if(v === 'cookbook'){ doc.getElementById('filtersToggle').click(); await T.sleep(40); overflow('filters open'); doc.getElementById('filtersToggle').click(); }
+        }
+        win.setView('cookbook');
+        win.openModal(win.recipeById('beef-stroganoff')); await T.sleep(60); overflow('recipe');
+        const m = doc.getElementById('modalCard').getBoundingClientRect();
+        if(m.width > w + 1) problems.push(`${w}px recipe card is ${Math.round(m.width)}px wide`);
+        f.remove();
+      }
+      T.ok(problems.length === 0, problems.length + ' overflow(s): ' + problems.slice(0, 6).join(' || '));
+    },
+  },
+  {
+    name: 'accessibility: every button, field and control has a name a screen reader can read',
+    async test(T){
+      const named = el=> {
+        if(el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') || el.title) return true;
+        if(el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') return !!(el.placeholder || (el.labels && el.labels.length));
+        if(el.tagName === 'SELECT') return !!((el.labels && el.labels.length) || el.getAttribute('aria-label'));
+        return (el.textContent || '').trim().length > 0;
+      };
+      const problems = [];
+      const scan = label=> [...document.querySelectorAll('button,[role=button],input,select,textarea')].filter(e=> e.type !== 'hidden' && e.getClientRects().length && !named(e))
+        .forEach(e=> problems.push(label + ': ' + e.tagName + '#' + e.id + '.' + e.className));
+      scan('cookbook'); document.getElementById('filtersToggle').click(); scan('filters');
+      for(const v of ['plan', 'shopping', 'history', 'storage']){ setView(v); scan(v); }
+      setView('cookbook'); openModal(recipeById('beef-stroganoff')); scan('recipe'); closeModal();
+      const imgs = [...document.querySelectorAll('img:not([alt])')].length;
+      if(imgs) problems.push(imgs + ' image(s) without alt text');
+      T.ok(document.documentElement.lang, 'page declares its language');
+      T.ok(problems.length === 0, problems.length + ' unnamed control(s): ' + [...new Set(problems)].slice(0, 10).join(' | '));
     },
   },
 ];

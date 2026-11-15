@@ -233,6 +233,15 @@ def _():
             assert v.get('s') in man['counts'], f'{rid}: detail entry has no valid source key (links to unloaded recipes need it)'
         found |= set(d)
     assert found == seen, f'{len(seen - found)} recipes have no detail text; {len(found - seen)} orphan details'
+    # text cleanliness: the app shows these strings as-is, so leftover markup / entities / control characters would be visible
+    tag, ent, ctrl = re.compile(r'</?[A-Za-z][^<>]*>'), re.compile(r'&(#x?[0-9A-Fa-f]+|[A-Za-z]+);'), re.compile(r'[\x00-\x08\x0b-\x1f\x7f]')
+    dirty = []
+    for b in range(buckets):
+        for rid, v in json.load(open(arch / 'detail' / f'{b}.json', encoding='utf-8')).items():
+            for text in (v.get('ingredients') or []) + (v.get('instructions') or []) + [v.get('notes') or '']:
+                if tag.search(text) or ent.search(text) or ctrl.search(text) or text != text.strip():
+                    dirty.append((rid, text[:60]))
+    assert not dirty, f'{len(dirty)} archive text line(s) with leftover markup/entities/control characters (re-run tools/build_archive_data.py), e.g. {dirty[:3]}'
     for src, n in man['counts'].items():
         idx = json.load(open(arch / 'search' / f'{src}.json', encoding='utf-8'))
         assert len(idx['w']) == len(idx['p']) and idx['w'] == sorted(idx['w']), f'search/{src}: words and row lists out of step'

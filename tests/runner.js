@@ -19,6 +19,10 @@ const ERR_HOOK = `window.__errs = [];
 function makeView(width, height, preload){
   const cfg = $.WKWebViewConfiguration.alloc.init;
   cfg.websiteDataStore = $.WKWebsiteDataStore.nonPersistentDataStore;
+  /* WebKit slows timers to 1/second in a window nobody can see, after ~5s -- that
+     made long scenarios crawl and hid real timing behaviour. Turn that off. */
+  ['hiddenPageDOMTimerThrottlingEnabled', 'pageVisibilityBasedProcessSuppressionEnabled', 'hiddenPageDOMTimerThrottlingAutoIncreases']
+    .forEach(k=> { try{ cfg.preferences.setValueForKey($(false), k); }catch(e){} });
   const add = src=> cfg.userContentController.addUserScript(
     $.WKUserScript.alloc.initWithSourceInjectionTimeForMainFrameOnly(src, $.WKUserScriptInjectionTimeAtDocumentStart, true));
   add(ERR_HOOK);
@@ -56,7 +60,7 @@ function load(wv, url){
 /* runs an async function body in the page and waits for its promise */
 function runAsync(wv, src, timeoutSec){
   const token = '__r' + Math.random().toString(36).slice(2);
-  const kick = evalJS(wv, `window.${token} = null; (${src})().then(v=>{ window.${token} = JSON.stringify({val: v === undefined ? null : v}); }, e=>{ window.${token} = JSON.stringify({err: String(e && e.stack || e)}); }); 0`);
+  const kick = evalJS(wv, `window.${token} = null; (${src})().then(v=>{ window.${token} = JSON.stringify({val: v === undefined ? null : v}); }, e=>{ window.${token} = JSON.stringify({err: String(e && e.name) + ': ' + String(e && e.message) + ' @ ' + String(e && e.stack).split('\\n').slice(0, 3).join(' < ')}); }); 0`);
   if(kick.err) return kick;
   const until = Date.now() + (timeoutSec || 60) * 1000;
   while(Date.now() < until){
@@ -80,7 +84,8 @@ function run(argv){
   const dir = ObjC.unwrap($.NSProcessInfo.processInfo.environment.objectForKey('TESTS_DIR'));
   const casesSrc = readFile(dir + '/cases.js');
   const scenarios = eval(casesSrc + '\n;SCENARIOS');
-  if(which === 'list') return scenarios.map((sc, i)=> sc.keep ? null : i + '\t' + sc.name).filter(x=> x !== null).join('\n');
+  const extra = !!ObjC.unwrap($.NSProcessInfo.processInfo.environment.objectForKey('TESTS_EXTRA'));
+  if(which === 'list') return scenarios.map((sc, i)=> (sc.keep || (sc.extra && !extra)) ? null : i + '\t' + sc.name).filter(x=> x !== null).join('\n');
   let view = null;
   const lines = [];
   for(let i = +which; i < scenarios.length && (i === +which || scenarios[i].keep); i++){
@@ -91,7 +96,7 @@ function run(argv){
     }
     const t0 = Date.now();
     load(view.wv, base + '/' + (sc.url || '?hh=nicholas-tyler'));
-    evalJS(view.wv, casesSrc + '\n;0');
+    evalJS(view.wv, casesSrc + '\n;window.__seed = ' + (sc.seed || 0) + '; 0');
     const r = runAsync(view.wv, `async ()=>{ const T = makeT(); await ({ ${sc.test.toString()} }).test(T); return {fails: T.fails, checks: T.checks, notes: T.notes, errs: window.__errs}; }`, sc.timeout || 90);
     const ms = Date.now() - t0;
     let problems = [];

@@ -10,6 +10,7 @@
      failWith = fn(table, op) -> return {status, error:{message, code}} to fail a
                                  request, or null to let it through
      delayMs                  -> artificial latency per request (default 5)
+     staleGuard               -> behave like migrations/014 (default true); skipped counts skipped writes
 */
 (function(){
   const KEY = '__mockdb';
@@ -22,7 +23,7 @@
   const load = ()=>{ try{ return JSON.parse(localStorage.getItem(KEY)) || FRESH(); }catch(e){ return FRESH(); } };
   const save = db=> localStorage.setItem(KEY, JSON.stringify(db));
   const ctl = window.__sb = {
-    calls: [], failWith: null, delayMs: 5,
+    calls: [], failWith: null, delayMs: 5, staleGuard: true, skipped: 0,
     tables: load,
     seed(table, rows){ const db = load(); db[table] = rows; save(db); },
   };
@@ -48,6 +49,8 @@
         if(q.table === 'family_submissions'){ if(!row.status) row.status = 'draft'; if(!row.created_at) row.created_at = new Date().toISOString(); }
         const at = rows.findIndex(r=> pk.every(k=> r[k] === row[k]));
         if(at === -1) rows.push(row);
+        /* migrations/014: an update whose updated_at is OLDER than the stored row's is silently skipped */
+        else if(q.op === 'upsert' && ctl.staleGuard && row.updated_at && rows[at].updated_at && Date.parse(row.updated_at) < Date.parse(rows[at].updated_at)) ctl.skipped = (ctl.skipped || 0) + 1;
         else if(q.op === 'upsert') rows[at] = Object.assign({}, rows[at], row);
         else return;
       });
