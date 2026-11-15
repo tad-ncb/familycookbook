@@ -9,7 +9,8 @@ lossless snapshot in backups/nyt_recipes/ (all columns, incl. needs_review rows)
 Output (data/archive/):
   manifest.json        {version, counts{source: n}, liteShards{source: k}, detailBuckets}
   lite/<src>-<i>.json  card columns (NYT_LITE_COLUMNS in src/app.js), needs_review=false
-  detail/<b>.json      {id: {ingredients, instructions, notes}} for ids whose
+  detail/<b>.json      {id: {ingredients, instructions, notes, s}} (s = source key, so a
+                       link to a recipe can find which source to load) for ids whose
                        fnv1a32(id) % detailBuckets == b
   search/<src>.json    {w: [word...], p: [[delta-encoded row numbers]...]} -- which
                        rows of that source (numbered in lite order) have each word
@@ -107,7 +108,7 @@ def main():
 
     buckets = [dict() for _ in range(DETAIL_BUCKETS)]
     for r in rows:
-        buckets[fnv1a32(r['id']) % DETAIL_BUCKETS][r['id']] = {c: r.get(c) for c in DETAIL_COLS}
+        buckets[fnv1a32(r['id']) % DETAIL_BUCKETS][r['id']] = {**{c: r.get(c) for c in DETAIL_COLS}, 's': r['archive_source']}
     for b, d in enumerate(buckets):
         dump(OUT / 'detail' / f'{b}.json', d)
 

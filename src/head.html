@@ -1282,6 +1282,10 @@
   body.share-view .modal-overlay{ padding:0; align-items:stretch; }
   body.share-view .modal{ max-width:none; width:100vw; min-height:100vh; margin-bottom:0; border-radius:0; box-shadow:none; }
   body.share-view .modal-close{ display:none; }
+  body.visitor #modalCook, body.visitor .action-row-secondary, body.visitor #markCookedTop{ display:none; }
+  #shareLoading{ display:none; }
+  body.share-view #shareLoading:not(:empty){ display:block; padding:60px 20px; text-align:center; color:var(--ink-soft); font-size:15px; }
+  .icon-btn.modal-star.on{ color:var(--stamp); border-color:var(--stamp); }
   .share-footer{
     text-align:center; padding:18px 20px 8px; font-family:'Nunito Sans',sans-serif;
     font-size:11px; color:var(--ink-faint);
@@ -1337,6 +1341,7 @@
   </div>
 </div>
 
+<div id="shareLoading" role="status"></div>
 <div id="cookbookView">
 <div class="controls">
   <div class="facet-rows">

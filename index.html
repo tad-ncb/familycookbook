@@ -1282,6 +1282,10 @@
   body.share-view .modal-overlay{ padding:0; align-items:stretch; }
   body.share-view .modal{ max-width:none; width:100vw; min-height:100vh; margin-bottom:0; border-radius:0; box-shadow:none; }
   body.share-view .modal-close{ display:none; }
+  body.visitor #modalCook, body.visitor .action-row-secondary, body.visitor #markCookedTop{ display:none; }
+  #shareLoading{ display:none; }
+  body.share-view #shareLoading:not(:empty){ display:block; padding:60px 20px; text-align:center; color:var(--ink-soft); font-size:15px; }
+  .icon-btn.modal-star.on{ color:var(--stamp); border-color:var(--stamp); }
   .share-footer{
     text-align:center; padding:18px 20px 8px; font-family:'Nunito Sans',sans-serif;
     font-size:11px; color:var(--ink-faint);
@@ -1337,6 +1341,7 @@
   </div>
 </div>
 
+<div id="shareLoading" role="status"></div>
 <div id="cookbookView">
 <div class="controls">
   <div class="facet-rows">
@@ -61082,6 +61087,7 @@ function renderGrid(){
   toShow.forEach(r=>{
     const card = document.createElement('div');
     card.className = 'card';
+    card.dataset.id = r.id;
     /* Top-right overlay, not a line of their own -- floats over the title's
        own top-right corner (title already reserves that space via its own
        right padding) instead of taking a dedicated row anywhere. */
@@ -61136,7 +61142,7 @@ function toggleFilterPanel(){
 document.getElementById('filtersToggle').onclick = toggleFilterPanel;
 
 /* ---------------- modal ---------------- */
-let modalRecipe = null, modalFactor = 1;
+let modalRecipe = null, modalFactor = 1, gridStale = false;
 
 /* Maps each of a recipe's already-tagged core ingredients to the FIRST step
    that mentions it -- deliberately first-only (not every occurrence), since
@@ -61420,13 +61426,29 @@ async function openModal(r){
   document.getElementById('modalOverlay').scrollTop = 0;
 
   if(r._lite){
-    await fetchRecipeDetail(r);
-    if(modalRecipe !== r) return; /* closed or navigated to a different recipe while this was in flight */
-    renderScaleBar();
-    renderIngredients();
-    renderStepsAndNotes();
-    wireTicks();
-    paintTicks();
+    const stepsHost = document.getElementById('modalSteps');
+    const loadText = async ()=>{
+      await fetchRecipeDetail(r);
+      if(modalRecipe !== r) return; /* closed or navigated to a different recipe while this was in flight */
+      if(r._lite){
+        /* the download failed (offline, or the host had a hiccup) -- say so and offer a retry, rather than "Loading…" forever */
+        document.getElementById('modalIngredients').innerHTML =
+          `<li class="heading">Couldn't load this recipe${navigator.onLine === false ? ' — you appear to be offline' : ''}. <button type="button" class="icon-btn" id="modalRetry">Retry</button></li>`;
+        stepsHost.innerHTML = '';
+        document.getElementById('modalRetry').onclick = ()=>{
+          document.getElementById('modalIngredients').innerHTML = '<li class="heading">Loading…</li>';
+          stepsHost.innerHTML = '<li>Loading…</li>';
+          loadText();
+        };
+        return;
+      }
+      renderScaleBar();
+      renderIngredients();
+      renderStepsAndNotes();
+      wireTicks();
+      paintTicks();
+    };
+    await loadText();
   }
 }
 function closeModal(){
@@ -61439,6 +61461,7 @@ function closeModal(){
   document.getElementById('modalOverlay').classList.remove('open');
   document.body.style.overflow = '';
   modalRecipe = null;
+  if(gridStale){ gridStale = false; renderGrid(); }
   releaseWake();
   if(/^#r\//.test(location.hash||'')){
     suppressHash = true;
@@ -62673,7 +62696,7 @@ function renderHistory(){
   if(remaining > 0) document.getElementById('histLoadMoreBtn').onclick = ()=>{ historyRenderLimit += 50; renderHistory(); };
 
   const cuis = new Set(all.map(e=>{ const r=recipeById(e.recipeId); return r?r.cuisine:null; }).filter(Boolean));
-  const never = RECIPES.filter(r=> timesMade(r.id)===0).length;
+  const never = RECIPES.filter(r=> !r._fromArchive && timesMade(r.id)===0).length; /* the family cookbook, not every loaded archive row */
   document.getElementById('histStats').innerHTML = `<div class="hist-stats">
     <div class="hstat"><b>${all.length}</b>logged all time</div>
     <div class="hstat"><b>${cuis.size}</b>cuisines cooked</div>
@@ -62810,6 +62833,10 @@ function renderModalActionsTop(){
      action-row-top -- they're lower-frequency than Start Making/Cooked/
      Share/Print, and both open a small popover (see openAddToListMenu/
      openAddToPlanMenu) rather than acting immediately like their row-mates. */
+  /* someone who opened a shared link with no household of their own gets no personal actions */
+  const starOn = !!currentHousehold() && isInterested(modalRecipe.id);
+  const starBtn = currentHousehold()
+    ? `<button class="icon-btn modal-star${starOn?' on':''}" id="modalStar" aria-pressed="${starOn}" title="Save to your Interested list">${starOn?'★':'☆'} Interested</button>` : '';
   host.innerHTML = mobile
     ? `<div class="action-row-top">
         <button class="icon-btn make-btn ${making?'on':''}" id="makeToggle">${making?'⏸':'▶'} ${making?'Making mode on':'Start making'}</button>
@@ -62819,6 +62846,7 @@ function renderModalActionsTop(){
       </div>
       ${making ? `<div class="make-sub"><span class="make-prog" id="makeProg"></span><button class="icon-btn" id="makeReset">reset ticks</button></div>` : ''}
       <div class="action-row-secondary">
+        ${starBtn}
         <button class="icon-btn" id="addToListBtn">${listIcon} Save to list</button>
         <button class="icon-btn" id="addToPlanBtn">${planIcon} Add to plan</button>
       </div>`
@@ -62832,6 +62860,7 @@ function renderModalActionsTop(){
         <button class="icon-btn" id="printRecipe">Print</button>
       </div>
       <div class="action-row-secondary">
+        ${starBtn}
         <button class="icon-btn" id="addToListBtn">Save to list&hellip;</button>
         <button class="icon-btn" id="addToPlanBtn">Add to plan&hellip;</button>
       </div>`;
@@ -62884,6 +62913,22 @@ function renderModalActionsTop(){
      button, Cmd+P, iOS share-sheet Print), not just this click, so a recipe
      printed any other way still gets the same one-page treatment. */
   host.querySelector('#printRecipe').onclick = ()=> window.print();
+  const star = host.querySelector('#modalStar');
+  if(star) star.onclick = ()=>{
+    toggleInterested(modalRecipe.id);
+    const on = isInterested(modalRecipe.id);
+    document.querySelectorAll('#modalStar').forEach(b=>{
+      b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); b.textContent = (on ? '★' : '☆') + ' Interested';
+    });
+    /* keep the grid card's own star in step without rebuilding the grid behind the open page */
+    const card = document.querySelector(`#grid .card[data-id="${CSS.escape(modalRecipe.id)}"]`);
+    if(card){
+      const cs = card.querySelector('.interested-star');
+      cs.classList.toggle('on', on); cs.textContent = on ? '★' : '☆';
+      cs.title = on ? 'Remove from interested' : 'Mark as interested';
+    }
+    if(state.made === 'interested' && !on) gridStale = true; /* drops off the filtered list once the page closes */
+  };
   host.querySelector('#addToListBtn').onclick = e=> openAddToListMenu(e.currentTarget);
   host.querySelector('#addToPlanBtn').onclick = e=> openAddToPlanMenu(e.currentTarget);
   });
@@ -63017,11 +63062,16 @@ document.addEventListener('visibilitychange', ()=>{
 /* ---------------- deep links (#r/<id>) ---------------- */
 let suppressHash = false;
 function hashFor(id){ return '#r/' + id; }
-function openFromHash(){
+function safeDecode(x){ try{ return decodeURIComponent(x); }catch(e){ return x; } } /* a hand-typed or truncated link can hold a broken %-escape */
+async function openFromHash(){
   const m = (location.hash||'').match(/^#r\/(.+)$/);
   if(!m){ if(modalRecipe) closeModal(); return; }
-  const r = recipeById(decodeURIComponent(m[1]));
-  if(r && (!modalRecipe || modalRecipe.id !== r.id)) openModal(r);
+  const id = safeDecode(m[1]);
+  let r = recipeById(id);
+  if(!r) r = await loadUnloadedRecipe(id);
+  const now = (location.hash||'').match(/^#r\/(.+)$/);
+  if(!r || !now || safeDecode(now[1]) !== id) return; /* not found, or they moved on while it loaded */
+  if(!modalRecipe || modalRecipe.id !== r.id) openModal(r);
 }
 window.addEventListener('hashchange', ()=>{ if(!suppressHash) openFromHash(); });
 
@@ -63112,7 +63162,7 @@ function rowToInv(r){ return {id:r.id, kind:r.kind, name:r.name, qty:r.qty, unit
 function rowToInterested(r){ return {id:r.recipe_id, _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
 function rowToShoppingList(r){ return {id:r.id, name:r.name, _d:!!r.deleted, _t:Date.parse(r.updated_at)}; }
 
-async function remoteFetchAll(){
+async function remoteFetchAll(withForeignIds){
   if(!sb) return null;
   const hh = currentHousehold();
   const otherHhs = otherHouseholdIds();
@@ -63139,9 +63189,9 @@ async function remoteFetchAll(){
        repushLocalOnly() can tell "never reached the database" apart from
        "belongs to another household" (a device that was switched between
        households can still hold some of the other one's rows) */
-    otherHhs.length ? sb.from('plan_days').select('slot_id').in('household_id', otherHhs) : none,
-    otherHhs.length ? sb.from('inventory_items').select('id').in('household_id', otherHhs) : none,
-    otherHhs.length ? sb.from('shopping_lists').select('id').in('household_id', otherHhs) : none
+    withForeignIds && otherHhs.length ? sb.from('plan_days').select('slot_id').in('household_id', otherHhs) : none,
+    withForeignIds && otherHhs.length ? sb.from('inventory_items').select('id').in('household_id', otherHhs) : none,
+    withForeignIds && otherHhs.length ? sb.from('shopping_lists').select('id').in('household_id', otherHhs) : none
   ]);
   if(cl.error || pd.error || iv.error || pf.error){
     console.error('Supabase fetch error', cl.error||pd.error||iv.error||pf.error);
@@ -63164,8 +63214,9 @@ async function remoteFetchAll(){
     interested: it.error ? [] : it.data.map(rowToInterested),
     shoppingLists: sl.error ? [] : sl.data.map(rowToShoppingList),
     otherCookLog: ocl.error ? [] : (ocl.data||[]).map(r=>({recipeId:r.recipe_id, rating:r.rating, date:r.date, household:r.household_id})),
-    /* null (= don't re-push anything) unless every one of these lookups worked */
-    foreignIds: (it.error || sl.error || opd.error || oiv.error || osl.error) ? null : {
+    /* only looked up at boot (the only time it's used) -- not on every realtime refresh.
+       null = don't re-push anything unless every one of these lookups worked */
+    foreignIds: !withForeignIds ? null : (it.error || sl.error || opd.error || oiv.error || osl.error) ? null : {
       plan: new Set((opd.data||[]).map(r=>r.slot_id)),
       inventory: new Set((oiv.data||[]).map(r=>r.id)),
       lists: new Set((osl.data||[]).map(r=>r.id)),
@@ -63310,18 +63361,42 @@ async function mergeNytRecipes(rows){
    request instead of that text riding along in the 46k-row bulk load that
    was stalling out on weaker connections. Mutates the row in place so it's
    only ever fetched once per visit, whichever card/link opens it next. */
-const archiveDetailBuckets = new Map(); /* bucket number -> Promise of {id: {ingredients,instructions,notes}} */
-async function fetchRecipeDetail(r){
-  if(!r._lite) return r;
-  const manifest = await getArchiveManifest();
-  if(!manifest) return r;
-  const b = detailBucket(r.id, manifest.detailBuckets);
+const archiveDetailBuckets = new Map(); /* bucket number -> Promise of {id: {ingredients,instructions,notes,s}} */
+function getDetailBucket(id, manifest){
+  const b = detailBucket(id, manifest.detailBuckets);
   if(!archiveDetailBuckets.has(b)){
     const p = fetchArchiveJSON(`detail/${b}.json`, manifest);
     archiveDetailBuckets.set(b, p);
     p.then(d=>{ if(!d) archiveDetailBuckets.delete(b); }); /* failed -> allow a retry next open */
   }
-  const bucket = await archiveDetailBuckets.get(b);
+  return archiveDetailBuckets.get(b);
+}
+/* A link (#r/<id>) to an archive recipe, opened on a device that hasn't loaded that
+   source: the recipe isn't in RECIPES yet. Its detail file (small) names the source it
+   belongs to; load that source (cached after the first time), then it can open. */
+function setShareStatus(msg){ const el = document.getElementById('shareLoading'); if(el) el.textContent = msg || ''; }
+async function loadUnloadedRecipe(id){
+  setShareStatus('Loading recipe…');
+  const manifest = await getArchiveManifest();
+  const bucket = manifest && await getDetailBucket(id, manifest);
+  if(!bucket){ setShareStatus("Couldn't load this recipe" + (navigator.onLine === false ? ' — you appear to be offline.' : '. Check your connection and reload.')); return null; }
+  const entry = bucket[id];
+  const label = entry && Object.keys(ARCHIVE_SOURCE_KEYS).find(k=> ARCHIVE_SOURCE_KEYS[k] === entry.s);
+  if(!label){ setShareStatus("That recipe link doesn't match any recipe."); return null; }
+  while(archiveLoading) await new Promise(r=> setTimeout(r, 200));
+  if(!archiveFetchedSources.has(label)){
+    enabledSources = enabledSources.filter(s=> s !== label); /* so the toggle turns it ON */
+    await toggleSource(label);
+  } else if(!enabledSources.includes(label)) await toggleSource(label);
+  const r = recipeById(id);
+  setShareStatus(r ? '' : "Couldn't load this recipe. Check your connection and reload.");
+  return r;
+}
+async function fetchRecipeDetail(r){
+  if(!r._lite) return r;
+  const manifest = await getArchiveManifest();
+  if(!manifest) return r;
+  const bucket = await getDetailBucket(r.id, manifest);
   const d = bucket && bucket[r.id];
   if(d){
     r.ingredients = d.ingredients || [];
@@ -63568,8 +63643,22 @@ async function nytBoot(src){
 /* ---------------- offline write queue ---------------- */
 const QUEUE_KEY = 'cookbook.pendingWrites';
 const FAILED_WRITES_KEY = 'cookbook.failedWrites';
-function loadQueue(){ try{ return JSON.parse(localStorage.getItem(QUEUE_KEY)) || []; }catch(e){ return []; } }
-function saveQueue(q){ try{ localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); }catch(e){} }
+/* If the browser refuses to store the queue (storage full, or disabled in private
+   browsing), the queue is held in memory instead -- writes still go out this visit
+   rather than vanishing; they're only lost if the tab is closed before they send. */
+let queueFallback = null;
+function loadQueue(){
+  if(queueFallback) return queueFallback;
+  try{
+    const q = JSON.parse(localStorage.getItem(QUEUE_KEY));
+    /* drop anything that isn't a well-formed write -- one damaged entry must not break every later write */
+    return Array.isArray(q) ? q.filter(o=> o && typeof o === 'object' && typeof o.table === 'string' && o.row && typeof o.row === 'object') : [];
+  }catch(e){ return []; }
+}
+function saveQueue(q){
+  try{ localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); queueFallback = null; }
+  catch(e){ queueFallback = q.length ? q : null; }
+}
 /* Which database row an op writes. Every op is a full-row upsert, so a newer op
    for the same row completely supersedes an older one still waiting. */
 function opKey(op){ return op.table + '|' + (op.table === 'prefs' ? '' : op.row.id) + '|' + (op.hh||''); }
@@ -63854,7 +63943,7 @@ function repushLocalOnly(remote){
 }
 let bootFetchDelayMs = 0;
 async function syncFromRemote(){
-  const remote = await remoteFetchAll();
+  const remote = await remoteFetchAll(true);
   if(!remote){
     /* couldn't read the household's data (offline, or the project is down/paused):
        say so instead of showing "synced", and keep trying */
@@ -63898,6 +63987,10 @@ function startApp(){
 }
 function resolveHouseholdThenBoot(){
   if(currentHousehold()){ startApp(); return; }
+  /* Someone following a shared recipe link on a device that isn't in any household
+     (a friend, a relative) just reads the recipe -- no "Whose kitchen is this?"
+     question, no household data, no cook-log/plan/star actions (see body.visitor). */
+  if(cameFromShareLink){ document.body.classList.add('visitor'); return; }
   const gate = document.getElementById('householdGate');
   const btnsHost = document.getElementById('householdGateBtns');
   btnsHost.innerHTML = Object.keys(HOUSEHOLD_LABEL).map(hh=>

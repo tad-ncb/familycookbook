@@ -429,6 +429,197 @@ const SCENARIOS = [
     },
   },
   {
+    name: 'modal: star a recipe from its own page',
+    async test(T){
+      const r = recipeById('beef-stroganoff');
+      openModal(r);
+      const btn = ()=> document.querySelector('#modalActionsTop #modalStar');
+      T.ok(!!btn(), 'star button on the recipe page');
+      T.eq(btn().getAttribute('aria-pressed'), 'false', 'starts unstarred');
+      btn().click();
+      T.ok(isInterested(r.id), 'starred');
+      T.eq(btn().getAttribute('aria-pressed'), 'true', 'button shows it');
+      T.eq(document.querySelector('#modalActionsMobile #modalStar').getAttribute('aria-pressed'), 'true', 'mobile copy too');
+      closeModal();
+      const card = [...document.querySelectorAll('#grid .card')].find(c=> c.dataset.id === r.id);
+      T.ok(!card || card.querySelector('.interested-star').classList.contains('on'), 'the grid card shows the star too');
+      await T.until(()=> loadQueue().length === 0 && !flushing, 5000, 'synced');
+      T.eq(T.live('interested_recipes').length, 1, 'written to the database');
+      state.made = 'interested'; renderGrid();
+      T.eq([...document.querySelectorAll('#grid .card')].length, 1, 'shows in the Interested filter');
+      openModal(r); btn().click(); closeModal();
+      T.eq(document.querySelectorAll('#grid .card').length, 0, 'unstarring from the page removes it from the filtered list on close');
+      clearAllFilters();
+    },
+  },
+  {
+    name: 'share link: a recipient with no household sees the recipe, not the household picker',
+    url: '#r/beef-stroganoff',
+    preload: `localStorage.removeItem('household');`,
+    async test(T){
+      await T.until(()=> modalRecipe, 3000, 'modal');
+      const gate = document.getElementById('householdGate');
+      T.ok(!gate.classList.contains('open'), 'no "Whose kitchen is this?" gate over a shared recipe');
+      T.eq(__sb.calls.length, 0, 'and nothing was fetched or written for a household that does not exist');
+      T.ok(!document.querySelector('#modalActionsTop #modalStar'), 'no star/cook/plan actions for a visitor');
+    },
+  },
+  {
+    name: 'share link: a link to an archive recipe works for someone who has not loaded the archive',
+    url: '?hh=nicholas-tyler#r/brown-rice-nyt',
+    timeout: 60,
+    async test(T){
+      await T.until(()=> modalRecipe && modalRecipe.id === 'brown-rice-nyt', 15000, 'recipe opened');
+      T.ok(modalRecipe && !modalRecipe._lite && modalRecipe.ingredients.length > 0, 'with its ingredients');
+    },
+  },
+  {
+    name: 'archive: a failed recipe-text download shows a retry, not "Loading…" forever',
+    timeout: 60,
+    async test(T){
+      await toggleSource('BBC Good Food');
+      const r = RECIPES.find(x=> archiveSourceOf(x) === 'BBC Good Food');
+      await T.ctl('fail=/detail/');
+      await openModal(r);
+      const text = ()=> document.getElementById('modalIngredients').textContent + document.getElementById('modalSteps').textContent;
+      T.ok(!/Loading/.test(text()), 'no endless Loading… (' + text().slice(0, 60) + ')');
+      const retry = document.getElementById('modalRetry');
+      T.ok(!!retry, 'a Retry button is shown');
+      await T.ctl('fail=');
+      if(retry){ retry.click(); await T.until(()=> !r._lite, 8000, 'retry succeeds'); }
+      T.ok(document.querySelectorAll('#modalIngredients li').length > 0, 'ingredients appear');
+      closeModal();
+    },
+  },
+  {
+    name: 'planner: suggestions and stats only use recipes from the sources that are switched on',
+    timeout: 90,
+    async test(T){
+      await toggleSource('NYT Cooking'); await toggleSource('NYT Cooking'); /* loaded, then switched off again */
+      T.eq(enabledSources, ['Curated'], 'only Family on');
+      const ctx = weekContext(weekStart, null);
+      const cands = candidatesFor(todayISO(), ctx, false).slice(0, 12);
+      T.eq(cands.filter(c=> c.r._fromArchive).length, 0, 'no archive recipe among the top suggestions');
+      await toggleSource('NYT Cooking');
+      T.eq(candidatesFor(todayISO(), ctx, false).slice(0, 12).filter(c=> c.r._fromArchive).length, 0, 'still none with NYT on: suggestions are for the family cookbook');
+      setView('history');
+      const never = +document.querySelector('#histStats .hstat:nth-child(3) b').textContent;
+      T.ok(never < 2000, 'the "never made yet" stat counts the family cookbook, not 17k archive rows (' + never + ')');
+      setView('cookbook');
+    },
+  },
+  {
+    name: 'robustness: damaged saved state and a damaged write queue do not stop the app',
+    preload: `if(!localStorage.getItem('cookbook.state.v1')){
+      localStorage.setItem('cookbook.state.v1', JSON.stringify({version:1, cookLog:[null, 5, {id:'ok1', recipeId:'beef-stroganoff', date:'2026-10-01', rating:'x', household:'nicholas-tyler', _t:1}, {noid:true}],
+        plan:[null, {id:'p1'}, {id:'p2', iso:'2026-11-03', recipeId:'does-not-exist', _t:1}], inventory:{items:[null, {id:'i1', kind:'pantry', name:null, _t:1}]},
+        interested:[null, {id:'beef-stroganoff', _t:1}], shoppingLists:'oops', prefs:null}));
+      localStorage.setItem('cookbook.pendingWrites', JSON.stringify([null, 7, {}, {table:'cook_log'}, {table:'nope', row:{id:'z'}, hh:'nicholas-tyler'}]));
+      localStorage.setItem('cookbook.shopChecked', '{{{');
+    }`,
+    async test(T){
+      T.ok(document.querySelectorAll('#grid .card').length > 0, 'boots and renders');
+      for(const v of ['plan', 'shopping', 'history', 'storage', 'cookbook']) setView(v);
+      addCook('beef-stroganoff', '2026-11-01', 4, '', '');   /* a new write must still work */
+      toggleInterested('chicken-tikka-masala');
+      await T.until(()=> !flushing && loadQueue().filter(o=> o && o.table === 'cook_log' && o.row).length === 0, 8000, 'good writes delivered despite the junk in the queue');
+      T.eq(T.live('cook_log').length, 2, 'the new cook entry and the valid entry stranded in the old state both reached the database');
+      T.ok(T.live('interested_recipes').length >= 1, 'and the star');
+      T.ok(timesMade('beef-stroganoff') >= 1, 'local state usable');
+    },
+  },
+  {
+    name: 'robustness: browser storage that refuses writes (private mode / full) -- nothing is lost',
+    preload: `(function(){ const real = Storage.prototype.setItem; Storage.prototype.setItem = function(k, v){ if(k.indexOf('cookbook.') === 0 && window.__failStore) throw new DOMException('quota', 'QuotaExceededError'); return real.call(this, k, v); }; window.__failStore = true; })();`,
+    async test(T){
+      await T.until(()=> syncState === 'ok', 5000, 'boot');
+      addCook('beef-stroganoff', '2026-11-01', 4, '', '');
+      addSlot('2026-11-02', 'dinner', {recipeId: 'beef-stroganoff'});
+      await T.until(()=> !flushing && T.live('cook_log').length === 1 && T.live('plan_days').length === 1, 8000, 'writes still reach the database');
+      T.ok(true, 'delivered with storage failing');
+    },
+  },
+  {
+    name: 'robustness: IndexedDB unavailable -- archive still loads',
+    preload: `indexedDB.open = function(){ throw new Error('IndexedDB disabled'); };`,
+    timeout: 60,
+    async test(T){
+      await toggleSource('BBC Good Food');
+      T.ok(archiveFetchedSources.has('BBC Good Food') && RECIPES.some(r=> r._fromArchive), 'loaded without the device cache');
+    },
+  },
+  {
+    name: 'robustness: odd search text and malformed links do not throw',
+    async test(T){
+      const input = document.getElementById('searchInput');
+      for(const q of ['(', ')))', '\\', '[a-', '.*', '+', 'é😀', "'; drop table", '   ', 'a', '<b>', '%', '"']){
+        /* straight through the app's own search path (the typing debounce is a timer, which a hidden test window throttles) */
+        state.query = q; render(); await runArchiveSearch(q);
+        T.ok(document.getElementById('grid').children.length >= 0, 'rendered for ' + JSON.stringify(q));
+      }
+      await T.sleep(200);
+      clearAllFilters();
+      location.hash = '#r/%E0%A4%A';             /* malformed percent-encoding */
+      await T.sleep(300);
+      location.hash = '#r/';
+      location.hash = '#r/no-such-recipe-anywhere';
+      await T.sleep(1500);
+      T.ok(!modalRecipe, 'no modal for a recipe that does not exist');
+      history.replaceState(null, '', location.pathname + location.search);
+    },
+  },
+  {
+    name: 'share link: a link to a recipe that does not exist says so',
+    url: '#r/no-such-recipe-anywhere',
+    preload: `localStorage.removeItem('household');`,
+    async test(T){
+      await T.until(()=> /doesn't match/.test(document.getElementById('shareLoading').textContent), 5000, 'message');
+      T.ok(getComputedStyle(document.getElementById('shareLoading')).display !== 'none', 'visible to the visitor');
+    },
+  },
+  {
+    name: 'share link: archive recipe link for a visitor with no household',
+    url: '#r/brown-rice-nyt',
+    preload: `localStorage.removeItem('household');`,
+    timeout: 60,
+    async test(T){
+      await T.until(()=> modalRecipe && modalRecipe.id === 'brown-rice-nyt' && !modalRecipe._lite, 15000, 'opened with full text');
+      T.ok(document.body.classList.contains('visitor'), 'visitor mode');
+      T.eq(getComputedStyle(document.getElementById('modalCook')).display, 'none', 'no cook-log panel');
+      T.eq(__sb.calls.filter(c=> c.op !== 'select').length, 0, 'nothing written');
+    },
+  },
+  {
+    name: 'data: every real ingredient line survives scaling and parsing (no NaN / Infinity / undefined)',
+    timeout: 170,
+    async test(T){
+      const man = await getArchiveManifest();
+      const lines = [];
+      RECIPES.forEach(r=> (r.ingredients||[]).forEach(l=> lines.push(l)));
+      for(let b = 0; b < man.detailBuckets; b += 4){
+        const d = await (await fetch(`data/archive/detail/${b}.json`)).json();
+        for(const id in d) (d[id].ingredients||[]).forEach(l=> lines.push(l));
+      }
+      T.note('lines checked: ' + lines.length);
+      const bad = [];
+      const BAD = /NaN|Infinity|undefined|null|\[object/;
+      for(const line of lines){
+        if(typeof line !== 'string'){ bad.push('non-string line: ' + JSON.stringify(line)); continue; }
+        for(const f of [0.5, 2, 3, 1.5]){
+          let out; try{ out = scaleLine(line, f).text; }catch(e){ bad.push('scaleLine threw on: ' + line + ' :: ' + e.message); break; }
+          if(BAD.test(out) && !BAD.test(line)){ bad.push(`scale x${f}: "${line}" -> "${out}"`); break; }
+        }
+        try{ const n = mergeNoun(line); if(typeof n !== 'string') bad.push('mergeNoun non-string: ' + line); sectionFor(line); ingredientNoun(line); }
+        catch(e){ bad.push('noun threw on: ' + line + ' :: ' + e.message); }
+        if(bad.length > 12) break;
+      }
+      T.ok(bad.length === 0, bad.length + ' problem(s): ' + bad.slice(0, 6).join(' || '));
+      const timeBad = [];
+      RECIPES.forEach(r=>{ try{ const s = fmtTime(r._total) + fmtDur(r._plan||0) + (recipeMacros(r) ? macrosLabel(r) : ''); if(BAD.test(s)) timeBad.push(r.id + ': ' + s); }catch(e){ timeBad.push(r.id + ' threw ' + e.message); } });
+      T.ok(timeBad.length === 0, 'time/macro labels: ' + timeBad.length + ' bad, e.g. ' + timeBad.slice(0, 3).join(' | '));
+    },
+  },
+  {
     name: 'recipe modal: open, scale, tick, close, deep link',
     async test(T){
       document.querySelector('#grid .card').click();

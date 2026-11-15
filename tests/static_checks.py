@@ -37,7 +37,7 @@ BROWSER_GLOBALS = set('''window document location history navigator localStorage
   setTimeout clearTimeout setInterval clearInterval requestAnimationFrame performance getComputedStyle
   Promise Map Set Object Array JSON Math Date String Number Boolean RegExp Error Intl Symbol
   parseInt parseFloat isNaN isFinite encodeURIComponent decodeURIComponent undefined NaN Infinity
-  Uint8Array Uint32Array URL URLSearchParams Blob FileReader TextEncoder KeyboardEvent Event caches self arguments RECIPES'''.split())
+  Uint8Array Uint32Array CSS DOMException URL URLSearchParams Blob FileReader TextEncoder KeyboardEvent Event caches self arguments RECIPES'''.split())
 
 
 @check('src/app.js, sw.js and the test scripts parse as JavaScript')
@@ -230,6 +230,7 @@ def _():
         for rid, v in d.items():
             assert fnv1a32(rid) % buckets == b, f'{rid} is in bucket {b}, the app will look in {fnv1a32(rid) % buckets}'
             assert isinstance(v.get('ingredients'), list) and isinstance(v.get('instructions'), list), f'{rid}: detail shape'
+            assert v.get('s') in man['counts'], f'{rid}: detail entry has no valid source key (links to unloaded recipes need it)'
         found |= set(d)
     assert found == seen, f'{len(seen - found)} recipes have no detail text; {len(found - seen)} orphan details'
     for src, n in man['counts'].items():
