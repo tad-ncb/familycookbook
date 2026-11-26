@@ -46,5 +46,13 @@
   "message": "Script error.",
   "stack": "",
   "url": "file:///Users/tyler/familycookbook/index.html?hh=nicholas-tyler"
+ },
+ {
+  "created_at": "2026-11-25T17:21:06.092053+00:00",
+  "household_id": "nicholas-tyler",
+  "id": "23919bfc-acc0-4d56-9a0e-3e7af93b8adf",
+  "message": "Script error.",
+  "stack": "\n[build 1d311de]",
+  "url": "https://tad-ncb.github.io/familycookbook/"
  }
 ]
